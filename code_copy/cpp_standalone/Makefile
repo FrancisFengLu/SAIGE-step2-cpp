@@ -1,0 +1,61 @@
+CXX      ?= clang++
+CXXFLAGS ?= -std=c++17 -O3 -DARMA_USE_SUPERLU=1 -DARMA_64BIT_WORD=1 -MMD -MP
+
+PKG_CONFIG   := $(shell command -v pkg-config 2>/dev/null)
+
+ifeq ($(strip $(PKG_CONFIG)),)
+  ARMA_CFLAGS :=
+  ARMA_LIBS   :=
+  YAML_CFLAGS :=
+  YAML_LIBS   :=
+else
+  ARMA_CFLAGS := $(shell "$(PKG_CONFIG)" --cflags armadillo 2>/dev/null)
+  ARMA_LIBS   := $(shell "$(PKG_CONFIG)" --libs armadillo 2>/dev/null)
+  YAML_CFLAGS := $(shell "$(PKG_CONFIG)" --cflags yaml-cpp 2>/dev/null)
+  YAML_LIBS   := $(shell "$(PKG_CONFIG)" --libs yaml-cpp 2>/dev/null)
+endif
+
+INCLUDES := -I/usr/local/include \
+            -I/opt/homebrew/opt/boost/include \
+            -I/opt/homebrew/include
+
+ifneq ($(strip $(YAML_CFLAGS)),)
+  INCLUDES += $(YAML_CFLAGS)
+endif
+ifneq ($(strip $(ARMA_CFLAGS)),)
+  INCLUDES += $(ARMA_CFLAGS)
+endif
+
+LIBS := -lyaml-cpp \
+        -larmadillo \
+        -L/opt/homebrew/opt/openblas/lib -lopenblas \
+        -llapack \
+        -L/opt/homebrew/opt/superlu/lib -lsuperlu
+
+ifneq ($(strip $(YAML_LIBS)),)
+  LIBS += $(YAML_LIBS)
+endif
+ifneq ($(strip $(ARMA_LIBS)),)
+  LIBS += $(ARMA_LIBS)
+endif
+
+SOURCES := $(wildcard *.cpp)
+OBJECTS := $(SOURCES:.cpp=.o)
+DEPS    := $(OBJECTS:.o=.d)
+
+TARGET  ?= saige-step2
+
+all: $(TARGET)
+
+$(TARGET): $(OBJECTS)
+	$(CXX) $(CXXFLAGS) $(OBJECTS) $(LIBS) -o $@
+
+%.o: %.cpp
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+
+clean:
+	rm -f $(OBJECTS) $(DEPS) $(TARGET)
+
+.PHONY: all clean
+
+-include $(DEPS)
