@@ -859,9 +859,9 @@ Each test config exercises different code paths. Ordered by priority.
     Requirements: Binary trait + MAC ≤ MACCutoffforER (default 4)
     Status: DONE. Validated via Test 2 (rs44 MAC=1, rs56 MAC=2 now EXACT).
 
-[ ] Test 10: LD matrix output (ldmat.cpp — NOT IMPLEMENTED)
-    Status: ldmat.cpp not created.
-    Note: Optional downstream analysis feature.
+[x] Test 10: LD matrix output (ldmat.cpp — IMPLEMENTED Feb 20)
+    Status: DONE. Tested with 2 genes (99 markers), outputs 3 files.
+    Config: isLDMatrix: true + groupFile triggers LD matrix mode.
 
 [ ] Test 11: Survival trait
     Status: SPA dispatcher throws "not yet implemented" for survival.

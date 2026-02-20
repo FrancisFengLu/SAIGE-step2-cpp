@@ -294,7 +294,7 @@ must use pixi.
   68 functions: DONE
    3 functions: STUB→DONE (upgraded)
   28 functions: NEW→DONE (new standalone code)
-   2 functions: MISSING (er_binary, ldmat — low priority)
+   0 functions: MISSING (er_binary + ldmat both implemented Feb 20)
 
 ### Reference HTML Documents
 
@@ -354,6 +354,29 @@ New files:
   Test 2: Binary + Single-Variant → ALL EXACT (70 markers, ER implemented)
   Test 3: Quant + Region          → BURDEN/SKAT PASS, SKAT-O ~5%
   Test 4: Binary + Region         → NOT YET TESTED
+
+### ER (Efficient Resampling) Implemented
+
+Ported er_binary.cpp/hpp (~530 lines) from 5 SAIGE source files.
+Wired into saige_test.cpp getMarkerPval(). Test 2 now 100% EXACT
+(previously 2 of 70 markers failed due to ER gap).
+
+Bug fix: resout should be empty vector (not copy of res) when
+SKAT res.out is NULL. SKATExactBin_Work handles initialization.
+
+### LDmat (LD Matrix) Implemented
+
+Ported ldmat.cpp/hpp (546 + 73 lines) from SAIGE LDmat.cpp.
+Wired into main.cpp with isLDMatrix config option.
+Tested with 2 genes (99 markers), outputs:
+  - marker_info.txt (per-marker QC info)
+  - LDmat.txt (lower-triangular sparse G'G in COO format)
+  - index.txt (region start/end row indices)
+
+### Implementation Status: ALL FEATURES COMPLETE
+
+  MISSING functions: 0 (was 2: er_binary, ldmat — both done)
+  Remaining unimplemented: survival trait SPA (niche), VCF/BGEN/PGEN readers
 
 ================================================================================
 END OF SESSION NOTES
