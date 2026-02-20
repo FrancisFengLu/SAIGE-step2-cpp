@@ -1,0 +1,10 @@
+field	value
+chr	1
+pos	1
+ref	A
+alt	C
+marker	rs1
+altFreq	0
+altCounts	0
+missingRate	0
+imputeInfo	1

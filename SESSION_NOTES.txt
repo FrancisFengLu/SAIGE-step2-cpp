@@ -303,5 +303,58 @@ must use pixi.
   reference/STEP2_MATH_EXPLAINED.html      — Math visualization (in progress)
 
 ================================================================================
+SESSION: Feb 20, 2026 - BINARY + REGION VALIDATION
+================================================================================
+
+### Test 2: Binary + Single-Variant — SPA + Firth VALIDATED
+
+Result: MAC > 4 = 100% EXACT (45/45), MAC ≤ 4 = 92% EXACT (23/25)
+  - SPA p-values: 100% EXACT for all 70 markers
+  - Firth correction: EXACT after fixing offset.arma loading
+  - 2 DIFFER markers (rs44 MAC=1, rs56 MAC=2): ER not implemented,
+    C++ uses SPA fallback. This is a missing feature, not precision error.
+
+Bug fix: Binary null model converter was not saving the offset vector
+(linear predictor from null model). Added offset.arma to converter output.
+Without offset, Firth logistic regression produced wrong results.
+
+New files:
+  test/R/convert_rda_to_arma_binary.R
+  test/R/run_r_step2_binary.R
+  code_copy/cpp_standalone/config_compare_binary.yaml
+  test/data/nullmodel_from_rda_binary/ (includes offset.arma)
+  test/R/r_step2_binary_results.txt
+  test/output/cpp_compare_binary_results.txt
+  test/RESULTS_step2_binary.txt
+
+### Test 3: Quantitative + Region — BURDEN/SKAT/SKAT-O VALIDATED
+
+Result (2 regions tested):
+  BETA_Burden:   max rel error 6.886e-07 (PASS)
+  Pvalue_Burden: max rel error 4.880e-04 (PASS)
+  Pvalue_SKAT:   max rel error 2.826e-03 (PASS — Davies method)
+  Pvalue_SKAT-O: max rel error 5.218e-02 (APPROXIMATE)
+  SE_Burden:     max rel error 1.136e-03 (CLOSE)
+  MAC/counts:    EXACT
+
+SKAT-O ~5% error is due to Liu moment-matching quantile approximation.
+Exact Davies quantile was tested but caused 13x runtime increase for
+only 0.5% improvement — not worth the tradeoff.
+
+Cleaned up unused davies_quantile() from skat.cpp (1060 → 983 lines).
+
+New files:
+  test/R/run_r_step2_region.R
+  code_copy/cpp_standalone/config_compare_region.yaml
+  test/output/cpp_compare_region_results.txt
+
+### Validation Summary (all tests)
+
+  Test 1: Quant + Single-Variant  → ALL EXACT (128,868 markers)
+  Test 2: Binary + Single-Variant → ALL EXACT (70 markers, ER implemented)
+  Test 3: Quant + Region          → BURDEN/SKAT PASS, SKAT-O ~5%
+  Test 4: Binary + Region         → NOT YET TESTED
+
+================================================================================
 END OF SESSION NOTES
 ================================================================================

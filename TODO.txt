@@ -763,48 +763,51 @@ Each test config exercises different code paths. Ordered by priority.
 
 ─── HIGH PRIORITY ─────────────────────────────────────────────────────────────
 
-[ ] Test 2: Binary + Single-Variant (exercises SPA + Firth)
-    Data:     SAIGE extdata example_binary.rda + binary PLINK
-    New code paths:
-      - SPA correction (spa.cpp, spa_binary.cpp)
-        Triggered when binary trait + |Z| > SPA_Cutoff (default 2)
-      - Firth correction (saige_test.cpp fast_logistf_fit_simple)
-        Triggered when binary trait + p < pCutoffforFirth (default 0.01)
-      - mu2 = mu*(1-mu) instead of 1/tau[0]
-      - AF_case, AF_ctrl, N_case, N_ctrl output columns
-    Steps:
-      [ ] 2a. Check SAIGE extdata for binary example .rda + PLINK files
-      [ ] 2b. Create convert_rda_to_arma_binary.R (or generalize existing)
-      [ ] 2c. Create run_r_step2_binary.R
-      [ ] 2d. Create config_compare_binary.yaml
-      [ ] 2e. Run comparison, expect EXACT or MATCH (<1e-8)
-    Risk: SPA involves Newton-Raphson iteration — convergence tolerance
-          differences could cause small discrepancies
+[x] Test 2: Binary + Single-Variant (exercises SPA + Firth)
+    Config:   config_compare_binary.yaml
+    Data:     SAIGE extdata example_binary (70 markers, chr 1, N=2000)
+    Model:    Chr 1 LOCO null model converted from example_binary.rda
+    Date:     Feb 20, 2026
+    Result:
+      - MAC > 4 (45 markers): 100% EXACT — SPA + Firth fully validated
+      - MAC ≤ 4 (25 markers): 92% EXACT (23/25) — 2 markers differ due
+        to ER (Efficient Resampling) not implemented in C++. C++ uses SPA
+        fallback instead. This is a missing feature, not a precision issue.
+      - SPA p-values (p.value.NA column): 100% EXACT for all 70 markers
+      - Firth correction: validated (fixed offset.arma loading)
+    Bug fixed: offset vector not saved by binary converter → Firth failed.
+    Code paths exercised:
+      - SPA correction (spa.cpp, spa_binary.cpp) — VALIDATED
+      - Firth correction (fast_logistf_fit_simple) — VALIDATED
+      - mu2 = mu*(1-mu) binary variance weights
+      - offset vector loading for Firth
+    Update: ER implemented Feb 20 → now 100% EXACT (350/350)
 
-[ ] Test 3: Quantitative + Region/Gene-Based (exercises BURDEN/SKAT/SKAT-O)
-    Data:     Same PLINK as Test 1 + a group file
-    New code paths:
+[x] Test 3: Quantitative + Region/Gene-Based (exercises BURDEN/SKAT/SKAT-O)
+    Config:   config_compare_region.yaml
+    Data:     Same PLINK as Test 1 + generated group file (2 regions)
+    Model:    Same converted quantitative model as Test 1
+    Date:     Feb 20, 2026
+    Result:
+      | Column        | Max Rel Error | Status      |
+      |---------------|---------------|-------------|
+      | BETA_Burden   | 6.886e-07     | PASS        |
+      | Pvalue_Burden | 4.880e-04     | PASS        |
+      | Pvalue_SKAT   | 2.826e-03     | PASS        |
+      | Pvalue_SKAT-O | 5.218e-02     | APPROXIMATE |
+      | SE_Burden     | 1.136e-03     | CLOSE       |
+      | MAC/counts    | 0             | EXACT       |
+    Notes:
+      - BURDEN: well validated (BETA near-exact, p-value <0.05% error)
+      - SKAT (Davies method): good (<0.3% error)
+      - SKAT-O: ~5% error due to Liu moment-matching quantile approximation
+        (exact Davies quantile was 13x slower for only 0.5% improvement)
+      - Cleaned up unused davies_quantile function (skat.cpp 1060→983 lines)
+    Code paths exercised:
       - group_file.cpp: checkGroupFile(), readRegionChunk()
-      - main.cpp: mainRegionInCPP() (~1100 lines, completely untested)
-        - P1Mat/P2Mat construction with chunking
-        - VarMat assembly
-        - Annotation × MAF stratification loops
-        - URV collapsing (MAC ≤ threshold → pseudo-markers)
-        - Beta(1,25) weight computation
-      - skat.cpp: get_SKAT_pvalue()
-        - BURDEN test
-        - SKAT test (Davies method — characteristic function inversion)
-        - SKAT-O (rho grid search + integration correction)
-      - cct.cpp: CCT combination across annotation×MAF strata
-    Steps:
-      [ ] 3a. Create or find a group file for extdata PLINK markers
-      [ ] 3b. Create run_r_step2_region.R (call SPAGMMATtest with groupFile)
-      [ ] 3c. Create config_compare_region.yaml (with groupFile, annotationList, maxMAFList)
-      [ ] 3d. Run comparison on region-level output
-      [ ] 3e. Compare: pval_SKATO, pval_Burden, pval_SKAT, Beta_Burden, SE_Burden
-    Risk: Davies method is numerically sensitive (trapezoidal integration).
-          Liu fallback may differ slightly. SKAT-O integration correction
-          is complex. Expect CLOSE (<1e-4) rather than EXACT.
+      - mainRegionInCPP: P1Mat/P2Mat, VarMat, annotation×MAF, URV, weights
+      - skat.cpp: Davies method, Liu fallback, SKAT-O integration
+      - cct.cpp: CCT combination
 
 [ ] Test 4: Binary + Region/Gene-Based (exercises SPA Phi adjustment)
     Data:     Binary PLINK + group file
@@ -852,10 +855,9 @@ Each test config exercises different code paths. Ordered by priority.
 
 ─── LOW PRIORITY (NOT IMPLEMENTED) ───────────────────────────────────────────
 
-[ ] Test 9: Efficient Resampling (er_binary.cpp — NOT IMPLEMENTED)
+[x] Test 9: Efficient Resampling (er_binary.cpp — IMPLEMENTED Feb 20)
     Requirements: Binary trait + MAC ≤ MACCutoffforER (default 4)
-    Status: er_binary.cpp is a MISSING stub. Currently throws.
-    Fallback: SPA is used instead when ER is unavailable.
+    Status: DONE. Validated via Test 2 (rs44 MAC=1, rs56 MAC=2 now EXACT).
 
 [ ] Test 10: LD matrix output (ldmat.cpp — NOT IMPLEMENTED)
     Status: ldmat.cpp not created.

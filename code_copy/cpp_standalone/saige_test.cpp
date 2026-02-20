@@ -7,7 +7,7 @@
 
 #include "saige_test.hpp"
 #include "spa.hpp"
-// TODO: #include "er_binary.hpp" when ER is ported
+#include "er_binary.hpp"
 #include "UTIL.hpp"
 #include "getMem.hpp"
 #include <thread>
@@ -619,17 +619,16 @@ if(!t_isER){
 
 }else{ //if(!t_isER){
 
-    // TODO: Port ER (efficient resampling) binary -- SKATExactBin_Work
-    // For now, throw an error if ER is requested
-    throw std::runtime_error("Efficient Resampling (ER) not yet implemented in standalone. Set t_isER=false.");
-
-    /*
     arma::mat Z_er(t_GVec.n_elem, 1);
     Z_er.col(0) = t_GVec;
     arma::vec res_er = m_res;
     arma::vec pi1_er = m_mu;
-    arma::vec resout_er = m_resout;
-    double pval_ER =  SKATExactBin_Work(Z_er, res_er, pi1_er, m_n_case, iIndex, iIndexComVec, resout_er, 2e+6, 1e+4, 1e-6, 1);
+    arma::mat resout_er;
+    if(m_resout.n_elem > 0){
+        resout_er = arma::mat(m_resout.n_elem, 1);
+        resout_er.col(0) = m_resout;
+    }
+    double pval_ER = ER::SKATExactBin_Work(Z_er, res_er, pi1_er, m_n_case, iIndex, iIndexComVec, resout_er, 2e+6, 1e+4, 1e-6, 1);
     char pValueBuf_ER[100];
     sprintf(pValueBuf_ER, "%.6E", pval_ER);
     std::string buffAsStdStr_ER = pValueBuf_ER;
@@ -648,11 +647,10 @@ if(!t_isER){
       t_seBeta = 0;
     }
 
-    if(m_is_Firth_beta & pval <= m_pCutoffforFirth){
+    if(m_is_Firth_beta && pval <= m_pCutoffforFirth){
 	t_isFirth = true;
 	t_qval_Firth = t_qval_ER;
     }
-    */
 }
    if(t_isFirth){
 	if(!is_gtilde){

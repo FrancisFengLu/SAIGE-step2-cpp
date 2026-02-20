@@ -1,0 +1,7 @@
+parameter	value
+n	1000
+p	3
+traitType	binary
+tau0	1
+tau1	0.332677125930786
+SPA_Cutoff	2

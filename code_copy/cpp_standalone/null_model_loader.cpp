@@ -453,10 +453,14 @@ NullModelData loadNullModel(const std::string & model_dir,
         std::cout << "  offset: " << data.offset.n_elem << " elements" << std::endl;
     }
 
-    // --- resout: try to load, else copy from res ---
+    // --- resout: try to load, else leave empty ---
+    // In R SAIGE, resout = as.integer(obj.model$obj_cc$res.out)
+    // When SKAT_Null_Model is called with Adjustment=FALSE, res.out is NULL,
+    // so as.integer(NULL) = integer(0), making resout an empty vector.
+    // SKATExactBin_Work checks res_out.is_empty() and initializes if needed.
     if (!tryLoadArmaVec(model_dir + "/resout.arma", data.resout)) {
-        data.resout = data.res;
-        std::cout << "  resout: not found, copying from res (" << data.resout.n_elem << " elements)" << std::endl;
+        data.resout = arma::vec();  // empty vector, matching R's integer(0)
+        std::cout << "  resout: not found, using empty vector (matches R's NULL res.out)" << std::endl;
     } else {
         std::cout << "  resout: " << data.resout.n_elem << " elements" << std::endl;
     }

@@ -1,0 +1,17 @@
+SAIGE Step 2: R vs C++ Comparison Results
+Date: 2026-02-20 13:12:10.338383 
+R results: /Users/francis/Desktop/Zhou_lab/SAIGE_gene_pixi/Step_2_Feb_11/test/R/r_step2_binary_results.txt 
+C++ results: /Users/francis/Desktop/Zhou_lab/SAIGE_gene_pixi/Step_2_Feb_11/test/output/cpp_compare_binary_results.txt 
+========================================================================================== 
+
+Column     |   Total |   EXACT |   MATCH |   CLOSE |  DIFFER |   MaxRelDiff |   MaxAbsDiff
+------------------------------------------------------------------------------------------ 
+BETA       |      70 |      70 |       0 |       0 |       0 |    0.000e+00 |    0.000e+00
+SE         |      70 |      70 |       0 |       0 |       0 |    0.000e+00 |    0.000e+00
+Tstat      |      70 |      70 |       0 |       0 |       0 |    0.000e+00 |    0.000e+00
+var        |      70 |      70 |       0 |       0 |       0 |    0.000e+00 |    0.000e+00
+p.value    |      70 |      70 |       0 |       0 |       0 |    0.000e+00 |    0.000e+00
+
+Total comparisons: 350
+DIFFER: 0
+OVERALL: PASS

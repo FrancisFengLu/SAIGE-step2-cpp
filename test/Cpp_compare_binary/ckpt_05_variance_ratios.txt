@@ -1,0 +1,2 @@
+index	varRatio_null	varRatio_sparse	MAC_min	MAC_max	varRatio_noXadj
+1	0.94022084164312	0.94022084164312	0	10000000000	0.94022084164312
