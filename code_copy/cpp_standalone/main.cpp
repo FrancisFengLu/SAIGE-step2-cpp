@@ -50,6 +50,7 @@
 #include "getMem.hpp"
 #include "group_file.hpp"
 #include "skat.hpp"
+#include "ldmat.hpp"
 
 // ============================================================
 // Global variables (exact match from SAIGE/src/Main.cpp)
@@ -2504,6 +2505,10 @@ int main(int argc, char* argv[])
             std::cerr << "  isOutputMarkerList:    true/false (default: false)" << std::endl;
             std::cerr << "  max_markers_region:    max markers per region (default: 100000)" << std::endl;
             std::cerr << "  min_gourpmac_for_burdenonly: (default: 5)" << std::endl;
+            std::cerr << std::endl;
+            std::cerr << "LD matrix generation (requires groupFile):" << std::endl;
+            std::cerr << "  isLDMatrix:        true/false (default: false)" << std::endl;
+            std::cerr << "  ldmat_maxMAF:      max MAF for LD matrix (default: 0.5)" << std::endl;
             return 1;
         }
 
@@ -2611,6 +2616,10 @@ int main(int argc, char* argv[])
         double min_gourpmac_for_burdenonly = config["min_gourpmac_for_burdenonly"] ?
             config["min_gourpmac_for_burdenonly"].as<double>() : 5.0;
 
+        // ---- LD matrix generation config ----
+        bool isLDMatrix = config["isLDMatrix"] ? config["isLDMatrix"].as<bool>() : false;
+        double ldmat_maxMAF = config["ldmat_maxMAF"] ? config["ldmat_maxMAF"].as<double>() : 0.5;
+
         // Build r_corr vector: if r_corr_val == 0, use SKAT-O optimal.adj rho grid
         // If r_corr_val == 1, use BURDEN (single rho = 1)
         arma::vec r_corr_vec;
@@ -2681,6 +2690,12 @@ int main(int argc, char* argv[])
             std::cout << "  isSingleInGroupTest:   " << std::boolalpha << isSingleInGroupTest << std::endl;
             std::cout << "  isOutputMarkerList:    " << std::boolalpha << isOutputMarkerList << std::endl;
             std::cout << "  max_markers_region:    " << max_markers_region << std::endl;
+        }
+        if (isLDMatrix) {
+            std::cout << std::endl;
+            std::cout << "  --- LD Matrix generation ---" << std::endl;
+            std::cout << "  isLDMatrix:        " << std::boolalpha << isLDMatrix << std::endl;
+            std::cout << "  ldmat_maxMAF:      " << ldmat_maxMAF << std::endl;
         }
         std::cout << std::endl;
 
@@ -2785,10 +2800,151 @@ int main(int argc, char* argv[])
         }
 
         // ================================================================
-        // Bifurcate: single-variant testing vs region/gene-based testing
+        // Trifurcate: single-variant / LD matrix / region testing
         // ================================================================
 
-        if (!isRegionTest) {
+        if (isLDMatrix && isRegionTest) {
+            // ============================================================
+            // LD MATRIX GENERATION PATH
+            // Computes G^T * G for each region in the group file.
+            // Ported from SAIGE/R/SAIGE_SPATest_Region_LDMat.R + LDmat.cpp
+            // ============================================================
+
+            std::cout << "===== LD Matrix generation mode =====" << std::endl;
+            std::cout << std::endl;
+
+            // Set LDmat global variables
+            setGlobalVarsInCPP_LDmat(
+                nullModel.impute_method,
+                dosage_zerod_cutoff,
+                dosage_zerod_MAC_cutoff,
+                maxMissRate,
+                ldmat_maxMAF,
+                minMAF,
+                minMAC,
+                minINFO,
+                max_markers_region,
+                outputFile);
+
+            // Build marker ID to index map
+            std::cout << "===== Building marker ID to index map =====" << std::endl;
+            std::unordered_map<std::string, uint32_t> markerIDToIndex = ptr_gPLINKobj->getMarkerIDToIndex();
+            std::cout << "  Built map with " << markerIDToIndex.size() << " entries." << std::endl;
+            std::cout << std::endl;
+
+            // Check group file
+            std::cout << "===== Checking group file =====" << std::endl;
+            GroupFileInfo gfInfo = checkGroupFile(groupFile);
+            int nRegions = gfInfo.nRegions;
+            bool is_weight_included = gfInfo.is_weight_included;
+            int nline_per_gene = is_weight_included ? 3 : 2;
+
+            std::cout << "  Group file: " << groupFile << std::endl;
+            std::cout << "  Number of regions: " << nRegions << std::endl;
+            std::cout << "  Weights included: " << std::boolalpha << is_weight_included << std::endl;
+            std::cout << "  Lines per gene: " << nline_per_gene << std::endl;
+            std::cout << std::endl;
+
+            // Open LDmat output files
+            bool isOpenMarkerInfo = openOutfile_single_LDmat(false);
+            if (!isOpenMarkerInfo) {
+                throw std::runtime_error("Cannot open marker info output file: " + outputFile + ".marker_info.txt");
+            }
+            std::cout << "  Marker info file opened: " << outputFile << ".marker_info.txt" << std::endl;
+
+            bool isOpenLDmat = openOutfile_LDmat(false);
+            if (!isOpenLDmat) {
+                throw std::runtime_error("Cannot open LDmat output file: " + outputFile + ".LDmat.txt");
+            }
+            std::cout << "  LDmat file opened: " << outputFile << ".LDmat.txt" << std::endl;
+
+            bool isOpenIndex = openOutfile_index_LDmat(false);
+            if (!isOpenIndex) {
+                throw std::runtime_error("Cannot open index output file: " + outputFile + ".index.txt");
+            }
+            std::cout << "  Index file opened: " << outputFile << ".index.txt" << std::endl;
+            std::cout << std::endl;
+
+            // Loop over regions
+            std::cout << "===== Starting LD matrix computation =====" << std::endl;
+            arma::vec timeStart = getTime();
+
+            std::ifstream gf(groupFile);
+            if (!gf.is_open()) {
+                throw std::runtime_error("Cannot open group file: " + groupFile);
+            }
+
+            unsigned int t_n = (unsigned int)numSamplesAnalysis;
+            int regionsProcessed = 0;
+            int regionsSkipped = 0;
+
+            while (regionsProcessed + regionsSkipped < nRegions) {
+                int remaining = nRegions - regionsProcessed - regionsSkipped;
+                int nregions_to_read = std::min(groups_per_chunk, remaining);
+
+                std::vector<RegionData> regionChunk = readRegionChunk(
+                    gf, nregions_to_read, nline_per_gene, annotationList, markerIDToIndex);
+
+                for (int r = 0; r < (int)regionChunk.size(); r++) {
+                    RegionData& region = regionChunk[r];
+                    int totalIdx = regionsProcessed + regionsSkipped + 1;
+
+                    if (region.variantIDs.empty() || region.annoVec.empty()) {
+                        std::cout << "  Skipping region " << region.regionName
+                                  << " (" << totalIdx << "/" << nRegions
+                                  << "): no matching variants." << std::endl;
+                        regionsSkipped++;
+                        continue;
+                    }
+
+                    std::cout << "  Computing LD matrix for region " << region.regionName
+                              << " (" << totalIdx << "/" << nRegions
+                              << "), " << region.variantIDs.size() << " variants."
+                              << std::endl;
+
+                    // Build annoIndicatorMat as arma::mat (LDmatRegionInCPP expects arma::mat)
+                    arma::mat annoIndicatorMat = arma::conv_to<arma::mat>::from(region.annoIndicatorMat);
+
+                    LDmatRegionInCPP(
+                        genoType,
+                        region.genoIndex_prev,
+                        region.genoIndex,
+                        annoIndicatorMat,
+                        outputFile,
+                        t_n,
+                        isImputation,
+                        region.annoVec,
+                        region.regionName);
+
+                    regionsProcessed++;
+
+                    if (regionsProcessed % 100 == 0) {
+                        std::cout << "    Processed " << regionsProcessed << " regions ("
+                                  << regionsSkipped << " skipped)." << std::endl;
+                    }
+                }
+            }
+
+            gf.close();
+
+            arma::vec timeEnd = getTime();
+            printTime(timeStart, timeEnd, "complete LD matrix computation");
+            std::cout << std::endl;
+
+            std::cout << "  Total regions processed: " << regionsProcessed << std::endl;
+            std::cout << "  Total regions skipped:   " << regionsSkipped << std::endl;
+            std::cout << std::endl;
+
+            // Close LDmat output files
+            closeOutfile_single_LDmat();
+            closeOutfile_LDmat();
+            closeOutfile_index_LDmat();
+
+            std::cout << "  LD matrix output:    " << outputFile << ".LDmat.txt" << std::endl;
+            std::cout << "  Marker info output:  " << outputFile << ".marker_info.txt" << std::endl;
+            std::cout << "  Index output:        " << outputFile << ".index.txt" << std::endl;
+
+        } else if (!isRegionTest) {
             // ============================================================
             // SINGLE-VARIANT TESTING PATH
             // ============================================================
@@ -2978,8 +3134,11 @@ int main(int argc, char* argv[])
                             weightVec(w) = region.weights[w];
                         }
                     } else {
-                        // No weights: use equal weights (1.0)
-                        weightVec = arma::ones<arma::vec>(region.variantIDs.size());
+                        // No weights provided in group file: use zeros to signal
+                        // that default Beta(MAF, 1, 25) weights should be used.
+                        // This matches R SAIGE behavior where WEIGHT=c(0) when
+                        // the group file has no weight line (nline_per_gene != 3).
+                        weightVec = arma::zeros<arma::vec>(1);
                     }
 
                     // Call mainRegionInCPP for this region
@@ -3043,7 +3202,11 @@ int main(int argc, char* argv[])
         std::cout << "===== Done =====" << std::endl;
         std::cout << "  Virtual memory:  " << vm_usage / (1024.0 * 1024.0) << " MB" << std::endl;
         std::cout << "  Resident memory: " << resident_set / (1024.0 * 1024.0) << " MB" << std::endl;
-        if (!isRegionTest) {
+        if (isLDMatrix && isRegionTest) {
+            std::cout << "  LD matrix output:    " << outputFile << ".LDmat.txt" << std::endl;
+            std::cout << "  Marker info output:  " << outputFile << ".marker_info.txt" << std::endl;
+            std::cout << "  Index output:        " << outputFile << ".index.txt" << std::endl;
+        } else if (!isRegionTest) {
             std::cout << "  Output written to: " << g_outputFilePrefixSingle << std::endl;
         } else {
             std::cout << "  Region output: " << g_outputFilePrefixGroup << std::endl;

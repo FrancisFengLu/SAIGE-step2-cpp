@@ -56,6 +56,12 @@ $(TARGET): $(OBJECTS)
 clean:
 	rm -f $(OBJECTS) $(DEPS) $(TARGET)
 
-.PHONY: all clean
+test_region: $(TARGET)
+	./$(TARGET) config_compare_region.yaml
+
+test_ldmat: $(TARGET)
+	./$(TARGET) config_ldmat.yaml
+
+.PHONY: all clean test_region test_ldmat
 
 -include $(DEPS)
