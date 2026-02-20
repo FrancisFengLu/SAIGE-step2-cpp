@@ -1,0 +1,16 @@
+{
+  "traitType": "quantitative",
+  "n": 1000,
+  "p": 3,
+  "tau": [0.20324, 0.486451],
+  "alpha": [-0.259501, 0.504979, 0.50961],
+  "SPA_Cutoff": 2.0,
+  "impute_method": "mean",
+  "flagSparseGRM": false,
+  "isFastTest": true,
+  "isnoadjCov": false,
+  "pval_cutoff_for_fastTest": 0.05,
+  "isCondition": false,
+  "is_Firth_beta": true,
+  "pCutoffforFirth": 0.01
+}

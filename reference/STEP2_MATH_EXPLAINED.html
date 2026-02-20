@@ -1,0 +1,1497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SAIGE Step 2: Mathematics Explained</title>
+
+<!-- KaTeX CDN for math rendering -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {
+    delimiters: [
+      {left: '$$', right: '$$', display: true},
+      {left: '$', right: '$', display: false}
+    ],
+    throwOnError: false
+  });"></script>
+
+<style>
+/* ============================================================
+   CSS Variables & Reset
+   ============================================================ */
+:root {
+  --color-vector: #3498db;
+  --color-matrix: #27ae60;
+  --color-scalar: #e74c3c;
+  --color-test: #8e44ad;
+  --color-bg: #ffffff;
+  --color-sidebar-bg: #1a1a2e;
+  --color-sidebar-text: #c8c8e0;
+  --color-sidebar-active: #e94560;
+  --color-code-bg: #1e1e2e;
+  --color-code-text: #cdd6f4;
+  --color-border: #e0e0e0;
+  --color-section-bg: #f8f9fa;
+  --color-heading: #2c3e50;
+  --color-note-bg: #fff3cd;
+  --color-note-border: #ffc107;
+  --sidebar-width: 260px;
+  --content-max-width: 900px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  line-height: 1.7;
+  color: #333;
+  background: var(--color-bg);
+}
+
+/* ============================================================
+   Sidebar Navigation
+   ============================================================ */
+#sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: var(--sidebar-width);
+  height: 100vh;
+  background: var(--color-sidebar-bg);
+  color: var(--color-sidebar-text);
+  overflow-y: auto;
+  z-index: 1000;
+  padding: 20px 0;
+  border-right: 3px solid var(--color-sidebar-active);
+}
+
+#sidebar h2 {
+  color: #fff;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  padding: 0 20px 15px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  margin-bottom: 10px;
+}
+
+#sidebar nav a {
+  display: block;
+  color: var(--color-sidebar-text);
+  text-decoration: none;
+  padding: 8px 20px;
+  font-size: 13px;
+  transition: all 0.2s ease;
+  border-left: 3px solid transparent;
+}
+
+#sidebar nav a:hover {
+  background: rgba(255,255,255,0.05);
+  color: #fff;
+}
+
+#sidebar nav a.active {
+  color: #fff;
+  background: rgba(233,69,96,0.15);
+  border-left-color: var(--color-sidebar-active);
+  font-weight: 600;
+}
+
+#sidebar nav a.sub {
+  padding-left: 36px;
+  font-size: 12px;
+}
+
+/* ============================================================
+   Main Content
+   ============================================================ */
+#content {
+  margin-left: var(--sidebar-width);
+  padding: 40px 50px;
+  max-width: calc(var(--content-max-width) + 100px + var(--sidebar-width));
+}
+
+h1 {
+  font-size: 2.2em;
+  color: var(--color-heading);
+  border-bottom: 3px solid var(--color-sidebar-active);
+  padding-bottom: 15px;
+  margin-bottom: 30px;
+}
+
+h2 {
+  font-size: 1.6em;
+  color: var(--color-heading);
+  margin-top: 50px;
+  margin-bottom: 20px;
+  padding-top: 15px;
+  border-top: 2px solid var(--color-border);
+}
+
+h2:first-of-type { border-top: none; margin-top: 20px; }
+
+h3 {
+  font-size: 1.25em;
+  color: #444;
+  margin-top: 30px;
+  margin-bottom: 12px;
+}
+
+h4 {
+  font-size: 1.05em;
+  color: #555;
+  margin-top: 20px;
+  margin-bottom: 8px;
+}
+
+p { margin-bottom: 14px; }
+
+section { scroll-margin-top: 20px; }
+
+/* ============================================================
+   Color-coded spans for variable types
+   ============================================================ */
+.vec { color: var(--color-vector); font-weight: 600; }
+.mat { color: var(--color-matrix); font-weight: 600; }
+.sca { color: var(--color-scalar); font-weight: 600; }
+.tst { color: var(--color-test); font-weight: 600; }
+
+.legend {
+  display: flex;
+  gap: 24px;
+  margin: 15px 0 25px;
+  padding: 12px 18px;
+  background: #f0f0f0;
+  border-radius: 6px;
+  font-size: 14px;
+  flex-wrap: wrap;
+}
+
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend .dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+/* ============================================================
+   Code blocks
+   ============================================================ */
+pre {
+  background: var(--color-code-bg);
+  color: var(--color-code-text);
+  padding: 18px 22px;
+  border-radius: 8px;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 16px 0;
+  border: 1px solid #313244;
+}
+
+code {
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+}
+
+p code, li code {
+  background: #e8e8e8;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 0.9em;
+  color: #c7254e;
+}
+
+/* Syntax highlighting classes */
+.kw { color: #cba6f7; }  /* keyword */
+.fn { color: #89b4fa; }  /* function */
+.cm { color: #6c7086; font-style: italic; }  /* comment */
+.st { color: #a6e3a1; }  /* string */
+.nu { color: #fab387; }  /* number */
+.ty { color: #f9e2af; }  /* type */
+
+/* ============================================================
+   Math display blocks
+   ============================================================ */
+.math-block {
+  background: #f7f7ff;
+  border: 1px solid #d0d0e0;
+  border-left: 4px solid var(--color-test);
+  padding: 18px 22px;
+  margin: 18px 0;
+  border-radius: 0 6px 6px 0;
+  overflow-x: auto;
+}
+
+.math-block.vec-block { border-left-color: var(--color-vector); }
+.math-block.mat-block { border-left-color: var(--color-matrix); }
+.math-block.sca-block { border-left-color: var(--color-scalar); }
+
+/* ============================================================
+   Collapsible details sections
+   ============================================================ */
+details {
+  margin: 18px 0;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+details summary {
+  padding: 12px 18px;
+  background: #f0f4f8;
+  cursor: pointer;
+  font-weight: 600;
+  color: #444;
+  user-select: none;
+  transition: background 0.2s;
+}
+
+details summary:hover { background: #e4eaf0; }
+
+details[open] summary { border-bottom: 1px solid var(--color-border); }
+
+details .detail-content {
+  padding: 18px 22px;
+}
+
+/* ============================================================
+   Tables
+   ============================================================ */
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 18px 0;
+  font-size: 14px;
+}
+
+th, td {
+  border: 1px solid #ddd;
+  padding: 10px 14px;
+  text-align: left;
+}
+
+th {
+  background: #34495e;
+  color: white;
+  font-weight: 600;
+}
+
+tr:nth-child(even) { background: #f9f9f9; }
+tr:hover { background: #f0f4f8; }
+
+/* ============================================================
+   Note/callout boxes
+   ============================================================ */
+.note {
+  background: var(--color-note-bg);
+  border: 1px solid var(--color-note-border);
+  border-left: 4px solid var(--color-note-border);
+  padding: 14px 18px;
+  border-radius: 0 6px 6px 0;
+  margin: 16px 0;
+  font-size: 14px;
+}
+
+.note strong { color: #856404; }
+
+.insight {
+  background: #d4edda;
+  border: 1px solid #28a745;
+  border-left: 4px solid #28a745;
+  padding: 14px 18px;
+  border-radius: 0 6px 6px 0;
+  margin: 16px 0;
+  font-size: 14px;
+}
+
+.insight strong { color: #155724; }
+
+/* ============================================================
+   SVG pipeline diagram
+   ============================================================ */
+.pipeline-container {
+  width: 100%;
+  overflow-x: auto;
+  margin: 20px 0 30px;
+}
+
+.pipeline-container svg {
+  display: block;
+  margin: 0 auto;
+}
+
+/* ============================================================
+   Two-column layout
+   ============================================================ */
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin: 16px 0;
+}
+
+.two-col > div {
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 16px;
+}
+
+/* ============================================================
+   Numerical example boxes
+   ============================================================ */
+.example {
+  background: #eef6ff;
+  border: 1px solid #b0d4f1;
+  border-left: 4px solid var(--color-vector);
+  padding: 18px 22px;
+  border-radius: 0 6px 6px 0;
+  margin: 18px 0;
+}
+
+.example h4 {
+  color: var(--color-vector);
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+@media (max-width: 1000px) {
+  #sidebar { display: none; }
+  #content { margin-left: 0; padding: 20px; }
+  .two-col { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     SIDEBAR NAVIGATION
+     ============================================================ -->
+<div id="sidebar">
+  <h2>SAIGE Step 2</h2>
+  <nav>
+    <a href="#sec-overview">1. Overview &amp; Pipeline</a>
+    <a href="#sec-null-model">2. Null Model Input</a>
+    <a href="#sec-score-test">3. Score Test</a>
+    <a href="#sec-score-fast" class="sub">3a. scoreTestFast</a>
+    <a href="#sec-score-noadj" class="sub">3b. noadjCov Path</a>
+    <a href="#sec-variance-ratio">4. Variance Ratio</a>
+    <a href="#sec-spa">5. Saddlepoint Approx</a>
+    <a href="#sec-spa-fast" class="sub">5a. Fast SPA</a>
+    <a href="#sec-firth">6. Firth Correction</a>
+    <a href="#sec-region">7. Region Testing</a>
+    <a href="#sec-p1p2" class="sub">7a. P1Mat / P2Mat</a>
+    <a href="#sec-urv" class="sub">7b. URV Collapsing</a>
+    <a href="#sec-weights" class="sub">7c. Weights</a>
+    <a href="#sec-phi-adj" class="sub">7d. SPA Phi Adjust</a>
+    <a href="#sec-burden">8. BURDEN Test</a>
+    <a href="#sec-skat">9. SKAT Test</a>
+    <a href="#sec-davies" class="sub">9a. Davies Method</a>
+    <a href="#sec-liu" class="sub">9b. Liu Fallback</a>
+    <a href="#sec-skato">10. SKAT-O</a>
+    <a href="#sec-cct">11. CCT</a>
+  </nav>
+</div>
+
+<!-- ============================================================
+     MAIN CONTENT
+     ============================================================ -->
+<div id="content">
+
+<h1>SAIGE Step 2: Gene-Level Association Testing &mdash; Mathematics Explained</h1>
+
+<p>
+This document provides a complete mathematical reference for every formula in the SAIGE Step 2
+standalone C++ codebase. Every equation is extracted directly from the source files
+(<code>saige_test.cpp</code>, <code>spa_binary.cpp</code>, <code>skat.cpp</code>,
+<code>cct.cpp</code>, <code>UTIL.cpp</code>, and <code>main.cpp</code>) and annotated with
+variable names, matrix dimensions, and numerical examples.
+</p>
+
+<div class="legend">
+  <span><span class="dot" style="background:var(--color-vector)"></span> <span class="vec">Vectors [N&times;1]</span></span>
+  <span><span class="dot" style="background:var(--color-matrix)"></span> <span class="mat">Matrices [N&times;p]</span></span>
+  <span><span class="dot" style="background:var(--color-scalar)"></span> <span class="sca">Scalars</span></span>
+  <span><span class="dot" style="background:var(--color-test)"></span> <span class="tst">Test Statistics</span></span>
+</div>
+
+
+<!-- ============================================================
+     SECTION 1: OVERVIEW & PIPELINE DIAGRAM
+     ============================================================ -->
+<section id="sec-overview">
+<h2>1. Overview &amp; Data Flow Diagram</h2>
+
+<p>
+SAIGE Step 2 takes a fitted null model (from Step 1) and genotype data, then performs either
+<strong>single-variant</strong> or <strong>gene/region-based</strong> association testing.
+The pipeline is shown below.
+</p>
+
+<div class="pipeline-container">
+<svg viewBox="0 0 880 400" width="860" height="390" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif">
+  <!-- Background -->
+  <rect width="880" height="400" fill="#fafbfc" rx="10"/>
+
+  <!-- Row 1: Inputs -->
+  <rect x="20" y="20" width="160" height="60" rx="8" fill="#3498db" stroke="#2980b9" stroke-width="2"/>
+  <text x="100" y="45" text-anchor="middle" fill="white" font-size="13" font-weight="bold">Null Model</text>
+  <text x="100" y="62" text-anchor="middle" fill="#d5e8f7" font-size="10">mu, res, tau, X, XVX...</text>
+
+  <rect x="200" y="20" width="160" height="60" rx="8" fill="#27ae60" stroke="#219a52" stroke-width="2"/>
+  <text x="280" y="45" text-anchor="middle" fill="white" font-size="13" font-weight="bold">Genotype File</text>
+  <text x="280" y="62" text-anchor="middle" fill="#c8f0d4" font-size="10">PLINK .bed/.bim/.fam</text>
+
+  <rect x="380" y="20" width="160" height="60" rx="8" fill="#e74c3c" stroke="#c0392b" stroke-width="2"/>
+  <text x="460" y="45" text-anchor="middle" fill="white" font-size="13" font-weight="bold">Variance Ratios</text>
+  <text x="460" y="62" text-anchor="middle" fill="#f5c6cb" font-size="10">MAC categories</text>
+
+  <rect x="560" y="20" width="160" height="60" rx="8" fill="#8e44ad" stroke="#7d3c98" stroke-width="2"/>
+  <text x="640" y="45" text-anchor="middle" fill="white" font-size="13" font-weight="bold">Group File</text>
+  <text x="640" y="62" text-anchor="middle" fill="#dcc6e8" font-size="10">gene -> variants + annot</text>
+
+  <!-- Arrows down -->
+  <line x1="100" y1="80" x2="100" y2="120" stroke="#888" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <line x1="280" y1="80" x2="280" y2="120" stroke="#888" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <line x1="460" y1="80" x2="330" y2="120" stroke="#888" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+  <!-- Row 2: Score Test -->
+  <rect x="60" y="120" width="300" height="55" rx="8" fill="#34495e" stroke="#2c3e50" stroke-width="2"/>
+  <text x="210" y="143" text-anchor="middle" fill="white" font-size="14" font-weight="bold">Score Test</text>
+  <text x="210" y="162" text-anchor="middle" fill="#b0bec5" font-size="11">S = g'res/tau, Z = S/sqrt(VR*var)</text>
+
+  <!-- Arrow down from Score Test -->
+  <line x1="210" y1="175" x2="210" y2="210" stroke="#888" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+  <!-- Row 3: Decision -->
+  <polygon points="210,210 310,240 210,270 110,240" fill="#f39c12" stroke="#e67e22" stroke-width="2"/>
+  <text x="210" y="243" text-anchor="middle" fill="white" font-size="11" font-weight="bold">|Z| > cutoff?</text>
+
+  <!-- Left: No SPA -->
+  <line x1="110" y1="240" x2="40" y2="240" stroke="#888" stroke-width="2"/>
+  <line x1="40" y1="240" x2="40" y2="310" stroke="#888" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="60" y="230" fill="#888" font-size="10">No (quant)</text>
+
+  <rect x="10" y="310" width="130" height="40" rx="6" fill="#95a5a6" stroke="#7f8c8d" stroke-width="1.5"/>
+  <text x="75" y="335" text-anchor="middle" fill="white" font-size="12" font-weight="bold">p = P(chi2 > Z2)</text>
+
+  <!-- Right: SPA -->
+  <line x1="310" y1="240" x2="400" y2="240" stroke="#888" stroke-width="2"/>
+  <line x1="400" y1="240" x2="400" y2="310" stroke="#888" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="330" y="230" fill="#888" font-size="10">Yes (binary)</text>
+
+  <rect x="330" y="310" width="140" height="40" rx="6" fill="#e74c3c" stroke="#c0392b" stroke-width="1.5"/>
+  <text x="400" y="335" text-anchor="middle" fill="white" font-size="12" font-weight="bold">SPA Correction</text>
+
+  <!-- Right branch: Region tests -->
+  <line x1="640" y1="80" x2="640" y2="120" stroke="#888" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+  <rect x="530" y="120" width="230" height="55" rx="8" fill="#8e44ad" stroke="#7d3c98" stroke-width="2"/>
+  <text x="645" y="143" text-anchor="middle" fill="white" font-size="13" font-weight="bold">Region Test Pipeline</text>
+  <text x="645" y="162" text-anchor="middle" fill="#dcc6e8" font-size="11">P1Mat, P2Mat, VarMat, URV</text>
+
+  <!-- Three outputs from Region -->
+  <line x1="580" y1="175" x2="520" y2="210" stroke="#888" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <line x1="645" y1="175" x2="645" y2="210" stroke="#888" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <line x1="710" y1="175" x2="770" y2="210" stroke="#888" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+  <rect x="470" y="210" width="100" height="40" rx="6" fill="#2ecc71" stroke="#27ae60" stroke-width="1.5"/>
+  <text x="520" y="234" text-anchor="middle" fill="white" font-size="12" font-weight="bold">BURDEN</text>
+
+  <rect x="595" y="210" width="100" height="40" rx="6" fill="#3498db" stroke="#2980b9" stroke-width="1.5"/>
+  <text x="645" y="234" text-anchor="middle" fill="white" font-size="12" font-weight="bold">SKAT</text>
+
+  <rect x="720" y="210" width="100" height="40" rx="6" fill="#9b59b6" stroke="#8e44ad" stroke-width="1.5"/>
+  <text x="770" y="234" text-anchor="middle" fill="white" font-size="12" font-weight="bold">SKAT-O</text>
+
+  <!-- CCT combination -->
+  <line x1="520" y1="250" x2="520" y2="280" stroke="#888" stroke-width="1.5"/>
+  <line x1="645" y1="250" x2="645" y2="280" stroke="#888" stroke-width="1.5"/>
+  <line x1="770" y1="250" x2="770" y2="280" stroke="#888" stroke-width="1.5"/>
+  <line x1="520" y1="280" x2="770" y2="280" stroke="#888" stroke-width="1.5"/>
+  <line x1="645" y1="280" x2="645" y2="310" stroke="#888" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+  <rect x="570" y="310" width="150" height="40" rx="6" fill="#e67e22" stroke="#d35400" stroke-width="1.5"/>
+  <text x="645" y="335" text-anchor="middle" fill="white" font-size="12" font-weight="bold">CCT Combination</text>
+
+  <!-- Final output row -->
+  <line x1="75" y1="350" x2="75" y2="375" stroke="#888" stroke-width="1.5"/>
+  <line x1="400" y1="350" x2="400" y2="375" stroke="#888" stroke-width="1.5"/>
+  <line x1="645" y1="350" x2="645" y2="375" stroke="#888" stroke-width="1.5"/>
+  <line x1="75" y1="375" x2="645" y2="375" stroke="#888" stroke-width="1.5"/>
+  <line x1="360" y1="375" x2="360" y2="390" stroke="#888" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+  <!-- Arrow marker -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#888"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+
+</section>
+
+
+<!-- ============================================================
+     SECTION 2: NULL MODEL
+     ============================================================ -->
+<section id="sec-null-model">
+<h2>2. Null Model (Input from Step 1)</h2>
+
+<p>
+Step 2 loads the null model fitted in Step 1. The null model provides everything needed
+to compute score statistics <em>without</em> re-fitting the model for each variant.
+</p>
+
+<table>
+<tr><th>Variable</th><th>Type</th><th>Dimension</th><th>Description</th></tr>
+<tr><td><span class="vec">mu</span></td><td>vec</td><td>$N$</td><td>Fitted values $\hat{\mu}_i = E[y_i | X_i]$</td></tr>
+<tr><td><span class="vec">res</span></td><td>vec</td><td>$N$</td><td>Residuals $r_i = y_i - \hat{\mu}_i$</td></tr>
+<tr><td><span class="vec">y</span></td><td>vec</td><td>$N$</td><td>Phenotype values</td></tr>
+<tr><td><span class="vec">mu2</span></td><td>vec</td><td>$N$</td><td>Variance weights: $\hat{\mu}_i(1-\hat{\mu}_i)$ (binary)</td></tr>
+<tr><td><span class="mat">X</span></td><td>mat</td><td>$N \times p$</td><td>Design matrix (intercept + covariates)</td></tr>
+<tr><td><span class="mat">XVX</span></td><td>mat</td><td>$p \times p$</td><td>$X^\top V X$ where $V = \text{diag}(\mu_2)$</td></tr>
+<tr><td><span class="mat">XXVX_inv</span></td><td>mat</td><td>$N \times p$</td><td>$X (X^\top V X)^{-1}$</td></tr>
+<tr><td><span class="mat">XV</span></td><td>mat</td><td>$p \times N$</td><td>$X^\top V = (X^\top \text{diag}(\mu_2))$</td></tr>
+<tr><td><span class="mat">XVX_inv_XV</span></td><td>mat</td><td>$p \times N$</td><td>$(X^\top V X)^{-1} X^\top V$</td></tr>
+<tr><td><span class="vec">S_a</span></td><td>vec</td><td>$p$</td><td>Score vector $X^\top r$</td></tr>
+<tr><td><span class="vec">tau</span></td><td>vec</td><td>$2$</td><td>Variance components $[\tau_0, \tau_1]$</td></tr>
+</table>
+
+<h3>Derived Quantities</h3>
+
+<div class="math-block vec-block">
+<strong>Variance weight vector</strong> (binary trait):
+$$\text{mu2}_i = \hat{\mu}_i (1 - \hat{\mu}_i)$$
+<strong>Variance weight vector</strong> (quantitative trait):
+$$\text{mu2}_i = 1/\tau_0$$
+</div>
+
+<h3>Projection Matrix $P$</h3>
+<p>
+The key operation in the score test is projecting the genotype vector $G$ onto the
+space orthogonal to the covariates. The <strong>adjusted genotype</strong> is:
+</p>
+
+<div class="math-block mat-block">
+$$\tilde{G} = G - X(X^\top V X)^{-1}(X^\top V \cdot G) = G - \texttt{XXVX\_inv} \cdot (\texttt{XV} \cdot G)$$
+</div>
+
+<p>
+In the code, this is computed by <code>getadjGFast()</code> in <code>saige_test.cpp</code>,
+which exploits the sparsity of $G$ by only iterating over non-zero elements:
+</p>
+<pre><code><span class="kw">void</span> <span class="fn">getadjGFast</span>(<span class="ty">arma::vec</span> &amp; t_GVec, <span class="ty">arma::vec</span> &amp; g, <span class="ty">arma::uvec</span> &amp; iIndex) {
+  <span class="ty">arma::vec</span> m_XVG(m_p, <span class="ty">arma::fill::zeros</span>);
+  <span class="kw">for</span>(<span class="ty">unsigned int</span> i = <span class="nu">0</span>; i &lt; iIndex.n_elem; i++){
+      m_XVG += m_XV.<span class="fn">col</span>(iIndex(i)) * t_GVec(iIndex(i));  <span class="cm">// XV * G (sparse)</span>
+  }
+  g = t_GVec - m_XXVX_inv * m_XVG;  <span class="cm">// G - XXVX_inv * XV * G</span>
+}</code></pre>
+
+</section>
+
+
+<!-- ============================================================
+     SECTION 3: SCORE TEST
+     ============================================================ -->
+<section id="sec-score-test">
+<h2>3. Single-Variant Score Test</h2>
+
+<p>
+The score test evaluates $H_0$: the genotype $G$ has no effect on the phenotype, after
+accounting for covariates. SAIGE implements three paths:
+</p>
+
+<table>
+<tr><th>Path</th><th>When Used</th><th>Function</th></tr>
+<tr><td><code>scoreTest</code></td><td>Sparse GRM active</td><td>Full $N$-vector computation</td></tr>
+<tr><td><code>scoreTestFast</code></td><td>Default (no sparse GRM, with cov adj)</td><td>Sparse exploitation of non-zero genotypes</td></tr>
+<tr><td><code>scoreTestFast_noadjCov</code></td><td>No covariate adjustment</td><td>Simplest path</td></tr>
+</table>
+
+<h3>Core Formulas (all paths)</h3>
+
+<div class="math-block">
+<strong>Score statistic:</strong>
+$$\color{#8e44ad}{S} = \frac{\tilde{G}^\top \cdot \color{#3498db}{\text{res}}}{\color{#e74c3c}{\tau_0}}$$
+
+<strong>Unadjusted variance (binary):</strong>
+$$\color{#e74c3c}{\text{var}_2} = \sum_i \color{#3498db}{\text{mu2}}_i \cdot \tilde{G}_i^2$$
+
+<strong>Unadjusted variance (quantitative):</strong>
+$$\color{#e74c3c}{\text{var}_2} = Z^\top \color{#27ae60}{\text{XVX}} \cdot Z \cdot \tau_0 + G^\top G - 2 B^\top G$$
+where $Z = \texttt{XVX\_inv\_XV}^\top \cdot G_1$ and $B = X_1 \cdot Z$.
+
+<strong>Variance-ratio adjusted variance:</strong>
+$$\color{#e74c3c}{\text{var}_1} = \color{#e74c3c}{\text{var}_2} \times \color{#e74c3c}{\text{VR}}$$
+
+<strong>Test statistic and p-value:</strong>
+$$\color{#8e44ad}{\text{stat}} = \frac{S^2}{\text{var}_1} \sim \chi^2_1 \quad\text{under } H_0$$
+$$p = P(\chi^2_1 > \text{stat})$$
+
+<strong>Effect size:</strong>
+$$\hat{\beta} = \frac{S}{\text{var}_1}, \qquad \text{SE}(\hat{\beta}) = \frac{|\hat{\beta}|}{\sqrt{|\text{stat}|}}$$
+</div>
+
+<section id="sec-score-fast">
+<h3>3a. scoreTestFast (default path)</h3>
+
+<p>
+This path exploits the sparsity of $G$ by only computing on non-zero indices. Let $I$ be
+the set of indices where $G_i \neq 0$. Then:
+</p>
+
+<div class="math-block">
+$$G_1 = G[I], \quad X_1 = X[I,:], \quad A_1 = \texttt{XVX\_inv\_XV}[I,:]$$
+$$Z = A_1^\top G_1, \quad B = X_1 Z, \quad \tilde{G}_1 = G_1 - B$$
+
+<strong>Score (two-part):</strong>
+$$S_1 = \text{res}[I]^\top \tilde{G}_1$$
+$$S_2 = -(S_a - \text{res}[I]^\top X_1)^\top Z$$
+$$S = \frac{S_1 + S_2}{\tau_0}$$
+
+<strong>Variance (binary):</strong>
+$$\text{var}_2 = Z^\top (\text{XVX}) Z - \sum_i \text{mu2}[I_i] \cdot B_i^2 + \sum_i \text{mu2}[I_i] \cdot \tilde{G}_{1,i}^2$$
+</div>
+
+</section>
+
+<section id="sec-score-noadj">
+<h3>3b. scoreTestFast_noadjCov (no covariate adjustment)</h3>
+
+<p>
+When covariate adjustment is disabled, the genotype is not projected. Let $f$ denote the
+allele frequency $\texttt{altFreq}$:
+</p>
+
+<div class="math-block">
+$$S = \frac{G_1^\top \text{res}[I] - \text{sum}(\text{res}) \cdot 2f}{\tau_0}$$
+
+$$\text{var}_2 = \left[\sum_i \text{mu2}[I_i] \cdot G_{1,i}^2 - \sum_i \text{mu2}[I_i] \cdot 4f \cdot G_{1,i} + \sum_i \text{mu2}_i \cdot 4f^2\right] \cdot \tau_0$$
+</div>
+</section>
+
+<div class="example">
+<h4>Numerical Example: Score Test (N=5, p=2)</h4>
+<p>
+Consider $N=5$ samples, $p=2$ covariates (intercept + one covariate), binary trait.
+</p>
+$$G = \begin{pmatrix}0\\1\\0\\2\\0\end{pmatrix}, \quad
+\text{res} = \begin{pmatrix}0.3\\-0.2\\0.1\\-0.5\\0.3\end{pmatrix}, \quad
+\text{mu2} = \begin{pmatrix}0.21\\0.24\\0.25\\0.16\\0.21\end{pmatrix}, \quad
+\tau_0 = 1$$
+
+<p>Non-zero indices: $I = \{1, 3\}$ (0-indexed). Assume $\tilde{G} \approx G$ (identity projection for simplicity).</p>
+
+$$S = \tilde{G}^\top \text{res} = 0 \cdot 0.3 + 1 \cdot (-0.2) + 0 \cdot 0.1 + 2 \cdot (-0.5) + 0 \cdot 0.3 = -1.2$$
+$$\text{var}_2 = \sum_i \text{mu2}_i \cdot G_i^2 = 0.24 \cdot 1 + 0.16 \cdot 4 = 0.88$$
+$$\text{var}_1 = 0.88 \times \text{VR}$$
+
+<p>If $\text{VR} = 1.02$: $\text{var}_1 = 0.8976$, $\text{stat} = 1.44/0.8976 = 1.604$, $p = P(\chi^2_1 > 1.604) \approx 0.205$.</p>
+</div>
+
+</section>
+
+
+<!-- ============================================================
+     SECTION 4: VARIANCE RATIO
+     ============================================================ -->
+<section id="sec-variance-ratio">
+<h2>4. Variance Ratio</h2>
+
+<p>
+The variance ratio (VR) corrects for the approximation error introduced by using a mixed model
+without the full GRM in computing the variance of the score statistic. It is pre-computed in
+Step 1 and depends on the MAC category.
+</p>
+
+<div class="math-block sca-block">
+$$\text{VR} = \frac{\text{Var}_{\text{exact}}(S)}{\text{Var}_{\text{approx}}(S)}$$
+
+<p>where $\text{Var}_{\text{exact}}$ uses the full GRM (or sparse GRM) and $\text{Var}_{\text{approx}}$ uses only the diagonal/null approximation.</p>
+</div>
+
+<h3>MAC-Category Lookup</h3>
+<p>
+Variance ratios are stored as a vector indexed by MAC category. The lookup in <code>assignVarianceRatio()</code>:
+</p>
+<pre><code><span class="kw">for</span>(i = <span class="nu">0</span>; i &lt; maxMACVec.n_elem; i++) {
+    <span class="kw">if</span>(MAC &lt;= maxMACVec(i) &amp;&amp; MAC &gt; minMACVec(i)) {
+        m_varRatioVal = varRatio(i);  <span class="cm">// Found matching category</span>
+    }
+}</code></pre>
+
+<p>
+The adjusted variance is then simply:
+</p>
+<div class="math-block">
+$$\text{var}_1 = \text{var}_2 \times \text{VR}(\text{MAC category})$$
+</div>
+
+<div class="note">
+<strong>Why is the VR needed?</strong> The exact variance requires $O(N^2)$ computation with the GRM.
+The VR pre-computes the ratio once per MAC category on a set of random markers in Step 1,
+then applies it as a multiplicative correction in Step 2. This reduces Step 2 to $O(N)$ per marker.
+</div>
+
+</section>
+
+
+<!-- ============================================================
+     SECTION 5: SPA
+     ============================================================ -->
+<section id="sec-spa">
+<h2>5. Saddlepoint Approximation (SPA)</h2>
+
+<p>
+When $|Z| > \text{SPA\_cutoff}$ (default 2) for binary traits, the normal approximation
+to the score test is inaccurate (especially in the tail). SPA provides a more accurate
+p-value by using the exact cumulant generating function (CGF) of the test statistic.
+</p>
+
+<div class="insight">
+<strong>Why SPA?</strong> For binary traits with case-control imbalance (e.g., 1% prevalence),
+the distribution of $S = G^\top y$ is highly skewed. The chi-squared(1) approximation
+underestimates the tail probability, leading to inflated Type I error. SPA corrects this
+by working with the <em>exact</em> CGF of $S$.
+</div>
+
+<h3>Cumulant Generating Function (CGF)</h3>
+<p>
+For binary outcomes, $y_i \sim \text{Bernoulli}(\mu_i)$, so $S = \sum_i g_i y_i$ is a sum of
+independent (but not identically distributed) Bernoulli-weighted terms. The CGF is:
+</p>
+
+<div class="math-block">
+$$K(t) = \sum_{i=1}^N \log\bigl(1 - \mu_i + \mu_i \, e^{g_i t}\bigr)$$
+
+$$K'(t) = \sum_{i=1}^N \frac{\mu_i \, g_i}{(1 - \mu_i) e^{-g_i t} + \mu_i}$$
+
+$$K''(t) = \sum_{i=1}^N \frac{(1-\mu_i)\,\mu_i\,g_i^2\,e^{-g_i t}}{\bigl[(1-\mu_i)e^{-g_i t}+\mu_i\bigr]^2}$$
+</div>
+
+<p>Source: <code>Korg_Binom()</code>, <code>K1_adj_Binom()</code>, <code>K2_Binom()</code> in <code>spa_binary.cpp</code>.</p>
+
+<h3>Newton-Raphson Root Finding</h3>
+<p>
+Find the saddlepoint $\hat{t}$ such that $K'(\hat{t}) = q$ where $q$ is the observed test statistic:
+</p>
+
+<div class="math-block">
+$$t_{\text{new}} = t - \frac{K'(t) - q}{K''(t)}$$
+
+<p>Iterate until $|t_{\text{new}} - t| < \text{tol}$ (where $\text{tol} = \epsilon^{0.25} \approx 1.22 \times 10^{-4}$).</p>
+
+<p><strong>Bisection safeguard:</strong> If the sign of $K'(t)-q$ changes between iterations and the
+jump exceeds the previous jump, halve the step size.</p>
+</div>
+
+<p>Source: <code>getroot_K1_Binom()</code> in <code>spa_binary.cpp</code>.</p>
+
+<h3>Lugannani-Rice Formula</h3>
+<p>
+Given the saddlepoint $\hat{\zeta}$, compute the tail probability:
+</p>
+
+<div class="math-block">
+$$w = \text{sign}(\hat{\zeta}) \cdot \sqrt{2(\hat{\zeta} \cdot q - K(\hat{\zeta}))}$$
+$$v = \hat{\zeta} \cdot \sqrt{K''(\hat{\zeta})}$$
+$$Z_{\text{test}} = w + \frac{1}{w} \ln\!\left(\frac{v}{w}\right)$$
+
+<p><strong>One-sided p-value:</strong></p>
+$$p_{\text{upper}} = \begin{cases}
+\Phi(-Z_{\text{test}}) & \text{if } Z_{\text{test}} > 0 \\
+-\Phi(Z_{\text{test}}) & \text{if } Z_{\text{test}} \leq 0
+\end{cases}$$
+<p>where $\Phi$ is the standard normal CDF.</p>
+</div>
+
+<h3>Two-Sided P-Value</h3>
+<p>
+SAIGE computes two-sided p-values by finding saddlepoints for both $q$ and its reflection $q_{\text{inv}}$:
+</p>
+
+<div class="math-block">
+$$q = \frac{S}{\sqrt{\text{var}_1/\text{var}_2}} + m_1, \qquad m_1 = \mu^\top \tilde{G}$$
+$$q_{\text{inv}} = \begin{cases}
+-|q - m_1| + m_1 & \text{if } q > m_1 \\
+|q - m_1| + m_1 & \text{if } q < m_1 \\
+m_1 & \text{if } q = m_1
+\end{cases}$$
+
+$$p_{\text{SPA}} = |p_1(q)| + |p_2(q_{\text{inv}})|$$
+</div>
+
+<p>Source: <code>SPA_binary()</code> in <code>spa_binary.cpp</code>.</p>
+
+<section id="sec-spa-fast">
+<h3>5a. Fast SPA Variant</h3>
+
+<p>
+When more than 50% of genotype elements are zero (<code>p_iIndexComVecSize &ge; 0.5</code>),
+the fast SPA variant is used. It splits samples into non-zero ($B$) and zero ($A$) groups
+and approximates the zero-genotype group with a normal distribution:
+</p>
+
+<div class="math-block">
+$$K_{\text{fast}}(t) = \underbrace{\sum_{i \in B} \log(1 - \mu_i + \mu_i e^{g_i t})}_{\text{exact for non-zero}} + \underbrace{\text{NAmu} \cdot t + \tfrac{1}{2}\text{NAsigma} \cdot t^2}_{\text{normal approx for zero}}$$
+
+<p>where:</p>
+$$\text{NAmu} = m_1 - \sum_{i \in B} g_i \mu_i, \qquad \text{NAsigma} = \text{var}_2 - \sum_{i \in B} \mu_i(1-\mu_i) g_i^2$$
+</div>
+
+<p>
+The fast variant K', K'' functions similarly add the normal approximation terms ($\text{NAmu} + \text{NAsigma} \cdot t$
+for K', and $\text{NAsigma}$ for K''). Source: <code>Korg_fast_Binom()</code>, <code>K1_adj_fast_Binom()</code>,
+<code>K2_fast_Binom()</code>.
+</p>
+
+</section>
+
+<details>
+<summary>Full derivation: Why does the Lugannani-Rice formula work?</summary>
+<div class="detail-content">
+<p>
+The saddlepoint approximation is derived from the inversion formula for the CGF.
+The probability $P(S > q)$ can be expressed via the inverse Fourier transform of the
+moment generating function $M(t) = e^{K(t)}$:
+</p>
+$$P(S > q) = \frac{1}{2\pi i} \int_{c-i\infty}^{c+i\infty} \frac{e^{K(t) - tq}}{t}\,dt$$
+<p>
+The saddlepoint $\hat{\zeta}$ is chosen to minimize $K(t) - tq$, which means $K'(\hat{\zeta}) = q$.
+Expanding $K(t) - tq$ around $\hat{\zeta}$ to second order and performing the integral via
+the method of steepest descent gives the Lugannani-Rice formula. The key insight is that
+the transformed variable $Z_{\text{test}}$ has an approximately standard normal distribution,
+making $\Phi(-Z_{\text{test}})$ an excellent approximation even in the extreme tails.
+</p>
+<p>
+The formula has relative error $O(N^{-3/2})$ compared to $O(N^{-1/2})$ for the normal approximation,
+which is critical when computing p-values of $10^{-10}$ or smaller.
+</p>
+</div>
+</details>
+
+</section>
+
+
+<!-- ============================================================
+     SECTION 6: FIRTH CORRECTION
+     ============================================================ -->
+<section id="sec-firth">
+<h2>6. Firth Correction</h2>
+
+<p>
+When the SPA p-value for a binary trait falls below a cutoff (default $p < 0.05$),
+SAIGE applies Firth's penalized logistic regression to obtain a less biased effect size estimate.
+This corrects the small-sample bias of maximum likelihood estimation, which is particularly
+problematic for rare variants with extreme case-control imbalance.
+</p>
+
+<h3>Penalized Logistic Regression</h3>
+
+<div class="math-block">
+<p><strong>Penalized score equation:</strong></p>
+$$U^*(\beta) = X^\top \left[(y - \pi) + h \odot (0.5 - \pi)\right] = 0$$
+
+<p>where $\pi_i = \text{logit}^{-1}(x_i^\top \beta + \text{offset}_i)$, $h_i$ are the hat matrix
+diagonal elements, and $\odot$ denotes element-wise multiplication.</p>
+
+<p><strong>Hat matrix diagonal:</strong></p>
+$$h = \text{diag}(Q Q^\top), \quad \text{where } QR = X \cdot \text{diag}(\sqrt{W})$$
+$$W_i = \pi_i(1 - \pi_i)$$
+
+<p><strong>Fisher information:</strong></p>
+$$\mathcal{I} = (X \cdot \text{diag}(\sqrt{W}))^\top (X \cdot \text{diag}(\sqrt{W}))$$
+
+<p><strong>Newton update:</strong></p>
+$$\delta = \mathcal{I}^{-1} U^*, \quad \beta_{\text{new}} = \beta + \delta$$
+<p>(with step-size limiting: $\|\delta\|_\infty \leq \texttt{maxstep}$)</p>
+</div>
+
+<p>Source: <code>fast_logistf_fit_simple()</code> in <code>saige_test.cpp</code>.</p>
+
+<div class="note">
+<strong>Important:</strong> The Firth correction only adjusts $\hat{\beta}$. The SE is
+<em>back-calculated</em> from the SPA p-value: $\text{SE} = |\hat{\beta}_{\text{Firth}}| / |z_{\alpha/2}|$
+where $z_{\alpha/2}$ is from the SPA p-value. This preserves the SPA's accurate p-value
+while providing the less-biased Firth effect estimate.
+</div>
+
+</section>
+
+
+<!-- ============================================================
+     SECTION 7: REGION TESTING PIPELINE
+     ============================================================ -->
+<section id="sec-region">
+<h2>7. Region/Gene-Based Testing Pipeline</h2>
+
+<p>
+Region-based testing evaluates whether a <em>set</em> of variants (e.g., all rare variants
+in a gene) is collectively associated with the phenotype. The pipeline has these stages:
+</p>
+
+<ol>
+  <li>Read the <strong>group file</strong> defining genes, their variants, annotations, and weights</li>
+  <li>For each variant: QC (MAC, MAF, missing rate), score test, classify as regular or ultra-rare</li>
+  <li>Stratify by <strong>annotation &times; MAF threshold</strong> combinations</li>
+  <li>Collapse ultra-rare variants (URVs) into a single pseudo-marker per stratum</li>
+  <li>Build <span class="mat">P1Mat</span>, <span class="mat">P2Mat</span>, <span class="mat">VarMat</span></li>
+  <li>Apply weights and SPA Phi adjustment</li>
+  <li>Run BURDEN / SKAT / SKAT-O tests</li>
+  <li>Combine across strata via CCT</li>
+</ol>
+
+<section id="sec-p1p2">
+<h3>7a. Score Vector and Variance-Covariance Matrix Construction</h3>
+
+<p>
+For each non-URV marker $j$ in the region, after computing the score test, we store two matrices:
+</p>
+
+<div class="math-block mat-block">
+<p><strong>P1Mat</strong> $[m \times N]$: each row is a scaled adjusted genotype</p>
+$$\texttt{P1Mat}[j,:] = \sqrt{\text{VR}_j} \cdot \tilde{G}_j^\top$$
+
+<p><strong>P2Mat</strong> $[N \times m]$: each column is a scaled P2 vector</p>
+$$\texttt{P2Mat}[:,j] = \sqrt{\text{VR}_j} \cdot \text{P2Vec}_j$$
+
+<p>where for binary traits without sparse GRM:</p>
+$$\text{P2Vec}_j = \tilde{G}_j \odot \text{mu2} \cdot \tau_0$$
+
+<p><strong>Variance-covariance matrix</strong> $\Phi$ $[m \times m]$:</p>
+$$\color{#27ae60}{\Phi} = \texttt{P1Mat} \cdot \texttt{P2Mat}$$
+</div>
+
+<p>Source: <code>mainRegionInCPP()</code> in <code>main.cpp</code> lines 1746-1748, and VarMat construction at line 2050.</p>
+
+<div class="note">
+<strong>Chunking:</strong> For large genes with many markers, the matrices are computed in chunks
+of size <code>g_region_maxMarkers_cutoff</code> and saved to disk, then assembled via block
+matrix multiplication: $\Phi_{ij} = P1_{\text{chunk}_i} \cdot P2_{\text{chunk}_j}$.
+</div>
+
+</section>
+
+<section id="sec-urv">
+<h3>7b. Ultra-Rare Variant (URV) Collapsing</h3>
+
+<p>
+Variants with MAC &leq; <code>g_region_minMAC_cutoff</code> (typically 10) are too rare to
+test individually. They are collapsed into a single pseudo-marker per annotation&times;MAF stratum.
+</p>
+
+<div class="math-block">
+<p><strong>Collapsing method</strong> (<code>method_to_CollapseUltraRare = "max"</code>):</p>
+$$\text{genoUR}_{i,\text{jm}} = \max_{k \in \text{URV}(i,\text{jm})} G_{i,k}$$
+
+<p>For each sample $i$ and annotation&times;MAF stratum $\text{jm}$, take the maximum dosage
+across all URVs belonging to that stratum. This preserves the "presence of any rare variant"
+signal while avoiding double-counting.</p>
+</div>
+
+<p>
+After collapsing, the URV pseudo-marker is tested just like a regular marker: it gets its own
+score test, P1Mat/P2Mat entries, and is included in the SKAT/BURDEN tests.
+</p>
+
+</section>
+
+<section id="sec-weights">
+<h3>7c. Weights</h3>
+
+<p>
+Each variant is weighted using the Beta density function evaluated at its MAF:
+</p>
+
+<div class="math-block sca-block">
+$$w_j = f_{\text{Beta}}(\text{MAF}_j;\; a_1, a_2)$$
+
+<p>Default parameters: $a_1 = 1, a_2 = 25$.</p>
+
+$$f_{\text{Beta}}(x; 1, 25) = 25(1-x)^{24}$$
+</div>
+
+<p>
+This strongly upweights rare variants. For example:
+</p>
+<table>
+<tr><th>MAF</th><th>$w = 25(1-\text{MAF})^{24}$</th></tr>
+<tr><td>0.0001</td><td>24.94</td></tr>
+<tr><td>0.001</td><td>24.41</td></tr>
+<tr><td>0.01</td><td>19.37</td></tr>
+<tr><td>0.05</td><td>7.14</td></tr>
+<tr><td>0.1</td><td>1.94</td></tr>
+<tr><td>0.5</td><td>$\approx 0$</td></tr>
+</table>
+
+<p>Source: <code>getWeights()</code> in <code>UTIL.cpp</code>, weight computation in <code>mainRegionInCPP()</code> line 1692.</p>
+
+<p>The weighted score and variance matrix are:</p>
+<div class="math-block">
+$$\text{Score}_{\text{weighted}} = S \odot w$$
+$$\Phi_{\text{weighted}} = (w \cdot w^\top) \odot \Phi$$
+</div>
+
+</section>
+
+<section id="sec-phi-adj">
+<h3>7d. SPA Phi Adjustment</h3>
+
+<p>
+For binary traits, the normal-approximation-based $\Phi$ matrix needs correction using
+SPA p-values. This two-step adjustment is performed by <code>SPA_ER_kernel_related_Phiadj_fast_new()</code>:
+</p>
+
+<div class="math-block">
+<p><strong>Step 1: Per-variant scale factor</strong></p>
+<p>For each variant $j$ with SPA log-p-value $\ln(p_j)$:</p>
+$$\text{VarS}_{\text{new},j} = \frac{S_j^2}{F^{-1}_{\chi^2_1}(1 - p_j)}$$
+$$\text{scaleFactor}_j = \sqrt{\frac{\text{VarS}_{\text{new},j}}{\text{VarS}_{\text{org},j}}}$$
+
+<p>where $\text{VarS}_{\text{org},j} = \Phi_{jj}$ (diagonal of original $\Phi$) and
+$F^{-1}_{\chi^2_1}$ is the chi-squared(1) quantile function.</p>
+
+<p><strong>Step 2: Burden-based global correction</strong></p>
+$$\Phi_{\text{adj}} = \text{scaleFactor} \cdot \text{scaleFactor}^\top \odot \Phi$$
+$$\text{VarQ} = \text{sum}(\Phi_{\text{adj}}), \qquad Q_b = (\sum_j S_j)^2$$
+$$\text{VarQ}_2 = \frac{Q_b}{F^{-1}_{\chi^2_1}(1 - p_{\text{burden,SPA}})}$$
+$$r = \min\!\left(1, \;\frac{\text{VarQ}}{\text{VarQ}_2}\right)$$
+
+$$\color{#27ae60}{\Phi_{\text{ccadj}}} = \frac{\Phi_{\text{adj}}}{r}$$
+</div>
+
+<p>Source: <code>SPA_ER_kernel_related_Phiadj_fast_new()</code> and <code>get_newPhi_scaleFactor_traitType()</code> in <code>main.cpp</code>.</p>
+
+<details>
+<summary>Intuition: Why adjust Phi?</summary>
+<div class="detail-content">
+<p>
+The variance-covariance matrix $\Phi$ is constructed using the score-test normal approximation.
+But for binary traits with case-control imbalance, SPA shows that the actual variance differs
+from the normal approximation. The adjustment rescales each entry of $\Phi$ so that:
+</p>
+<ol>
+  <li>The diagonal matches the SPA-corrected variance (step 1)</li>
+  <li>The total variance of the burden statistic matches the SPA burden p-value (step 2)</li>
+</ol>
+<p>
+The ratio $r$ ensures that the rescaled $\Phi$ is consistent with the SPA burden test.
+When $r < 1$, the normal approximation underestimates the variance, and dividing by $r$ inflates
+$\Phi$ to match.
+</p>
+</div>
+</details>
+
+</section>
+</section>
+
+
+<!-- ============================================================
+     SECTION 8: BURDEN TEST
+     ============================================================ -->
+<section id="sec-burden">
+<h2>8. BURDEN Test</h2>
+
+<p>
+The BURDEN test collapses all variants in a group into a single aggregate score.
+It is the special case of SKAT-O with $\rho = 1$.
+</p>
+
+<div class="math-block">
+<p><strong>Test statistic:</strong></p>
+$$T_{\text{Burden}} = \left(\sum_{j=1}^m S_j\right)^2$$
+
+<p><strong>Null distribution:</strong></p>
+$$\text{Var}_{\text{Burden}} = \sum_{i,j} \Phi_{ij} = \mathbf{1}^\top \Phi \, \mathbf{1}$$
+
+$$\frac{T_{\text{Burden}}}{\text{Var}_{\text{Burden}}} \sim \chi^2_1 \quad \text{under } H_0$$
+
+<p><strong>P-value:</strong></p>
+$$p = P\!\left(\chi^2_1 > \frac{T_{\text{Burden}}}{\text{Var}_{\text{Burden}}}\right)$$
+
+<p><strong>Effect size and SE:</strong></p>
+$$\hat{\beta}_{\text{Burden}} = \frac{\sum_j S_j}{\text{tr}(\Phi)}$$
+
+$$\text{SE}_{\text{Burden}} = \frac{|\hat{\beta}_{\text{Burden}}|}{|\Phi^{-1}(p/2)|}$$
+<p>where $\Phi^{-1}$ is the standard normal quantile function.</p>
+</div>
+
+<p>Source: <code>get_SKAT_pvalue()</code> in <code>skat.cpp</code> lines 631-663.</p>
+
+<div class="example">
+<h4>Numerical Example: Burden Test (m=3 variants)</h4>
+$$S = \begin{pmatrix}-0.5\\0.8\\-0.3\end{pmatrix}, \quad
+\Phi = \begin{pmatrix}0.10 & 0.02 & 0.01\\0.02 & 0.15 & 0.03\\0.01 & 0.03 & 0.08\end{pmatrix}$$
+
+$$T_{\text{Burden}} = (-0.5 + 0.8 - 0.3)^2 = 0^2 = 0$$
+$$\text{Var}_{\text{Burden}} = 0.10+0.15+0.08+2(0.02+0.01+0.03) = 0.45$$
+$$p = P(\chi^2_1 > 0/0.45) = P(\chi^2_1 > 0) = 1.0$$
+
+<p>A non-trivial example with $S = (1.2, 0.8, 0.5)^\top$:</p>
+$$T_{\text{Burden}} = (1.2 + 0.8 + 0.5)^2 = 6.25$$
+$$p = P(\chi^2_1 > 6.25/0.45) = P(\chi^2_1 > 13.89) \approx 1.9 \times 10^{-4}$$
+</div>
+
+</section>
+
+
+<!-- ============================================================
+     SECTION 9: SKAT TEST
+     ============================================================ -->
+<section id="sec-skat">
+<h2>9. SKAT Test</h2>
+
+<p>
+SKAT (Sequence Kernel Association Test) uses a quadratic form that preserves the
+individual variant contributions, unlike BURDEN which sums them. It is more powerful
+when variants have mixed effect directions.
+</p>
+
+<div class="math-block">
+<p><strong>Test statistic:</strong></p>
+$$Q_{\text{SKAT}} = S^\top S = \sum_{j=1}^m S_j^2$$
+
+<p><strong>Null distribution:</strong></p>
+$$Q_{\text{SKAT}} \sim \sum_{j=1}^m \lambda_j \chi^2_{1,j} \quad \text{under } H_0$$
+<p>where $\lambda_1 \geq \lambda_2 \geq \cdots \geq \lambda_m > 0$ are the eigenvalues of $\Phi$,
+and $\chi^2_{1,j}$ are independent chi-squared(1) random variables.</p>
+</div>
+
+<p>
+Computing $P(Q > q)$ for a mixture of chi-squareds is non-trivial. SAIGE uses two methods:
+Davies (primary) and Liu (fallback).
+</p>
+
+<section id="sec-davies">
+<h3>9a. Davies Method (Characteristic Function Inversion)</h3>
+
+<p>
+The Davies method computes the tail probability by numerically inverting the characteristic
+function of $Q$.
+</p>
+
+<div class="math-block">
+<p><strong>Characteristic function of $Q = \sum \lambda_j \chi^2_{n_j}(\delta_j)$:</strong></p>
+$$\phi_Q(t) = \prod_{j=1}^m (1 - 2it\lambda_j)^{-n_j/2} \exp\!\left(\frac{i \delta_j t \lambda_j}{1 - 2it\lambda_j}\right)$$
+
+<p><strong>Tail probability via inversion:</strong></p>
+$$P(Q > c) = \frac{1}{2} - \frac{1}{\pi} \int_0^\infty \frac{\text{Im}[\phi_Q(t) \cdot e^{-itc}]}{t}\,dt$$
+
+<p><strong>In polar form, the integrand is:</strong></p>
+$$f(t) = \frac{\exp(\text{log\_amp}) \cdot \sin(\text{phase})}{t}$$
+
+<p>where (for SAIGE's case: $n_j=1$, $\delta_j=0$):</p>
+$$\text{log\_amp} = \sum_{j=1}^m -\frac{1}{4} \log(1 + 4t^2\lambda_j^2)$$
+$$\text{phase} = \sum_{j=1}^m \frac{1}{2} \arctan(2t\lambda_j) - tc$$
+</div>
+
+<p>
+The integral is evaluated by the <strong>trapezoidal rule</strong> with adaptive step size:
+</p>
+
+<pre><code><span class="cm">// Step size: h = pi / (4 * max_eigenvalue) to satisfy Nyquist</span>
+<span class="ty">double</span> h = <span class="nu">1.0</span> / (<span class="nu">2.0</span> * almx);
+h = <span class="fn">std::min</span>(h, M_PI / (<span class="nu">4.0</span> * lmax));
+
+<span class="kw">for</span> (<span class="ty">int</span> k = <span class="nu">1</span>; k &lt;= lim; k++) {
+    <span class="ty">double</span> t = k * h;
+    integral += <span class="fn">compute_integrand</span>(t, params);  <span class="cm">// sin(phase)*exp(log_amp)/t</span>
+}
+pvalue = <span class="nu">0.5</span> - h * integral / M_PI;</code></pre>
+
+<p>Source: <code>davies_impl::compute()</code> in <code>skat.cpp</code>.</p>
+
+</section>
+
+<section id="sec-liu">
+<h3>9b. Liu Moment-Matching Method (Fallback)</h3>
+
+<p>
+When Davies fails to converge or returns invalid results, Liu's method approximates the
+mixture of chi-squareds by matching the first four cumulants to a scaled (non-central)
+chi-squared distribution.
+</p>
+
+<div class="math-block">
+<p><strong>Cumulant sums:</strong></p>
+$$c_k = \sum_{j=1}^m \lambda_j^k \quad \text{for } k = 1, 2, 3, 4$$
+
+<p><strong>Skewness and kurtosis ratios:</strong></p>
+$$s_1 = \frac{c_3}{c_2^{3/2}}, \qquad s_2 = \frac{c_4}{c_2^2}$$
+
+<p><strong>If $s_1^2 > s_2$:</strong> Noncentral chi-squared fit</p>
+$$a = \frac{1}{s_1 - \sqrt{s_1^2 - s_2}}, \quad \delta = s_1 a^3 - a^2, \quad \ell = a^2 - 2\delta$$
+
+<p><strong>If $s_1^2 \leq s_2$:</strong> Central chi-squared fit</p>
+$$\delta = 0, \quad \ell = 1/s_1^2$$
+
+<p><strong>Normalized statistic:</strong></p>
+$$Q_{\text{norm}} = \frac{Q - \mu_Q}{\sigma_Q} \cdot \sqrt{2\ell + 4\delta} + \ell + \delta$$
+<p>where $\mu_Q = c_1$ and $\sigma_Q = \sqrt{2c_2}$.</p>
+
+<p><strong>P-value:</strong></p>
+$$p = P(\chi^2_\ell(\delta) > Q_{\text{norm}})$$
+</div>
+
+<p>Source: <code>liu_pvalue()</code> in <code>skat.cpp</code>.</p>
+
+</section>
+
+<div class="example">
+<h4>Numerical Example: SKAT Test (m=3 variants)</h4>
+$$S = \begin{pmatrix}1.5\\-0.8\\0.3\end{pmatrix}, \quad \lambda = \begin{pmatrix}0.15\\0.10\\0.05\end{pmatrix} \text{ (eigenvalues of } \Phi\text{)}$$
+
+$$Q_{\text{SKAT}} = 1.5^2 + 0.8^2 + 0.3^2 = 2.25 + 0.64 + 0.09 = 2.98$$
+
+<p><strong>Davies method computes:</strong></p>
+<p>$P(0.15\chi^2_1 + 0.10\chi^2_1 + 0.05\chi^2_1 > 2.98)$ via numerical integration.</p>
+
+<p><strong>Liu fallback:</strong></p>
+$$c_1 = 0.30, \; c_2 = 0.035, \; c_3 = 0.005, \; c_4 = 0.0008$$
+$$\mu_Q = 0.30, \; \sigma_Q = \sqrt{0.07} = 0.265$$
+$$s_1 = 0.005/0.035^{1.5} = 0.765, \; s_2 = 0.0008/0.035^2 = 0.653$$
+<p>Since $s_1^2 = 0.585 < s_2 = 0.653$: use central chi-squared with $\ell = 1/0.585 = 1.71$.</p>
+$$Q_{\text{norm}} = \frac{2.98 - 0.30}{0.265}\sqrt{3.42} + 1.71 = 10.12 \cdot 1.850 + 1.71 \approx 20.4$$
+$$p = P(\chi^2_{1.71} > 20.4) \approx 1.8 \times 10^{-5}$$
+</div>
+
+</section>
+
+
+<!-- ============================================================
+     SECTION 10: SKAT-O
+     ============================================================ -->
+<section id="sec-skato">
+<h2>10. SKAT-O (Optimal Unified Test)</h2>
+
+<p>
+SKAT-O interpolates between SKAT ($\rho=0$) and BURDEN ($\rho=1$) to find the optimal
+balance. It is the most powerful test when the true effect pattern is unknown.
+</p>
+
+<div class="math-block">
+<p><strong>Combined test statistic:</strong></p>
+$$Q(\rho) = (1-\rho) \underbrace{S^\top S}_{Q_{\text{SKAT}}} + \rho \underbrace{(\mathbf{1}^\top S)^2}_{Q_{\text{Burden}}}$$
+
+<p><strong>Rho grid (11 points):</strong></p>
+$$\rho \in \{0,\; 0.01,\; 0.04,\; 0.09,\; 0.16,\; 0.25,\; 0.36,\; 0.49,\; 0.64,\; 0.81,\; 1\}$$
+<p>(These are $\{0, 0.1^2, 0.2^2, \ldots, 0.9^2, 1\}$)</p>
+
+<p><strong>Null distribution:</strong></p>
+$$Q(\rho) \sim \sum_j \lambda_j(\rho) \chi^2_{1,j}$$
+<p>where $\lambda_j(\rho)$ are eigenvalues of $R_\rho^{1/2} \Phi \, R_\rho^{1/2}$ and
+$R_\rho = (1-\rho)I + \rho \mathbf{1}\mathbf{1}^\top$.</p>
+</div>
+
+<h3>Algorithm</h3>
+<ol>
+  <li>For each $\rho_k$ in the grid, compute $Q(\rho_k)$ and its p-value $p_k$ via Davies/Liu</li>
+  <li>Find $T_{\min} = \min_k p_k$</li>
+  <li>Compute the SKAT-O p-value: $P(\min_k p(\rho_k) < T_{\min})$</li>
+</ol>
+
+<h3>SKAT-O P-Value Computation</h3>
+
+<div class="math-block">
+<p><strong>Decomposition:</strong> For each $\rho_k$, decompose $Q(\rho_k) = \lambda_{\max,k} Z + Q_{\text{remain},k}$
+where $Z \sim \chi^2_1$ is the leading eigenvalue component.</p>
+
+<p><strong>Integration:</strong></p>
+$$p_{\text{SKAT-O}} = \int_0^\infty \max_k P(Q_{\text{remain},k} > \tau_k - \lambda_{\max,k} z) \cdot f_{\chi^2_1}(z)\,dz$$
+
+<p>where $\tau_k$ is the threshold such that $P(Q(\rho_k) > \tau_k) = T_{\min}$ under the
+Liu approximation, and $f_{\chi^2_1}$ is the chi-squared(1) density.</p>
+
+<p>The integral is evaluated via a grid with step $\Delta x = 0.05$ from 0 to 40,
+using chi-squared(1) CDF weights:
+$$p_{\text{SKAT-O}} \approx \sum_{i=0}^{799} \max_k P(Q_{\text{remain},k} > \tau_k - \lambda_{\max,k} x_{\text{mid},i}) \cdot [F_{\chi^2_1}(x_{i+1}) - F_{\chi^2_1}(x_i)]$$
+</p>
+</div>
+
+<p>Source: <code>SKATO_optimal_pvalue()</code> in <code>skat.cpp</code>.</p>
+
+<details>
+<summary>Eigenvalues of $R_\rho^{1/2} \Phi R_\rho^{1/2}$ for general $\rho$</summary>
+<div class="detail-content">
+<p>
+The correlation matrix $R_\rho = (1-\rho)I + \rho \mathbf{1}\mathbf{1}^\top$ has eigenvalues:
+</p>
+<ul>
+  <li>$(1-\rho)$ with multiplicity $m-1$ (eigenvectors orthogonal to $\mathbf{1}$)</li>
+  <li>$(1-\rho + m\rho)$ with multiplicity 1 (eigenvector $\mathbf{1}/\sqrt{m}$)</li>
+</ul>
+<p>
+The square root is:
+$$R_\rho^{1/2} = \sqrt{1-\rho}\left(I - \frac{\mathbf{1}\mathbf{1}^\top}{m}\right) + \sqrt{1-\rho+m\rho}\;\frac{\mathbf{1}\mathbf{1}^\top}{m}$$
+</p>
+<p>
+The eigenvalues $\lambda_j(\rho)$ are then eigenvalues of $R_\rho^{1/2} \Phi R_\rho^{1/2}$, computed
+via <code>compute_phi_rho_eigenvalues()</code> in <code>skat.cpp</code>.
+</p>
+</div>
+</details>
+
+</section>
+
+
+<!-- ============================================================
+     SECTION 11: CCT
+     ============================================================ -->
+<section id="sec-cct">
+<h2>11. Cauchy Combination Test (CCT)</h2>
+
+<p>
+CCT combines p-values from different annotation&times;MAF strata into a single omnibus
+p-value. It uses the Cauchy distribution because it is the only stable distribution
+for which the sum of independent Cauchy variables is also Cauchy (up to scale), and
+it is robust to correlated test statistics.
+</p>
+
+<div class="math-block">
+<p><strong>CCT statistic:</strong></p>
+$$T_{\text{CCT}} = \sum_{i=1}^k w_i \tan\!\bigl((0.5 - p_i)\pi\bigr)$$
+
+<p>where $w_i = 1/k$ (equal weights) and $p_i$ are the individual p-values.</p>
+
+<p><strong>For very small p-values</strong> ($p_i < 10^{-16}$), to avoid numerical issues with $\tan$:</p>
+$$w_i \tan\!\bigl((0.5 - p_i)\pi\bigr) \approx \frac{w_i}{p_i \pi}$$
+
+<p><strong>CCT p-value:</strong></p>
+$$p_{\text{CCT}} = \begin{cases}
+\displaystyle 1 - F_{\text{Cauchy}}(T_{\text{CCT}}) & \text{if } T_{\text{CCT}} \leq 10^{15} \\[8pt]
+\displaystyle \frac{1}{T_{\text{CCT}} \cdot \pi} & \text{if } T_{\text{CCT}} > 10^{15}
+\end{cases}$$
+
+<p>where $F_{\text{Cauchy}}$ is the CDF of the standard Cauchy(0,1) distribution.</p>
+</div>
+
+<h3>Edge Cases</h3>
+<ul>
+  <li><strong>Any $p_i = 0$:</strong> $p_{\text{CCT}} = 0$</li>
+  <li><strong>Any $p_i = 1$:</strong> Use Bonferroni instead: $p_{\text{CCT}} = \min(1, k \cdot p_{\min})$</li>
+</ul>
+
+<p>Source: <code>CCT_cpp()</code> in <code>cct.cpp</code>.</p>
+
+<div class="example">
+<h4>Numerical Example: CCT (k=3 p-values)</h4>
+$$p = (0.002, \; 0.05, \; 0.30)$$
+$$T_{\text{CCT}} = \frac{1}{3}\left[\tan((0.5 - 0.002)\pi) + \tan((0.5 - 0.05)\pi) + \tan((0.5 - 0.30)\pi)\right]$$
+$$= \frac{1}{3}\left[\tan(0.498\pi) + \tan(0.45\pi) + \tan(0.20\pi)\right]$$
+$$= \frac{1}{3}\left[159.1 + 6.31 + 0.727\right] = \frac{166.1}{3} = 55.38$$
+
+$$p_{\text{CCT}} = 1 - F_{\text{Cauchy}}(55.38) = \frac{1}{\pi}\arctan(1/55.38) \approx 0.00575$$
+</div>
+
+<div class="insight">
+<strong>Why Cauchy?</strong> The sum $\sum w_i \tan((0.5 - p_i)\pi)$ has a standard Cauchy
+distribution under the global null (all $p_i$ uniform), regardless of the correlation structure
+between the test statistics. This makes CCT valid even when the strata are correlated (as they
+typically are, since the variant sets overlap across MAF thresholds). Other combination methods
+(Fisher, Tippett) require independence.
+</div>
+
+</section>
+
+
+<!-- ============================================================
+     APPENDIX: COMPLETE VARIABLE REFERENCE
+     ============================================================ -->
+<section id="sec-appendix">
+<h2>Appendix: Complete Variable Cross-Reference</h2>
+
+<table>
+<tr><th>C++ Variable</th><th>Math Symbol</th><th>Dimension</th><th>Source File</th></tr>
+<tr><td><code>m_mu</code></td><td>$\hat{\mu}$</td><td>$N$</td><td>saige_test.hpp</td></tr>
+<tr><td><code>m_res</code></td><td>$r = y - \hat{\mu}$</td><td>$N$</td><td>saige_test.hpp</td></tr>
+<tr><td><code>m_mu2</code></td><td>$\hat{\mu}(1-\hat{\mu})$</td><td>$N$</td><td>saige_test.hpp</td></tr>
+<tr><td><code>m_y</code></td><td>$y$</td><td>$N$</td><td>saige_test.hpp</td></tr>
+<tr><td><code>m_tauvec</code></td><td>$\tau$</td><td>$2$</td><td>saige_test.hpp</td></tr>
+<tr><td><code>m_XVX</code></td><td>$X^\top V X$</td><td>$p \times p$</td><td>saige_test.hpp</td></tr>
+<tr><td><code>m_XXVX_inv</code></td><td>$X(X^\top V X)^{-1}$</td><td>$N \times p$</td><td>saige_test.hpp</td></tr>
+<tr><td><code>m_XV</code></td><td>$X^\top V$</td><td>$p \times N$</td><td>saige_test.hpp</td></tr>
+<tr><td><code>m_XVX_inv_XV</code></td><td>$(X^\top V X)^{-1} X^\top V$</td><td>$p \times N$</td><td>saige_test.hpp</td></tr>
+<tr><td><code>m_S_a</code></td><td>$S_a = X^\top r$</td><td>$p$</td><td>saige_test.hpp</td></tr>
+<tr><td><code>m_varRatioVal</code></td><td>VR</td><td>scalar</td><td>saige_test.hpp</td></tr>
+<tr><td><code>m_SPA_Cutoff</code></td><td>SPA threshold</td><td>scalar (default 2)</td><td>saige_test.hpp</td></tr>
+<tr><td><code>P1Mat</code></td><td>$\sqrt{\text{VR}} \cdot \tilde{G}^\top$</td><td>$m \times N$</td><td>main.cpp</td></tr>
+<tr><td><code>P2Mat</code></td><td>$\sqrt{\text{VR}} \cdot P_2$</td><td>$N \times m$</td><td>main.cpp</td></tr>
+<tr><td><code>VarMat</code></td><td>$\Phi = P_1 P_2$</td><td>$m \times m$</td><td>main.cpp</td></tr>
+<tr><td><code>Score</code></td><td>$S \odot w$</td><td>$m$</td><td>skat.cpp</td></tr>
+<tr><td><code>Phi</code></td><td>$(ww^\top) \odot \Phi$</td><td>$m \times m$</td><td>skat.cpp</td></tr>
+<tr><td><code>r_corr</code></td><td>$\rho$ grid</td><td>11</td><td>skat.cpp</td></tr>
+</table>
+
+</section>
+
+
+</div> <!-- end #content -->
+
+
+<!-- ============================================================
+     SCROLL-SPY JAVASCRIPT
+     ============================================================ -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const links = document.querySelectorAll('#sidebar nav a');
+  const sections = [];
+
+  links.forEach(function(link) {
+    const href = link.getAttribute('href');
+    if (href && href.startsWith('#')) {
+      const section = document.querySelector(href);
+      if (section) {
+        sections.push({ el: section, link: link });
+      }
+    }
+  });
+
+  function onScroll() {
+    const scrollPos = window.scrollY + 80;
+    let current = null;
+
+    for (let i = sections.length - 1; i >= 0; i--) {
+      if (sections[i].el.offsetTop <= scrollPos) {
+        current = sections[i];
+        break;
+      }
+    }
+
+    links.forEach(function(l) { l.classList.remove('active'); });
+    if (current) {
+      current.link.classList.add('active');
+    }
+  }
+
+  window.addEventListener('scroll', onScroll);
+  onScroll();
+
+  // Smooth scroll for sidebar links
+  links.forEach(function(link) {
+    link.addEventListener('click', function(e) {
+      e.preventDefault();
+      const target = document.querySelector(link.getAttribute('href'));
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  });
+});
+</script>
+
+</body>
+</html>

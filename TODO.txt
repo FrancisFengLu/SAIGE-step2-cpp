@@ -1,0 +1,894 @@
+================================================================================
+SAIGE STEP 2 — C++ STANDALONE CONVERSION TODO
+================================================================================
+Updated: Feb 11, 2025
+Reference: STEP2_CALL_GRAPH_v2.html (15 sections)
+
+================================================================================
+FUNCTION-TO-FILE MAPPING (from HTML Call Graph → Standalone C++)
+================================================================================
+
+Each row: Original SAIGE function → where it goes in standalone code
+"DONE" = already ported, "STUB" = interface exists but body throws,
+"NEW" = file/function doesn't exist yet
+
+LEGEND:
+  Source Column = Original file in /SAIGE/src/ or /SAIGE/R/
+  Target Column = Standalone file in Step_2_Feb_11/code_copy/cpp_standalone/
+
+────────────────────────────────────────────────────────────────────────────────
+HTML §1: MARKER-LEVEL (SINGLE-VARIANT) TESTING
+────────────────────────────────────────────────────────────────────────────────
+
+Function                       Source                        Target                          Status
+─────────────────────────────  ────────────────────────────  ──────────────────────────────  ──────
+SPAGMMATtest()                 R: SAIGE_Test_main.R:62       main.cpp                        NEW
+  ReadModel()                  R: readInGLMM.R               null_model_loader.cpp           STUB
+  Get_Variance_Ratio()         R: SAIGE_Test_main.R          null_model_loader.cpp           STUB
+  setSAIGEobjInCPP()           Rcpp: Main.cpp:180            main.cpp (calls constructor)    NEW
+    SAIGEClass constructor     C++: SAIGE_test.cpp:25        saige_test.cpp                  DONE
+  SAIGE.Marker()               R: SAIGE_SPATest_Marker.R     main.cpp (marker loop)          NEW
+    mainMarkerInCPP()          Rcpp: Main.cpp:219            main.cpp                        NEW
+      Unified_getOneMarker()   C++: Main.cpp                 genotype_reader.cpp             NEW
+      assignVarianceRatio()    C++: SAIGE_test.cpp           saige_test.cpp                  DONE
+      Unified_getMarkerPval()  C++: SAIGE_test.cpp:449       saige_test.cpp (getMarkerPval)  DONE
+
+────────────────────────────────────────────────────────────────────────────────
+HTML §2: REGION-LEVEL (GENE-BASED) TESTING
+────────────────────────────────────────────────────────────────────────────────
+
+Function                                    Source                              Target                          Status
+──────────────────────────────────────────  ──────────────────────────────────  ──────────────────────────────  ──────
+SAIGE.Region()                              R: SAIGE_SPATest_Region.R:103       main.cpp (region loop)          NEW
+  checkGroupFile()                          R: SPATest_Region_Func.R:73         group_file.cpp                  NEW
+  SAIGE.getRegionList_new()                 R: SPATest_Region.R:1315            group_file.cpp                  NEW
+    Build annoIndicatorMat                  R: SPATest_Region.R                 group_file.cpp                  NEW
+  mainRegionInCPP()                         Rcpp: Main.cpp:1032                 main.cpp                        NEW
+    Unified_getOneMarker()                  C++: Main.cpp                       genotype_reader.cpp             NEW
+    getadjGFast()                           C++: SAIGE_test.cpp                 saige_test.cpp                  DONE
+    scoreTest()                             C++: SAIGE_test.cpp:135             saige_test.cpp                  DONE
+    Accumulate VarMat, TstatVec             C++: Main.cpp                       main.cpp                        NEW
+  get_newPhi_scaleFactor_traitType()        R: Region_Func.R:275                main.cpp (or region_test.cpp)   NEW
+    SPA_ER_kernel_related_Phiadj_fast_new() R: Region_Func.R:190                main.cpp (or region_test.cpp)   NEW
+  get_SKAT_pvalue()                         R: Region_Func.R:320                skat.cpp                        NEW
+    SKAT:::Met_SKAT_Get_Pvalue()            R: SKAT package                     skat.cpp (Davies method)        NEW
+  get_CCT_pvalue()                          R: CCT_modified.R:19                cct.cpp                         DONE
+
+────────────────────────────────────────────────────────────────────────────────
+HTML §3: SCORE TEST VARIANTS
+────────────────────────────────────────────────────────────────────────────────
+
+Function                       Source                        Target                          Status
+─────────────────────────────  ────────────────────────────  ──────────────────────────────  ──────
+scoreTestFast_noadjCov()       C++: SAIGE_test.cpp:309       saige_test.cpp                  DONE
+scoreTest()                    C++: SAIGE_test.cpp:135       saige_test.cpp                  DONE
+scoreTestFast()                C++: SAIGE_test.cpp:226       saige_test.cpp                  DONE
+
+────────────────────────────────────────────────────────────────────────────────
+HTML §4: SPA INTERNALS
+────────────────────────────────────────────────────────────────────────────────
+
+Function                       Source                        Target                          Status
+─────────────────────────────  ────────────────────────────  ──────────────────────────────  ──────
+SPA_fast()                     C++: SPA.cpp:116              spa.cpp                         DONE
+SPA()                          C++: SPA.cpp:20               spa.cpp                         DONE
+getroot_K1_Binom()             C++: SPA_binary.cpp:70        spa_binary.cpp                  DONE
+getroot_K1_fast_Binom()        C++: SPA_binary.cpp           spa_binary.cpp                  DONE
+Get_Saddle_Prob_Binom()        C++: SPA_binary.cpp:146       spa_binary.cpp                  DONE
+Get_Saddle_Prob_fast_Binom()   C++: SPA_binary.cpp           spa_binary.cpp                  DONE
+Korg_Binom(), K1_adj_Binom()   C++: SPA_binary.cpp           spa_binary.cpp                  DONE
+K2_Binom()                     C++: SPA_binary.cpp           spa_binary.cpp                  DONE
+
+────────────────────────────────────────────────────────────────────────────────
+HTML §5: VARIANCE RATIO (Step 1 → Step 2 Bridge)
+────────────────────────────────────────────────────────────────────────────────
+
+Function                       Source                        Target                          Status
+─────────────────────────────  ────────────────────────────  ──────────────────────────────  ──────
+assignVarianceRatio(MAC)       C++: SAIGE_test.cpp           saige_test.cpp                  DONE
+  (VR loading from file)       —                             null_model_loader.cpp           STUB
+
+────────────────────────────────────────────────────────────────────────────────
+HTML §6: MATHEMATICAL FORMULAS
+────────────────────────────────────────────────────────────────────────────────
+(No code — reference only. Formulas are implemented in saige_test.cpp, skat.cpp, cct.cpp)
+
+────────────────────────────────────────────────────────────────────────────────
+HTML §7: FILE CROSS-REFERENCE — Standalone Target Mapping
+────────────────────────────────────────────────────────────────────────────────
+
+Original SAIGE File           Standalone Target              Status    Notes
+────────────────────────────  ─────────────────────────────  ────────  ──────────────────────────
+SAIGE_test.cpp (1256 lines)   saige_test.cpp (1119 lines)    DONE      Rcpp removed, boost stats
+SAIGE_test.hpp (265 lines)    saige_test.hpp (257 lines)     DONE      Rcpp removed
+SPA.cpp (299 lines)           spa.cpp (210 lines)            DONE      Struct returns
+SPA_binary.cpp (529 lines)    spa_binary.cpp (433 lines)     DONE      12 Rcpp::List → structs
+SPA_binary.hpp (16 lines)     spa_binary.hpp                 DONE      Struct declarations
+CCT.cpp (82 lines)            cct.cpp (75 lines)             DONE      Boost Cauchy
+UTIL.cpp (~200 lines)         UTIL.cpp (198 lines)           DONE      Boost Beta
+getMem.cpp (52 lines)         getMem.cpp (52 lines)          DONE      macOS mach API added
+Main.cpp (3044 lines)         main.cpp                       NEW       Biggest task
+Main.hpp (382 lines)          (split across headers)         NEW       —
+PLINK.cpp (345 lines)         genotype_reader.cpp            NEW       PLINK BED reader
+BGEN.cpp (582 lines)          genotype_reader.cpp            NEW       BGEN v1.2 (lower priority)
+VCF.cpp (256 lines)           genotype_reader.cpp            NEW       VCF/BCF (lower priority)
+PGEN.cpp (371 lines)          genotype_reader.cpp            NEW       PLINK 2.0 (lowest priority)
+ER_binary_func.cpp (278 ln)   er_binary.cpp                  NEW       Binary only, defer
+Binary_HyperGeo.cpp (195 ln)  er_binary.cpp                  NEW       Part of ER
+LDmat.cpp (580 lines)         ldmat.cpp                      NEW       Optional feature
+readInGLMM.R                  null_model_loader.cpp          STUB      Load .arma + JSON
+SPATest_Region.R              main.cpp + group_file.cpp      NEW       Region orchestration
+SPATest_Region_Func.R         main.cpp + skat.cpp            NEW       SKAT/Burden/SKAT-O
+
+────────────────────────────────────────────────────────────────────────────────
+HTML §8: TRAIT-SPECIFIC DIFFERENCES
+────────────────────────────────────────────────────────────────────────────────
+(Reference — implemented within saige_test.cpp, spa.cpp, main.cpp)
+
+Key trait-specific code points:
+  - mu2 computation         → saige_test.cpp constructor          DONE
+  - SPA gating              → saige_test.cpp getMarkerPval        DONE
+  - Firth correction        → saige_test.cpp fast_logistf_fit     DONE
+  - ER gating               → saige_test.cpp getMarkerPval        STUB (throws)
+  - Region Phi adjustment   → main.cpp (region section)           NEW
+
+────────────────────────────────────────────────────────────────────────────────
+HTML §9: EFFICIENT RESAMPLING (ER)
+────────────────────────────────────────────────────────────────────────────────
+
+Function                            Source                          Target                  Status
+──────────────────────────────────  ──────────────────────────────  ────────────────────    ──────
+SKATExactBin_Work()                 C++: ER_binary_func.cpp:185     er_binary.cpp           NEW
+  SKATExactBin_ComputProb_New()     C++: ER_binary_func.cpp:106     er_binary.cpp           NEW
+    SKATExactBin_ComputeProb_Group  C++: ER_binary_func.cpp:22      er_binary.cpp           NEW
+      GetProb_new()                 C++: ER_binary_func.cpp:14      er_binary.cpp           NEW
+        HyperGeo.Run()              C++: Binary_HyperGeo.cpp:37     er_binary.cpp           NEW
+          HyperGeo::Recursive()     C++: Binary_HyperGeo.cpp:108    er_binary.cpp           NEW
+          HyperGeo::Get_lprob()     C++: Binary_HyperGeo.cpp:133    er_binary.cpp           NEW
+  SKAT_Exact()                      C++: ER_binary_func.cpp         er_binary.cpp           NEW
+
+Note: ER is binary-only, used for MAC ≤ 4. Can defer — SPA fallback works.
+
+────────────────────────────────────────────────────────────────────────────────
+HTML §10: CONDITIONAL ANALYSIS
+────────────────────────────────────────────────────────────────────────────────
+
+Function                                Source                          Target                  Status
+──────────────────────────────────────  ──────────────────────────────  ────────────────────    ──────
+assignConditionFactors()                C++: SAIGE_test.cpp             saige_test.cpp          DONE
+assignConditionFactors_scalefactor()    C++: SAIGE_test.cpp             saige_test.cpp          DONE
+getMarkerPval(..., isCondition=true)    C++: SAIGE_test.cpp:700-914     saige_test.cpp          DONE
+  Conditional projection (G1P2)         C++: SAIGE_test.cpp             saige_test.cpp          DONE
+  Conditional score/variance            C++: SAIGE_test.cpp             saige_test.cpp          DONE
+
+Note: Conditional logic is already ported in saige_test.cpp. The setup
+(loading conditioning variant genotypes, calling assignConditionFactors)
+needs to be wired in main.cpp.
+
+────────────────────────────────────────────────────────────────────────────────
+HTML §11: ULTRA-RARE VARIANT (URV) COLLAPSING
+────────────────────────────────────────────────────────────────────────────────
+
+Function / Logic                    Source                          Target                  Status
+──────────────────────────────────  ──────────────────────────────  ────────────────────    ──────
+URV indicator (MAC ≤ 10)            C++: Main.cpp:1299              main.cpp                NEW
+genoURMat collapsing (max)          C++: Main.cpp:1378-1410         main.cpp                NEW
+Pseudo-marker score test            C++: Main.cpp:1527-1620         main.cpp                NEW
+
+Note: URV collapsing is part of mainRegionInCPP(). Lives in main.cpp.
+
+────────────────────────────────────────────────────────────────────────────────
+HTML §12: LDmat COMPUTATION
+────────────────────────────────────────────────────────────────────────────────
+
+Function                       Source                        Target                  Status
+─────────────────────────────  ────────────────────────────  ────────────────────    ──────
+LDmatRegionInCPP()             C++: LDmat.cpp (580 lines)    ldmat.cpp               NEW
+
+Note: Optional feature. Computes Phi matrix between variants in a region.
+Lower priority — not needed for basic region tests.
+
+────────────────────────────────────────────────────────────────────────────────
+HTML §13: ANNOTATION FILTERING & GROUP FILE PARSING
+────────────────────────────────────────────────────────────────────────────────
+
+Function                       Source                          Target                  Status
+─────────────────────────────  ──────────────────────────────  ────────────────────    ──────
+readGroupFile()                R: SPATest_Region_Func.R:3-62   group_file.cpp          NEW
+checkGroupFile()               R: SPATest_Region_Func.R:73     group_file.cpp          NEW
+SAIGE.getRegionList_new()      R: SPATest_Region.R:1315-1500   group_file.cpp          NEW
+  Build annoIndicatorMat       R: SPATest_Region.R             group_file.cpp          NEW
+  Annotation-MAF stratification C++: Main.cpp:1378-1410         main.cpp                NEW
+
+────────────────────────────────────────────────────────────────────────────────
+HTML §14: OUTPUT FILE FORMATS
+────────────────────────────────────────────────────────────────────────────────
+
+Output                         Source                          Target                  Status
+─────────────────────────────  ──────────────────────────────  ────────────────────    ──────
+Marker-level TSV writer        R: SAIGE_SPATest_Marker.R       main.cpp                NEW
+  (CHROM, POS, MarkerID, Ref, Alt, AC, AF, N, Beta, SE, Tstat, pval, pval_noSPA, ...)
+Region-level TSV writer        R: SAIGE_SPATest_Region.R       main.cpp                NEW
+  (Region, Annotation, MaxMAF_strata, pval_SKATO, Beta_Burden, SE_Burden, pval_Burden, pval_SKAT, ...)
+Single-assoc per-region writer R: SAIGE_SPATest_Region.R       main.cpp                NEW
+  ({prefix}.singleAssoc.txt)
+
+────────────────────────────────────────────────────────────────────────────────
+HTML §15: GENOTYPE READER DETAILS
+────────────────────────────────────────────────────────────────────────────────
+
+Function / Class               Source                        Target                  Status    Priority
+─────────────────────────────  ────────────────────────────  ────────────────────    ──────    ────────
+Unified_getOneMarker()         C++: Main.cpp                 genotype_reader.cpp     NEW       CRITICAL
+PlinkClass::getOneMarker()     C++: PLINK.cpp (345 lines)    genotype_reader.cpp     NEW       P0
+  PLINK 2-bit decode           C++: PLINK.cpp                genotype_reader.cpp     NEW       P0
+BgenClass::getOneMarker()      C++: BGEN.cpp (582 lines)     genotype_reader.cpp     NEW       P1
+VcfClass::getOneMarker()       C++: VCF.cpp (256 lines)      genotype_reader.cpp     NEW       P2
+PgenClass::getOneMarker()      C++: PGEN.cpp (371 lines)     genotype_reader.cpp     NEW       P3
+
+Global pointers (Main.cpp:35-40):
+  ptr_gPLINKobj  →  singleton in genotype_reader.cpp
+  ptr_gBGENobj   →  singleton in genotype_reader.cpp
+  ptr_gVCFobj    →  singleton in genotype_reader.cpp
+  ptr_gPGENobj   →  singleton in genotype_reader.cpp
+  ptr_gSAIGEobj  →  global SAIGEClass* in main.cpp
+
+
+================================================================================
+IMPLEMENTATION CHECKLIST (ordered by dependency)
+================================================================================
+
+Key: [ ] = not started, [~] = stub exists, [x] = done
+
+─── PHASE 0: ALREADY DONE ──────────────────────────────────────────────────
+
+[x] saige_test.cpp/hpp    — SAIGEClass, score tests, SPA dispatch, Firth,
+                             conditional analysis, variance ratio assignment
+                             (Source: SAIGE_test.cpp 1256→1119 lines)
+
+[x] spa_binary.cpp/hpp    — Binomial SPA: root finding, saddle prob, fast variants
+                             12 Rcpp::List → C++ structs (RootResult, SaddleResult, SPAResult)
+                             (Source: SPA_binary.cpp 529→433 lines)
+
+[x] spa.cpp/hpp            — SPA dispatcher (binary + fast + fallback)
+                             (Source: SPA.cpp 299→210 lines)
+
+[x] cct.cpp/hpp            — Cauchy Combination Test
+                             (Source: CCT.cpp 82→75 lines)
+
+[x] UTIL.cpp/hpp           — Weights (Beta dist), imputation, inner product, RNG
+                             (Source: UTIL.cpp ~200→198 lines)
+
+[x] getMem.cpp/hpp         — Memory reporting (Linux + macOS)
+                             (Source: getMem.cpp 52→52 lines)
+
+[x] Makefile               — Build infrastructure (armadillo, boost, yaml-cpp, superlu)
+
+─── PHASE 1: NULL MODEL LOADER (blocks everything) ─────────────────────────
+
+[~] null_model_loader.cpp  — loadNullModel(): read nullmodel.json + 11 .arma files
+                             loadVarianceRatios(): parse varianceRatio.txt
+                             (loadArmaVec/loadArmaMat: implemented)
+                             (loadNullModel/loadVarianceRatios: throw "not yet implemented")
+
+    Tasks:
+    [ ] 1a. Add JSON parsing (yaml-cpp can parse JSON, already in Makefile)
+    [ ] 1b. Implement loadNullModel() body:
+            - Parse nullmodel.json → tau, traitType, n, p, sampleIDs
+            - Load: mu.arma, res.arma, y.arma, V.arma, S_a.arma
+            - Load: X.arma, XVX.arma, XVX_inv.arma, XXVX_inv.arma,
+                    XV.arma, XVX_inv_XV.arma
+            - Compute mu2: mu%(1-mu) for binary, fill(1/tau[0]) for quant
+            - Compute tauvec = {tau[0], tau[1]}
+    [ ] 1c. Implement loadVarianceRatios():
+            - Parse tab-separated: VR_value \t null \t MAC_category
+            - Fill varRatio_null, varRatio_sparse, cateVarRatioMin/Max
+    [ ] 1d. Optional: load sparse GRM (locationMat, valueVec from .mtx)
+    [ ] 1e. Test: load Step 1 output, print dimensions, verify values
+
+─── PHASE 2: GENOTYPE READER (blocks marker + region testing) ──────────────
+
+[ ] genotype_reader.cpp/hpp — Does not exist yet
+
+    Tasks:
+    [ ] 2a. Define base class / unified interface:
+            struct MarkerInfo { chrom, pos, ref, alt, af, mac, missing_rate, ... }
+            class GenotypeReader {
+              virtual bool getOneMarker(idx, arma::vec& GVec, MarkerInfo& info) = 0;
+              virtual int getNumMarkers() = 0;
+              virtual void close() = 0;
+            }
+    [ ] 2b. Implement PlinkClass (PLINK BED):                             [P0 — CRITICAL]
+            Source: /SAIGE/src/PLINK.cpp (345 lines)
+            Step 1 ref: /Jan_30_comparison/code_copy/cpp_standalone/ (has working PLINK code)
+            - Read .fam (sample IDs, N), .bim (marker info), .bed (genotypes)
+            - 2-bit decode: 00=hom_alt, 01=missing, 10=het, 11=hom_ref
+            - Impute missing (mean/bestguess/minor)
+            - Compute AF, MAC, flip if needed
+    [ ] 2c. Implement Unified_getOneMarker() dispatcher
+    [ ] 2d. Implement BgenClass (BGEN v1.2):                              [P1 — LATER]
+            Source: /SAIGE/src/BGEN.cpp (582 lines)
+    [ ] 2e. Implement VcfClass (VCF/BCF):                                 [P2 — LATER]
+            Source: /SAIGE/src/VCF.cpp (256 lines)
+    [ ] 2f. Implement PgenClass (PLINK 2.0):                              [P3 — OPTIONAL]
+            Source: /SAIGE/src/PGEN.cpp (371 lines)
+    [ ] 2g. Update Makefile with genotype_reader.o
+
+─── PHASE 3: MAIN.CPP — SINGLE-VARIANT TESTING ─────────────────────────────
+
+[ ] main.cpp — Does not exist yet
+
+    Tasks:
+    [ ] 3a. CLI argument parsing (yaml-cpp config, like Step 1)
+            Ref: /Jan_30_comparison/code_copy/cpp_standalone/main.cpp
+    [ ] 3b. Initialization: load null model, open genotype file
+            - Call loadNullModel() → NullModelData
+            - Construct SAIGEClass from NullModelData
+            - Open GenotypeReader
+    [ ] 3c. Implement mainMarkerInCPP() loop:
+            Source: /SAIGE/src/Main.cpp:219-490
+            For each marker:
+              - Unified_getOneMarker() → GVec
+              - QC filter: MAC ≥ min, missing_rate ≤ max
+              - imputeGenoAndFlip() (already in UTIL.cpp)
+              - assignVarianceRatio(MAC) (already in saige_test.cpp)
+              - getMarkerPval() → Beta, SE, pval (already in saige_test.cpp)
+              - Format + write output line
+    [ ] 3d. Implement marker-level TSV output writer
+            Columns: CHROM POS MarkerID Ref Alt AC AF N Beta SE Tstat pval pval_noSPA
+            Binary extra: AF_case AF_ctrl N_case N_ctrl
+            Conditional extra: Beta_cond SE_cond Tstat_cond pval_cond
+    [ ] 3e. Wire conditional analysis setup (if isCondition):
+            - Load conditioning variant genotypes
+            - Call assignConditionFactors() (already in saige_test.cpp)
+    [ ] 3f. Test: single-variant p-values match R output
+
+─── PHASE 4: GROUP FILE PARSER ──────────────────────────────────────────────
+
+[ ] group_file.cpp/hpp — Does not exist yet
+
+    Tasks:
+    [ ] 4a. Define data structures:
+            struct GroupEntry {
+              string gene_id;
+              vector<string> variant_ids;    // chr:pos:ref:alt format
+              vector<string> annotations;    // lof, missense, etc.
+              vector<double> weights;        // optional user weights
+            }
+    [ ] 4b. Implement readGroupFile():
+            Source: /SAIGE/R/SAIGE_SPATest_Region_Func.R:3-62
+            Parse 3-line-per-gene format:
+              GENE1  var     chr1:100:A:G  chr1:200:C:T
+              GENE1  anno    lof           lof
+              GENE1  weight  1.5           1.0         (optional)
+    [ ] 4c. Implement checkGroupFile() validation
+    [ ] 4d. Implement buildAnnoIndicatorMat():
+            Source: /SAIGE/R/SAIGE_SPATest_Region.R:1315-1500
+            Build annoIndicatorMat (q_markers × q_anno_maf_strata)
+
+─── PHASE 5: SKAT/BURDEN/SKAT-O SOLVER ─────────────────────────────────────
+
+[ ] skat.cpp/hpp — Does not exist yet
+
+    Tasks:
+    [ ] 5a. Implement BURDEN test:
+            Q_Burden = (sum(w_i * S_i))^2 / (w' * Sigma * w)
+            p_Burden via chi-square (boost::math::chi_squared)
+    [ ] 5b. Implement SKAT test:
+            Q_SKAT = sum(w_i^2 * S_i^2)
+            p_SKAT via Davies method (mixture of chi-squares)
+            Source: SKAT R package, Met_SKAT_Get_Pvalue
+    [ ] 5c. Implement Davies method for mixture of chi-squares
+            This is the hardest part — need qfc algorithm or port from SKAT
+    [ ] 5d. Implement SKAT-O:
+            Q(rho) = (1-rho)*Q_SKAT + rho*Q_Burden
+            Grid search rho ∈ [0, 1] for minimum p-value
+    [ ] 5e. Implement getWeights() for Beta(1,25) weighting (already in UTIL.cpp)
+
+─── PHASE 6: MAIN.CPP — REGION TESTING ─────────────────────────────────────
+
+[ ] Add mainRegionInCPP() to main.cpp
+
+    Tasks:
+    [ ] 6a. Region loop structure:
+            Source: /SAIGE/src/Main.cpp:1032-1700
+            For each gene in group file:
+              For each marker in gene:
+                - getOneMarker(), QC, impute, score test
+                - Accumulate P1Mat, P2Mat, TstatVec, VarMat
+    [ ] 6b. URV collapsing (HTML §11):
+            Source: /SAIGE/src/Main.cpp:1299-1620
+            - Classify: MAC > threshold → regular, MAC ≤ threshold → ultra-rare
+            - Collapse ultra-rare: genoURMat(i,jm) = max(current, w*G(i))
+            - Score test on pseudo-markers
+    [ ] 6c. Annotation-MAF stratification:
+            Source: /SAIGE/src/Main.cpp:1378-1410
+            - Build annoMAFIndicatorMat (jm = j * q_maf + m)
+    [ ] 6d. Phi matrix computation + VR scaling:
+            Phi[i,j] = P1[i,:] * P2[:,j]  (variance-covariance of score stats)
+    [ ] 6e. Binary/Survival Phi adjustment (HTML §2):
+            Source: /SAIGE/R/SAIGE_SPATest_Region_Func.R:190,275
+            get_newPhi_scaleFactor_traitType()
+            SPA_ER_kernel_related_Phiadj_fast_new()
+    [ ] 6f. Call SKAT/Burden/SKAT-O per (annotation, MAF) stratum
+    [ ] 6g. CCT combination across strata (cct.cpp already done)
+    [ ] 6h. Region-level TSV output writer:
+            Columns: Region Annotation MaxMAF_strata pval_SKATO Beta_Burden
+                     SE_Burden pval_Burden pval_SKAT MAC N_rare N_ultra_rare
+    [ ] 6i. Single-assoc per-region output ({prefix}.singleAssoc.txt)
+    [ ] 6j. Test: region p-values match R output
+
+─── PHASE 7: LOWER PRIORITY / OPTIONAL ─────────────────────────────────────
+
+[ ] er_binary.cpp/hpp — Efficient Resampling (HTML §9)
+    Source: /SAIGE/src/ER_binary_func.cpp (278 lines)
+           /SAIGE/src/Binary_HyperGeo.cpp (195 lines)
+           /SAIGE/src/Binary_HyperGeo.hpp (57 lines)
+    [ ] 7a. Port SKATExactBin_Work, HyperGeo class
+    [ ] 7b. Wire into saige_test.cpp getMarkerPval() (currently throws)
+    Note: Binary only, MAC ≤ 4. Can defer — SPA fallback works fine.
+
+[ ] ldmat.cpp/hpp — LD Matrix computation (HTML §12)
+    Source: /SAIGE/src/LDmat.cpp (580 lines)
+           /SAIGE/src/LDmat.hpp (53 lines)
+    [ ] 7c. Port LDmatRegionInCPP()
+    Note: Optional feature for downstream analysis.
+
+[ ] Survival trait SPA
+    Source: /SAIGE/src/SPA_survival.cpp
+    [ ] 7d. Port survival SPA (currently throws in spa.cpp)
+    Note: Binary + quantitative cover most use cases.
+
+[ ] config_test.yaml — Test configuration
+    [ ] 7e. Create YAML config matching Step 1 pattern
+
+[ ] Additional genotype formats
+    [ ] 7f. BGEN reader (P1)
+    [ ] 7g. VCF reader (P2)
+    [ ] 7h. PGEN reader (P3)
+
+
+================================================================================
+FILE-LEVEL CALL STRUCTURE (who calls who)
+================================================================================
+
+Each file below shows: what functions it exposes, and which other files call them.
+Arrow (→) means "calls into". Arrow (←) means "called by".
+
+────────────────────────────────────────────────────────────────────────────────
+main.cpp [NEW] — Entry point, orchestrator
+────────────────────────────────────────────────────────────────────────────────
+  Calls → null_model_loader.cpp   loadNullModel(), loadVarianceRatios()
+  Calls → genotype_reader.cpp     GenotypeReader::open(), getOneMarker()
+  Calls → saige_test.cpp          SAIGEClass constructor, assignVarianceRatio(),
+                                   getMarkerPval(), scoreTest(), getadjGFast(),
+                                   assignConditionFactors()
+  Calls → UTIL.cpp                imputeGenoAndFlip(), getWeights()
+  Calls → group_file.cpp          readGroupFile(), buildAnnoIndicatorMat()
+  Calls → skat.cpp                burden_test(), skat_test(), skato_test()
+  Calls → cct.cpp                 CCT()
+  Calls → getMem.cpp              getPhyMem(), getVirMem()
+
+  Functions defined here:
+    main()                  — parse YAML, init, dispatch
+    mainMarkerInCPP()       — single-variant loop (marker by marker)
+    mainRegionInCPP()       — region loop (gene by gene)
+      URV collapsing logic  — collapse ultra-rare into pseudo-markers
+      Phi computation       — build variance-covariance matrix
+      Phi SPA adjustment    — scale Phi for binary traits
+      Output TSV writers    — marker-level + region-level + singleAssoc
+
+  Called by ← (nobody — this is the entry point)
+
+────────────────────────────────────────────────────────────────────────────────
+null_model_loader.cpp [STUB] — Load Step 1 output
+────────────────────────────────────────────────────────────────────────────────
+  Calls → (armadillo only — arma::vec::load, arma::mat::load)
+  Calls → (yaml-cpp — YAML::LoadFile for JSON parsing)
+
+  Functions defined here:
+    loadNullModel()         — read nullmodel.json + 11 .arma files → NullModelData
+    loadVarianceRatios()    — parse varianceRatio.txt → VR vectors
+    loadArmaVec()           — load single arma binary vector
+    loadArmaMat()           — load single arma binary matrix
+
+  Called by ← main.cpp (during initialization)
+
+────────────────────────────────────────────────────────────────────────────────
+genotype_reader.cpp [NEW] — Read genotype files (PLINK/BGEN/VCF/PGEN)
+────────────────────────────────────────────────────────────────────────────────
+  Calls → (stdlib only — file I/O, bit manipulation)
+
+  Functions/classes defined here:
+    GenotypeReader (base)   — virtual interface
+    PlinkClass              — PLINK BED 2-bit decode (.bed/.bim/.fam)
+    BgenClass               — BGEN v1.2 probabilistic dosages (later)
+    VcfClass                — VCF/BCF via htslib (later)
+    PgenClass               — PLINK 2.0 (later)
+    Unified_getOneMarker()  — dispatcher → correct reader class
+
+  Called by ← main.cpp (mainMarkerInCPP + mainRegionInCPP, per-marker loop)
+
+────────────────────────────────────────────────────────────────────────────────
+saige_test.cpp [DONE] — Core association testing (SAIGEClass)
+────────────────────────────────────────────────────────────────────────────────
+  Calls → spa.cpp                  SPA(), SPA_fast(), SPA_pval()
+  Calls → UTIL.cpp                 nb(), add_logp()
+  Calls → (boost::math)            chi_squared, normal (for p-values)
+
+  Functions defined here (SAIGEClass methods):
+    SAIGEClass()                    — constructor (stores all null model data)
+    scoreTest()                     — score test with sparse GRM (Path B)
+    scoreTestFast()                 — score test without sparse GRM (Path C)
+    scoreTestFast_noadjCov()        — score test, no cov adjustment (Path A)
+    getMarkerPval()                 — full p-value pipeline (score → SPA → Firth → ER)
+    getadjG() / getadjGFast()       — compute adjusted genotype g_tilde
+    assignVarianceRatio()           — select VR by MAC bin
+    assignConditionFactors()        — set up conditional analysis matrices
+    fast_logistf_fit_simple()       — Firth penalized logistic regression
+    getPCG1ofSigmaAndGtilde()       — PCG solve for sparse GRM variance
+    extract_XV_XXVX_inv()           — accessor for projection matrices
+    set_flagSparseGRM_cur()         — toggle sparse GRM for current test
+
+  Called by ← main.cpp (mainMarkerInCPP + mainRegionInCPP)
+
+────────────────────────────────────────────────────────────────────────────────
+spa.cpp [DONE] — SPA dispatcher
+────────────────────────────────────────────────────────────────────────────────
+  Calls → spa_binary.cpp           getroot_K1_Binom(), Get_Saddle_Prob_Binom(),
+                                   getroot_K1_fast_Binom(), Get_Saddle_Prob_fast_Binom()
+
+  Functions defined here:
+    SPA()                   — full SPA (fallback when fast fails)
+    SPA_fast()              — optimized SPA with gNA/gNB split
+    SPA_pval()              — single-call SPA wrapper
+
+  Called by ← saige_test.cpp (getMarkerPval, when |T| > SPA_cutoff)
+
+────────────────────────────────────────────────────────────────────────────────
+spa_binary.cpp [DONE] — Binomial SPA kernel functions
+────────────────────────────────────────────────────────────────────────────────
+  Calls → (boost::math)            normal distribution cdf (for Lugannani-Rice)
+
+  Functions defined here:
+    Korg_Binom()                    — K(t) cumulant generating function
+    K1_adj_Binom()                  — K'(t) - q (first derivative minus target)
+    K2_Binom()                      — K''(t) (second derivative)
+    getroot_K1_Binom()              — Newton-Raphson root finding
+    getroot_K1_fast_Binom()         — fast version with gNA/gNB split
+    Get_Saddle_Prob_Binom()         — Lugannani-Rice saddlepoint probability
+    Get_Saddle_Prob_fast_Binom()    — fast version
+
+  Called by ← spa.cpp (SPA + SPA_fast)
+
+────────────────────────────────────────────────────────────────────────────────
+cct.cpp [DONE] — Cauchy Combination Test
+────────────────────────────────────────────────────────────────────────────────
+  Calls → (boost::math)            cauchy distribution cdf
+
+  Functions defined here:
+    CCT()                   — combine p-values via Cauchy distribution
+
+  Called by ← main.cpp (mainRegionInCPP, after per-stratum tests)
+
+────────────────────────────────────────────────────────────────────────────────
+UTIL.cpp [DONE] — Shared math utilities
+────────────────────────────────────────────────────────────────────────────────
+  Calls → (boost::math)            beta distribution pdf (for weights)
+
+  Functions defined here:
+    getWeights()            — Beta(1,25) density weights for MAF
+    imputeGeno()            — impute missing genotypes
+    imputeGenoAndFlip()     — impute + flip alleles if MAF > 0.5
+    nb()                    — random Bernoulli draw
+    innerProduct()          — vector dot product
+    add_logp()              — add two log-scale p-values
+    printTime()             — wall clock + CPU time
+
+  Called by ← main.cpp (imputation, weights)
+             ← saige_test.cpp (nb, add_logp)
+
+────────────────────────────────────────────────────────────────────────────────
+group_file.cpp [NEW] — Gene/region group file parser
+────────────────────────────────────────────────────────────────────────────────
+  Calls → (stdlib only — string parsing, file I/O)
+
+  Functions defined here:
+    readGroupFile()                 — parse 3-line-per-gene format
+    checkGroupFile()                — validate group file structure
+    buildAnnoIndicatorMat()         — build annotation × MAF indicator matrix
+
+  Called by ← main.cpp (mainRegionInCPP, before region loop)
+
+────────────────────────────────────────────────────────────────────────────────
+skat.cpp [NEW] — SKAT/Burden/SKAT-O set-based tests
+────────────────────────────────────────────────────────────────────────────────
+  Calls → (boost::math)            chi_squared cdf (for Burden p-value)
+  Calls → (internal)               Davies qfc algorithm (for SKAT p-value)
+
+  Functions defined here:
+    burden_test()           — Burden test: Q = (w'S)^2 / (w'Phi*w)
+    skat_test()             — SKAT test: Q = S'WS, p via Davies method
+    skato_test()            — SKAT-O: optimize rho over [0,1]
+    davies_pvalue()         — mixture of chi-squares p-value (qfc algorithm)
+
+  Called by ← main.cpp (mainRegionInCPP, per annotation-MAF stratum)
+
+────────────────────────────────────────────────────────────────────────────────
+er_binary.cpp [NEW, LOW PRIORITY] — Efficient Resampling
+────────────────────────────────────────────────────────────────────────────────
+  Calls → (internal only — combinatorics, hypergeometric)
+
+  Functions defined here:
+    SKATExactBin_Work()             — exact binary test driver
+    HyperGeo class                  — hypergeometric enumeration
+    GetProb_new()                   — probability computation per AF stratum
+
+  Called by ← saige_test.cpp (getMarkerPval, when binary + MAC ≤ 4)
+
+────────────────────────────────────────────────────────────────────────────────
+getMem.cpp [DONE] — Memory reporting
+────────────────────────────────────────────────────────────────────────────────
+  Calls → (OS APIs — mach/mach.h on macOS, /proc/self/stat on Linux)
+
+  Functions defined here:
+    getPhyMem()             — physical memory usage
+    getVirMem()             — virtual memory usage
+
+  Called by ← main.cpp (progress logging)
+
+────────────────────────────────────────────────────────────────────────────────
+ldmat.cpp [NEW, OPTIONAL] — LD matrix computation
+────────────────────────────────────────────────────────────────────────────────
+  Calls → saige_test.cpp           getadjG() for g_tilde computation
+  Calls → genotype_reader.cpp      getOneMarker()
+
+  Functions defined here:
+    LDmatRegionInCPP()      — compute Phi matrix for a region, save to file
+
+  Called by ← main.cpp (if LD output requested)
+
+
+================================================================================
+CALL GRAPH SUMMARY (file level)
+================================================================================
+
+                                 main.cpp [NEW]
+                                    │
+          ┌─────────┬──────────┬────┼────┬──────────┬──────────┬─────────┐
+          v         v          v    v    v          v          v         v
+  null_model   genotype    saige  UTIL  group    skat.cpp    cct.cpp  getMem
+  _loader.cpp  _reader.cpp _test        _file               [DONE]   [DONE]
+  [STUB]       [NEW]       .cpp   [DONE] .cpp     [NEW]
+                            [DONE]       [NEW]
+                              │
+                              v
+                           spa.cpp [DONE]
+                              │
+                              v
+                        spa_binary.cpp [DONE]
+
+  Separate (called by saige_test.cpp, not main.cpp):
+    er_binary.cpp [NEW] ← saige_test.cpp::getMarkerPval (when ER enabled)
+
+  Separate (optional):
+    ldmat.cpp [NEW] ← main.cpp (if LD output requested)
+
+  External libraries (called by multiple files):
+    boost::math  ← spa_binary, saige_test, cct, skat, UTIL
+    armadillo    ← all files
+    yaml-cpp     ← main.cpp, null_model_loader.cpp
+
+
+================================================================================
+DEPENDENCY GRAPH (build order — #include dependencies)
+================================================================================
+
+  null_model_loader.hpp  ← included by main.cpp
+  genotype_reader.hpp    ← included by main.cpp
+  saige_test.hpp         ← included by main.cpp
+  spa.hpp                ← included by saige_test.cpp
+  spa_binary.hpp         ← included by spa.cpp
+  cct.hpp                ← included by main.cpp
+  UTIL.hpp               ← included by main.cpp, saige_test.cpp
+  group_file.hpp         ← included by main.cpp
+  skat.hpp               ← included by main.cpp
+  er_binary.hpp          ← included by saige_test.cpp
+  getMem.hpp             ← included by main.cpp
+
+  Header inclusion tree:
+
+  main.cpp
+  ├── #include "null_model_loader.hpp"
+  ├── #include "genotype_reader.hpp"
+  ├── #include "saige_test.hpp"
+  │   ├── #include "spa.hpp"          (via saige_test.cpp)
+  │   │   └── #include "spa_binary.hpp"
+  │   ├── #include "UTIL.hpp"         (via saige_test.cpp)
+  │   └── #include "er_binary.hpp"    (via saige_test.cpp, when ER wired)
+  ├── #include "group_file.hpp"
+  ├── #include "skat.hpp"
+  ├── #include "cct.hpp"
+  ├── #include "UTIL.hpp"
+  ├── #include "getMem.hpp"
+  └── #include <yaml-cpp/yaml.h>
+
+
+================================================================================
+CRITICAL PATH (minimum to get single-variant testing working)
+================================================================================
+
+  1. null_model_loader.cpp  (implement loadNullModel + loadVarianceRatios)
+  2. genotype_reader.cpp    (PLINK reader only)
+  3. main.cpp               (CLI + mainMarkerInCPP)
+  4. Validate vs R output
+
+CRITICAL PATH (minimum to get region testing working, after above)
+
+  5. group_file.cpp         (parse group file + annoIndicatorMat)
+  6. skat.cpp               (BURDEN + SKAT + SKAT-O + Davies)
+  7. main.cpp               (mainRegionInCPP + URV collapsing + output)
+  8. Validate vs R output
+
+
+================================================================================
+VALIDATION TESTING PLAN
+================================================================================
+Updated: Feb 18, 2026
+
+All implementation phases (1-6) are DONE. Validation is the remaining work.
+Each test config exercises different code paths. Ordered by priority.
+
+─── VALIDATED ─────────────────────────────────────────────────────────────────
+
+[x] Test 1: Quantitative + Single-Variant + scoreTest (standard path)
+    Config:   config_compare.yaml
+    Data:     SAIGE extdata PLINK (128,868 markers, chr 1, N=1000)
+    Model:    Chr 1 LOCO null model converted from example_quantitative.rda
+    Result:   ALL EXACT (644,340/644,340 values, 0 difference)
+    Date:     Feb 18, 2026
+    Code paths exercised:
+      - null_model_loader: JSON + .arma loading
+      - genotype_reader: PLINK .bed/.bim/.fam
+      - saige_test: scoreTest() [standard path, not Fast or noadjCov]
+      - main: mainMarkerInCPP() single-variant loop
+      - UTIL: imputeGenoAndFlip()
+    Code paths NOT exercised:
+      - SPA (quantitative trait never triggers SPA)
+      - Firth correction (quantitative trait never triggers Firth)
+      - scoreTestFast (requires sparseGRM=true)
+      - scoreTestFast_noadjCov (requires noadjCov=true)
+      - Region testing (no groupFile)
+      - Conditional analysis (isCondition=false)
+
+─── HIGH PRIORITY ─────────────────────────────────────────────────────────────
+
+[ ] Test 2: Binary + Single-Variant (exercises SPA + Firth)
+    Data:     SAIGE extdata example_binary.rda + binary PLINK
+    New code paths:
+      - SPA correction (spa.cpp, spa_binary.cpp)
+        Triggered when binary trait + |Z| > SPA_Cutoff (default 2)
+      - Firth correction (saige_test.cpp fast_logistf_fit_simple)
+        Triggered when binary trait + p < pCutoffforFirth (default 0.01)
+      - mu2 = mu*(1-mu) instead of 1/tau[0]
+      - AF_case, AF_ctrl, N_case, N_ctrl output columns
+    Steps:
+      [ ] 2a. Check SAIGE extdata for binary example .rda + PLINK files
+      [ ] 2b. Create convert_rda_to_arma_binary.R (or generalize existing)
+      [ ] 2c. Create run_r_step2_binary.R
+      [ ] 2d. Create config_compare_binary.yaml
+      [ ] 2e. Run comparison, expect EXACT or MATCH (<1e-8)
+    Risk: SPA involves Newton-Raphson iteration — convergence tolerance
+          differences could cause small discrepancies
+
+[ ] Test 3: Quantitative + Region/Gene-Based (exercises BURDEN/SKAT/SKAT-O)
+    Data:     Same PLINK as Test 1 + a group file
+    New code paths:
+      - group_file.cpp: checkGroupFile(), readRegionChunk()
+      - main.cpp: mainRegionInCPP() (~1100 lines, completely untested)
+        - P1Mat/P2Mat construction with chunking
+        - VarMat assembly
+        - Annotation × MAF stratification loops
+        - URV collapsing (MAC ≤ threshold → pseudo-markers)
+        - Beta(1,25) weight computation
+      - skat.cpp: get_SKAT_pvalue()
+        - BURDEN test
+        - SKAT test (Davies method — characteristic function inversion)
+        - SKAT-O (rho grid search + integration correction)
+      - cct.cpp: CCT combination across annotation×MAF strata
+    Steps:
+      [ ] 3a. Create or find a group file for extdata PLINK markers
+      [ ] 3b. Create run_r_step2_region.R (call SPAGMMATtest with groupFile)
+      [ ] 3c. Create config_compare_region.yaml (with groupFile, annotationList, maxMAFList)
+      [ ] 3d. Run comparison on region-level output
+      [ ] 3e. Compare: pval_SKATO, pval_Burden, pval_SKAT, Beta_Burden, SE_Burden
+    Risk: Davies method is numerically sensitive (trapezoidal integration).
+          Liu fallback may differ slightly. SKAT-O integration correction
+          is complex. Expect CLOSE (<1e-4) rather than EXACT.
+
+[ ] Test 4: Binary + Region/Gene-Based (exercises SPA Phi adjustment)
+    Data:     Binary PLINK + group file
+    New code paths:
+      - get_newPhi_scaleFactor_traitType() — SPA-adjusted Phi matrix
+      - SPA_ER_kernel_related_Phiadj_fast_new() — per-variant scale factors
+      - Binary-specific region output (MAC_case, MAC_ctrl)
+    Steps:
+      [ ] 4a. Create config + R script for binary region test
+      [ ] 4b. Run comparison
+    Risk: Phi adjustment involves SPA p-values fed back into variance
+          scaling — error accumulation possible.
+
+─── MEDIUM PRIORITY ───────────────────────────────────────────────────────────
+
+[ ] Test 5: scoreTestFast path (requires sparseGRM)
+    Requirements: sparseGRM=true in null model
+    New code paths:
+      - saige_test.cpp: scoreTestFast()
+      - saige_test.cpp: getPCG1ofSigmaAndGtilde() (PCG solver)
+      - Sparse GRM loading in null_model_loader
+    Blocker: Need a null model fitted with sparseGRM, or create test data
+    Note: This is a different variance computation path (uses sparse sigma)
+
+[ ] Test 6: scoreTestFast_noadjCov path
+    Requirements: noadjCov=true + sparseGRM=true
+    New code paths:
+      - saige_test.cpp: scoreTestFast_noadjCov()
+      - Simplified variance without covariate adjustment
+    Note: Niche use case, lower priority
+
+[ ] Test 7: Conditional analysis
+    Requirements: isCondition=true + conditioning variant indices
+    New code paths:
+      - assignConditionFactors() — set up conditioning matrices
+      - getMarkerPval() conditional branch (lines 700-914 in saige_test.cpp)
+      - Conditional output columns (Beta_c, SE_c, Tstat_c, pval_c)
+    Blocker: Need config with condition_genoIndex specified
+
+[ ] Test 8: Multiple variance ratio categories
+    Requirements: varianceRatio.txt with multiple rows (different MAC bins)
+    New code paths:
+      - assignVarianceRatio() MAC-based lookup with multiple categories
+    Note: Current test has only 1 category
+
+─── LOW PRIORITY (NOT IMPLEMENTED) ───────────────────────────────────────────
+
+[ ] Test 9: Efficient Resampling (er_binary.cpp — NOT IMPLEMENTED)
+    Requirements: Binary trait + MAC ≤ MACCutoffforER (default 4)
+    Status: er_binary.cpp is a MISSING stub. Currently throws.
+    Fallback: SPA is used instead when ER is unavailable.
+
+[ ] Test 10: LD matrix output (ldmat.cpp — NOT IMPLEMENTED)
+    Status: ldmat.cpp not created.
+    Note: Optional downstream analysis feature.
+
+[ ] Test 11: Survival trait
+    Status: SPA dispatcher throws "not yet implemented" for survival.
+    Note: Very niche use case.
+
+[ ] Test 12: Non-PLINK genotype formats (VCF, BGEN, PGEN)
+    Status: Only PLINK implemented in genotype_reader.cpp.
+
+─── TESTING INFRASTRUCTURE ────────────────────────────────────────────────────
+
+Existing (from Test 1):
+  test/R/convert_rda_to_arma.R      — .rda → .arma converter
+  test/R/run_r_step2.R              — R Step 2 runner (single-variant)
+  test/compare_step2.R              — Column-by-column comparison
+  test/run_comparison.sh            — End-to-end orchestrator
+
+Needed:
+  [ ] Generalize convert_rda_to_arma.R for binary trait models
+  [ ] Create run_r_step2_region.R for region testing
+  [ ] Create group file for extdata markers
+  [ ] Extend compare_step2.R for region output columns
+  [ ] Add binary-specific output columns to comparison
+
+Pixi environment (required for all R scripts):
+  ~/.pixi/bin/pixi run --manifest-path=\
+    /Users/francis/Desktop/Zhou_lab/SAIGE_gene_pixi/\
+    Jan_30_comparison/code_copy/SAIGE_isolated/pixi.toml \
+    Rscript <script.R>
+
+================================================================================
+END OF TODO
+================================================================================

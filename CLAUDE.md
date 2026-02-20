@@ -37,14 +37,32 @@ Step_2_Feb_11/
 │       ├── group_file.cpp/hpp # Group file parser (gene definitions)
 │       ├── null_model_loader.cpp/hpp  # Load Step 1 output (JSON + .arma files)
 │       ├── genotype_reader.cpp/hpp    # Unified genotype reading (PLINK first)
+│       ├── skat.cpp/hpp       # SKAT/BURDEN/SKAT-O + Davies method
 │       ├── er_binary.cpp/hpp  # Efficient resampling for rare variants
 │       ├── UTIL.cpp/hpp       # Math utilities (shared with Step 1)
 │       ├── getMem.cpp/hpp     # Memory reporting
 │       ├── Makefile
-│       └── config_test.yaml   # Test configuration
-└── output/
-    ├── checkpoints/           # R vs C++ comparison files
-    └── test_results/          # Step 2 output (p-values, etc.)
+│       ├── config_test.yaml   # Test configuration (Step 1 .arma model)
+│       └── config_compare.yaml # Comparison config (converted .rda model)
+├── test/
+│   ├── R/
+│   │   ├── convert_rda_to_arma.R  # .rda → .arma + JSON converter
+│   │   ├── run_r_step2.R          # R SAIGE Step 2 reference runner
+│   │   ├── run_r_step2.sh         # Shell wrapper for pixi invocation
+│   │   └── r_step2_results.txt    # R output (128,858 markers)
+│   ├── compare_step2.R            # Column-by-column R vs C++ comparison
+│   ├── run_comparison.sh          # End-to-end orchestrator (4 steps)
+│   ├── RESULTS_step2.txt          # Comparison verdict
+│   ├── data/
+│   │   └── nullmodel_from_rda/    # Converted null model (12 .arma + JSON)
+│   ├── output/
+│   │   └── cpp_compare_results.txt # C++ output for comparison
+│   └── Cpp_compare/               # C++ checkpoint files
+├── reference/
+│   ├── CPP_STANDALONE_CALL_GRAPH.html
+│   ├── STEP2_CALL_GRAPH_v2.html
+│   └── STEP2_MATH_EXPLAINED.html  # Math visualization
+└── function_test/                  # Per-function unit tests (CCT, SPA, etc.)
 ```
 
 ## Reference Source Files (READ-ONLY)
@@ -229,13 +247,60 @@ Same as Step 1:
 9. **main** — Add mainRegionInCPP (gene-level testing)
 10. **er_binary** — Efficient resampling (rare variants)
 
-## Validation Strategy
+## Pixi Environment (Running SAIGE R)
 
-Same as Step 1: checkpoint comparison.
-- R Step 2 outputs reference p-values
-- C++ Step 2 outputs same format
-- Compare: differences < 0.01% are acceptable (floating-point precision)
-- Differences > 1% are bugs
+SAIGE R package is NOT installed in system R. It runs via pixi:
+
+```bash
+# Pixi manifest location
+PIXI_MANIFEST="/Users/francis/Desktop/Zhou_lab/SAIGE_gene_pixi/Jan_30_comparison/code_copy/SAIGE_isolated/pixi.toml"
+
+# Command pattern
+~/.pixi/bin/pixi run --manifest-path=$PIXI_MANIFEST Rscript <script.R>
+
+# R version in pixi: 4.4.3 (osx-64)
+# SAIGE version: 1.5.1
+
+# To reinstall SAIGE after R code changes:
+~/.pixi/bin/pixi run --manifest-path=$PIXI_MANIFEST R CMD INSTALL --preclean /path/to/SAIGE
+```
+
+**Important**: System R (4.5.1) does NOT have SAIGE. All SAIGE R operations must use pixi.
+The R test scripts in `test/R/` do NOT modify SAIGE code — they only call SAIGE functions.
+
+## Armadillo Binary Format (.arma files)
+
+Both vectors and matrices use `ARMA_MAT_BIN_FN008` header:
+```
+ARMA_MAT_BIN_FN008
+<rows> <cols>
+<raw little-endian double-precision data, column-major>
+```
+- Vectors: `rows=N, cols=1`
+- Matrices: `rows=nrow, cols=ncol`, column-major storage (same as R)
+- Do NOT use `ARMA_COL_BIN_FN008` — Armadillo C++ `vec::load()` expects MAT format
+
+## Validation Status
+
+### Single-Variant Testing: VALIDATED (Feb 18, 2026)
+
+**EXACT MATCH**: 644,340/644,340 values identical across all 5 columns
+(BETA, SE, Tstat, var, p.value) for 128,868 markers.
+
+Comparison pipeline: `test/run_comparison.sh`
+1. `convert_rda_to_arma.R` — Extract .rda null model → .arma + JSON
+2. `run_r_step2.R` — Run R SAIGE Step 2 (LOCO=TRUE, chr 1)
+3. `./saige-step2 config_compare.yaml` — Run C++ Step 2
+4. `compare_step2.R` — Column-by-column comparison → RESULTS_step2.txt
+
+Key requirement: Both R and C++ must use the **same null model**. The .rda has
+LOCO=TRUE (per-chromosome models). The converter extracts chr 1 LOCO values.
+R must also run with LOCO=TRUE so it uses the same chr 1 model.
+
+### Region/Gene-Based Testing: NOT YET VALIDATED
+
+Code is implemented (mainRegionInCPP, SKAT/BURDEN/SKAT-O, Davies method)
+but no R reference output has been generated for comparison yet.
 
 ## Key Variables
 
@@ -252,10 +317,14 @@ Same as Step 1: checkpoint comparison.
 | `P1Mat` | mat [m×N] | Gene marker score contribution (built per region) |
 | `P2Mat` | mat [N×m] | Gene marker variance contribution (built per region) |
 
-## Lessons from Step 1
+## Lessons from Step 1 and Step 2
 
 1. **RNG bypass**: R and C++ RNGs are incompatible. If Step 2 uses random numbers, use bypass files.
 2. **QR sign conventions**: Minor differences are OK (< 0.01%).
 3. **Inner loop convergence**: Must replicate R's exact iteration logic.
 4. **Solver selection**: Match R's default (direct sparse solve, not PCG) unless configured otherwise.
-5. **Float precision**: Step 1 uses `arma::fvec`/`arma::fmat` (32-bit) — Step 2 may need double precision for p-values.
+5. **Float precision**: Step 1 uses `arma::fvec`/`arma::fmat` (32-bit) — Step 2 uses double precision throughout.
+6. **LOCO model consistency**: When comparing R vs C++, both must use the same null model (same LOCO chromosome). The .rda contains per-chromosome LOCO models; our converter extracts chr 1. R must also run with LOCO=TRUE.
+7. **Armadillo binary format**: Always use `ARMA_MAT_BIN_FN008` header, even for vectors. `ARMA_COL_BIN_FN008` is not recognized by `vec::load(arma_binary)`.
+8. **Empty sampleIDs fallback**: When null model has no sampleIDs, the genotype reader uses all fam samples in order (identity mapping).
+9. **Pixi required**: System R does not have SAIGE. All R SAIGE operations must go through pixi.

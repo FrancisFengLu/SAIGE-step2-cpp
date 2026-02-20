@@ -1,0 +1,7 @@
+parameter	value
+n	1000
+p	3
+traitType	quantitative
+tau0	0.20324
+tau1	0.486451
+SPA_Cutoff	2

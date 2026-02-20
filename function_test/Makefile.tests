@@ -1,0 +1,62 @@
+CXX      ?= clang++
+CXXFLAGS := -std=c++17 -O3 -DARMA_64BIT_WORD=1
+
+PKG_CONFIG := $(shell command -v pkg-config 2>/dev/null)
+
+ifneq ($(strip $(PKG_CONFIG)),)
+  ARMA_CFLAGS := $(shell $(PKG_CONFIG) --cflags armadillo 2>/dev/null)
+  ARMA_LIBS   := $(shell $(PKG_CONFIG) --libs armadillo 2>/dev/null)
+endif
+
+INCLUDES := -I/opt/homebrew/opt/boost/include -I/opt/homebrew/include
+ifneq ($(strip $(ARMA_CFLAGS)),)
+  INCLUDES += $(ARMA_CFLAGS)
+endif
+
+LIBS := -larmadillo -L/opt/homebrew/opt/openblas/lib -lopenblas
+ifneq ($(strip $(ARMA_LIBS)),)
+  LIBS += $(ARMA_LIBS)
+endif
+
+.PHONY: all clean
+
+all: test_cct test_util test_spa
+
+# --- CCT test ---
+cct.o: cct.cpp cct.hpp getMem.hpp
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c cct.cpp -o cct.o
+
+getMem.o: getMem.cpp getMem.hpp
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c getMem.cpp -o getMem.o
+
+test_cct.o: test_cct.cpp cct.hpp
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c test_cct.cpp -o test_cct.o
+
+test_cct: test_cct.o cct.o getMem.o
+	$(CXX) $(CXXFLAGS) test_cct.o cct.o getMem.o $(LIBS) -o test_cct
+
+# --- UTIL test ---
+UTIL.o: UTIL.cpp UTIL.hpp
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c UTIL.cpp -o UTIL.o
+
+test_util.o: test_util.cpp UTIL.hpp
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c test_util.cpp -o test_util.o
+
+test_util: test_util.o UTIL.o
+	$(CXX) $(CXXFLAGS) test_util.o UTIL.o $(LIBS) -o test_util
+
+# --- SPA test ---
+spa_binary.o: spa_binary.cpp spa_binary.hpp UTIL.hpp
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c spa_binary.cpp -o spa_binary.o
+
+spa.o: spa.cpp spa.hpp spa_binary.hpp UTIL.hpp
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c spa.cpp -o spa.o
+
+test_spa.o: test_spa.cpp spa_binary.hpp spa.hpp UTIL.hpp
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c test_spa.cpp -o test_spa.o
+
+test_spa: test_spa.o spa_binary.o spa.o UTIL.o
+	$(CXX) $(CXXFLAGS) test_spa.o spa_binary.o spa.o UTIL.o $(LIBS) -o test_spa
+
+clean:
+	rm -f test_cct.o test_util.o test_spa.o cct.o getMem.o UTIL.o spa_binary.o spa.o test_cct test_util test_spa

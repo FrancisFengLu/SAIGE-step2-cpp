@@ -1,0 +1,1239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAIGE Step 2 &mdash; C++ Standalone Call Graph &amp; File Map</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: #f5f5f5; padding: 20px; line-height: 1.6;
+        }
+        .container { max-width: 1800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 10px; margin-bottom: 20px; }
+        h2 { color: #34495e; margin-top: 30px; margin-bottom: 15px; border-left: 4px solid #3498db; padding-left: 10px; }
+        h3 { color: #2980b9; margin-top: 20px; margin-bottom: 10px; }
+
+        .call-tree { font-family: 'Courier New', monospace; font-size: 13px; background: #f8f9fa; padding: 20px; border-radius: 5px; overflow-x: auto; line-height: 1.8; }
+        .call-tree .done { color: #27ae60; font-weight: bold; }
+        .call-tree .stub { color: #8e44ad; font-weight: bold; }
+        .call-tree .new { color: #e74c3c; font-weight: bold; }
+        .call-tree .comment { color: #7f8c8d; font-style: italic; }
+        .call-tree .file { color: #e74c3c; }
+        .call-tree .var { color: #d35400; }
+        .call-tree .struct { color: #1565c0; font-weight: bold; }
+
+        .done-badge {
+            background: #e8f5e9;
+            border: 1px solid #66bb6a;
+            border-radius: 3px;
+            padding: 1px 6px;
+            font-size: 0.85em;
+            color: #2e7d32;
+            font-weight: bold;
+            font-style: normal;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+        }
+        .stub-badge {
+            background: #f3e5f5;
+            border: 1px solid #ba68c8;
+            border-radius: 3px;
+            padding: 1px 6px;
+            font-size: 0.85em;
+            color: #6a1b9a;
+            font-weight: bold;
+            font-style: normal;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+        }
+        .new-badge {
+            background: #fce4ec;
+            border: 1px solid #ef9a9a;
+            border-radius: 3px;
+            padding: 1px 6px;
+            font-size: 0.85em;
+            color: #c62828;
+            font-weight: bold;
+            font-style: normal;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+        }
+        .data-badge {
+            background: #e3f2fd;
+            border: 1px solid #64b5f6;
+            border-radius: 3px;
+            padding: 1px 6px;
+            font-size: 0.85em;
+            color: #1565c0;
+            font-weight: bold;
+            font-style: normal;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+        }
+        .phase-badge {
+            background: #fff3e0;
+            border: 1px solid #ffb74d;
+            border-radius: 3px;
+            padding: 1px 6px;
+            font-size: 0.85em;
+            color: #e65100;
+            font-weight: bold;
+            font-style: normal;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+        }
+
+        .legend { display: flex; gap: 20px; margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 5px; flex-wrap: wrap; }
+        .legend-item { display: flex; align-items: center; gap: 8px; }
+        .legend-box { width: 20px; height: 20px; border-radius: 3px; }
+        .legend-done { background: #27ae60; }
+        .legend-stub { background: #8e44ad; }
+        .legend-new { background: #e74c3c; }
+        .legend-data { background: #1565c0; }
+        .legend-phase { background: #ff9800; }
+
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13px; }
+        th { background: #3498db; color: white; padding: 10px; text-align: left; position: sticky; top: 0; }
+        td { padding: 8px 10px; border-bottom: 1px solid #ddd; vertical-align: top; }
+        tr:hover { background: #f9f9f9; }
+        tr.done-row { background: #f1f8e9; }
+        tr.stub-row { background: #faf3ff; }
+        tr.new-row { background: #fff8f8; }
+
+        .status-table th { background: #2c3e50; }
+
+        code { background: #f4f4f4; padding: 2px 6px; border-radius: 3px; font-family: 'Courier New', monospace; font-size: 0.9em; }
+        .note { background: #e8f4fd; padding: 15px; border-left: 5px solid #3498db; margin: 20px 0; border-radius: 0 5px 5px 0; }
+        .note-important { background: #fce4ec; padding: 15px; border-left: 5px solid #e53935; margin: 20px 0; border-radius: 0 5px 5px 0; }
+        .note-done { background: #e8f5e9; padding: 15px; border-left: 5px solid #4caf50; margin: 20px 0; border-radius: 0 5px 5px 0; }
+
+        .side-by-side { display: flex; gap: 20px; margin: 20px 0; }
+        .side-by-side .panel { flex: 1; min-width: 0; }
+        .panel-done { border: 2px solid #27ae60; border-radius: 8px; padding: 15px; }
+        .panel-done h3 { color: #27ae60; margin-top: 0; }
+        .panel-stub { border: 2px solid #8e44ad; border-radius: 8px; padding: 15px; }
+        .panel-stub h3 { color: #8e44ad; margin-top: 0; }
+        .panel-new { border: 2px solid #e74c3c; border-radius: 8px; padding: 15px; }
+        .panel-new h3 { color: #e74c3c; margin-top: 0; }
+        .panel-data { border: 2px solid #1565c0; border-radius: 8px; padding: 15px; }
+        .panel-data h3 { color: #1565c0; margin-top: 0; }
+
+        .toc { background: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0; }
+        .toc a { color: #2980b9; text-decoration: none; }
+        .toc a:hover { text-decoration: underline; }
+        .toc ul { list-style: none; padding-left: 20px; }
+        .toc > ul { padding-left: 0; }
+        .toc li { margin: 5px 0; }
+
+        .dep-graph { font-family: 'Courier New', monospace; font-size: 14px; background: #1a1a2e; color: #e0e0e0; padding: 25px; border-radius: 8px; overflow-x: auto; line-height: 1.8; }
+        .dep-graph .done-node { color: #66bb6a; font-weight: bold; }
+        .dep-graph .stub-node { color: #ce93d8; font-weight: bold; }
+        .dep-graph .new-node { color: #ef9a9a; font-weight: bold; }
+        .dep-graph .arrow { color: #64b5f6; }
+        .dep-graph .dim { color: #666; }
+
+        .formula-block { background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 10px 0; font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.8; overflow-x: auto; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>SAIGE Step 2 &mdash; C++ Standalone Call Graph &amp; File Map</h1>
+
+    <p>This document maps the <strong>standalone C++ port</strong> of SAIGE Step 2 (association testing). It shows what each file contains, what calls what, which functions are done vs. stub vs. not-yet-created, and how data flows between components.</p>
+
+    <p style="margin-top: 10px; color: #555; font-style: italic;">Generated Feb 11, 2025 &mdash; Based on code in <code>Step_2_Feb_11/code_copy/cpp_standalone/</code></p>
+
+    <div class="toc">
+        <strong>Table of Contents</strong>
+        <ul>
+            <li>1. <a href="#section1">Overview: Standalone C++ File Map</a></li>
+            <li>2. <a href="#section2">Entry Point &amp; Initialization</a></li>
+            <li>3. <a href="#section3">Single-Variant Testing Pipeline</a></li>
+            <li>4. <a href="#section4">Region Testing Pipeline</a></li>
+            <li>5. <a href="#section5">Data Flow Diagram</a></li>
+            <li>6. <a href="#section6">Key Data Structures</a></li>
+            <li>7. <a href="#section7">Dependency Graph</a></li>
+            <li>8. <a href="#section8">File Cross-Reference (Original SAIGE &rarr; Standalone)</a></li>
+        </ul>
+    </div>
+
+    <div class="legend">
+        <div class="legend-item"><div class="legend-box legend-done"></div><span><span class="done-badge">DONE</span> Fully ported &mdash; compiles, logic complete</span></div>
+        <div class="legend-item"><div class="legend-box legend-stub"></div><span><span class="stub-badge">STUB</span> Interface exists, body throws &ldquo;not yet implemented&rdquo;</span></div>
+        <div class="legend-item"><div class="legend-box legend-new"></div><span><span class="new-badge">NEW</span> File/function does not exist yet</span></div>
+        <div class="legend-item"><div class="legend-box legend-data"></div><span><span class="data-badge">DATA</span> Key data structure / variable</span></div>
+        <div class="legend-item"><div class="legend-box legend-phase"></div><span><span class="phase-badge">PHASE N</span> Implementation phase</span></div>
+    </div>
+
+    <!-- ================================================================== -->
+    <h2 id="section1">1. Overview: Standalone C++ File Map</h2>
+    <!-- ================================================================== -->
+
+    <p>Complete inventory of every file in the standalone build. Files are grouped by status: already ported (green), stub (purple), and not yet created (red).</p>
+
+    <table class="status-table">
+        <thead>
+            <tr>
+                <th>File</th>
+                <th>Status</th>
+                <th>Lines (.cpp)</th>
+                <th>Lines (.hpp)</th>
+                <th>Phase</th>
+                <th>Key Contents</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="done-row">
+                <td><strong>saige_test.cpp/.hpp</strong></td>
+                <td><span class="done-badge">DONE</span></td>
+                <td>1,118</td>
+                <td>256</td>
+                <td>0</td>
+                <td>SAIGEClass: constructor, score tests (3 paths), getMarkerPval, SPA dispatch, Firth, conditional analysis, variance ratio assignment</td>
+            </tr>
+            <tr class="done-row">
+                <td><strong>spa_binary.cpp/.hpp</strong></td>
+                <td><span class="done-badge">DONE</span></td>
+                <td>432</td>
+                <td>44</td>
+                <td>0</td>
+                <td>Binary SPA: Korg, K1_adj, K2, getroot (Newton-Raphson), Get_Saddle_Prob, fast variants; RootResult/SaddleResult/SPAResult structs</td>
+            </tr>
+            <tr class="done-row">
+                <td><strong>spa.cpp/.hpp</strong></td>
+                <td><span class="done-badge">DONE</span></td>
+                <td>209</td>
+                <td>15</td>
+                <td>0</td>
+                <td>SPA dispatcher: routes to binary SPA functions, SPA_fast + SPA + SPA_pval; survival SPA throws</td>
+            </tr>
+            <tr class="done-row">
+                <td><strong>cct.cpp/.hpp</strong></td>
+                <td><span class="done-badge">DONE</span></td>
+                <td>74</td>
+                <td>10</td>
+                <td>0</td>
+                <td>CCT_cpp(): Cauchy Combination Test via boost::math::cauchy_distribution</td>
+            </tr>
+            <tr class="done-row">
+                <td><strong>UTIL.cpp/.hpp</strong></td>
+                <td><span class="done-badge">DONE</span></td>
+                <td>207</td>
+                <td>56</td>
+                <td>0</td>
+                <td>getWeights (Beta dist), imputeGenoAndFlip, getInnerProd, getinvStd, nb() RNG, add_logp</td>
+            </tr>
+            <tr class="done-row">
+                <td><strong>getMem.cpp/.hpp</strong></td>
+                <td><span class="done-badge">DONE</span></td>
+                <td>53</td>
+                <td>12</td>
+                <td>0</td>
+                <td>Memory reporting (Linux /proc + macOS mach API)</td>
+            </tr>
+            <tr class="stub-row">
+                <td><strong>null_model_loader.cpp/.hpp</strong></td>
+                <td><span class="stub-badge">STUB</span></td>
+                <td>90</td>
+                <td>85</td>
+                <td>1</td>
+                <td>NullModelData struct (complete), loadArmaVec/loadArmaMat (done), loadNullModel/loadVarianceRatios (throw)</td>
+            </tr>
+            <tr class="new-row">
+                <td><strong>main.cpp</strong></td>
+                <td><span class="new-badge">NEW</span></td>
+                <td>&mdash;</td>
+                <td>&mdash;</td>
+                <td>3, 6</td>
+                <td>CLI entry, YAML config, init, mainMarkerInCPP loop, mainRegionInCPP loop, output writers</td>
+            </tr>
+            <tr class="new-row">
+                <td><strong>genotype_reader.cpp/.hpp</strong></td>
+                <td><span class="new-badge">NEW</span></td>
+                <td>&mdash;</td>
+                <td>&mdash;</td>
+                <td>2</td>
+                <td>GenotypeReader base class, PlinkClass (P0), BgenClass (P1), VcfClass (P2), PgenClass (P3)</td>
+            </tr>
+            <tr class="new-row">
+                <td><strong>group_file.cpp/.hpp</strong></td>
+                <td><span class="new-badge">NEW</span></td>
+                <td>&mdash;</td>
+                <td>&mdash;</td>
+                <td>4</td>
+                <td>readGroupFile, checkGroupFile, buildAnnoIndicatorMat, GroupEntry struct</td>
+            </tr>
+            <tr class="new-row">
+                <td><strong>skat.cpp/.hpp</strong></td>
+                <td><span class="new-badge">NEW</span></td>
+                <td>&mdash;</td>
+                <td>&mdash;</td>
+                <td>5</td>
+                <td>BURDEN test, SKAT test, SKAT-O, Davies method (qfc algorithm)</td>
+            </tr>
+            <tr class="new-row">
+                <td><strong>er_binary.cpp/.hpp</strong></td>
+                <td><span class="new-badge">NEW</span></td>
+                <td>&mdash;</td>
+                <td>&mdash;</td>
+                <td>7</td>
+                <td>SKATExactBin_Work, HyperGeo class, efficient resampling (binary, MAC &le; 4)</td>
+            </tr>
+            <tr class="new-row">
+                <td><strong>ldmat.cpp/.hpp</strong></td>
+                <td><span class="new-badge">NEW</span></td>
+                <td>&mdash;</td>
+                <td>&mdash;</td>
+                <td>7</td>
+                <td>LDmatRegionInCPP (optional, lower priority)</td>
+            </tr>
+        </tbody>
+        <tfoot>
+            <tr>
+                <td colspan="2"><strong>Total existing lines</strong></td>
+                <td><strong>2,183</strong></td>
+                <td><strong>478</strong></td>
+                <td>&mdash;</td>
+                <td>7 .cpp + 7 .hpp files exist; 5 more file pairs to create</td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <div class="note-done">
+        <strong>Phase 0 (DONE):</strong> saige_test, spa_binary, spa, cct, UTIL, getMem &mdash; 2,093 lines of tested C++ logic already ported.
+    </div>
+    <div class="note">
+        <strong>Phase 1 (STUB):</strong> null_model_loader &mdash; struct and loader helpers exist; <code>loadNullModel()</code> and <code>loadVarianceRatios()</code> bodies need implementation.
+    </div>
+    <div class="note-important">
+        <strong>Phases 2&ndash;7 (NEW):</strong> main.cpp, genotype_reader, group_file, skat, er_binary, ldmat &mdash; estimated ~2,500&ndash;3,500 additional lines to write.
+    </div>
+
+    <!-- ================================================================== -->
+    <h2 id="section2">2. Entry Point &amp; Initialization</h2>
+    <!-- ================================================================== -->
+
+    <p>The standalone binary starts at <code>main()</code>, parses a YAML config, loads the null model from Step 1, and dispatches to marker or region testing. This replaces R's <code>SPAGMMATtest()</code> + <code>setSAIGEobjInCPP()</code>.</p>
+
+    <div class="call-tree">
+<pre>
+<span class="comment"># ===============================================================================</span>
+<span class="comment"># ENTRY POINT: ./saige-step2 -c config.yaml</span>
+<span class="comment"># File: main.cpp [NEW]</span>
+<span class="comment"># Replaces: R SPAGMMATtest() + Rcpp setSAIGEobjInCPP()</span>
+<span class="comment"># ===============================================================================</span>
+
+<span class="new">main</span>(argc, argv)                                        <span class="file">[main.cpp]</span> <span class="new-badge">NEW</span>
+&#9500;&#9472;&#9472; Parse YAML config (yaml-cpp)                          <span class="phase-badge">PHASE 3</span>
+&#9474;   &#9500;&#9472;&#9472; <span class="var">model_dir</span>: path to Step 1 output directory
+&#9474;   &#9500;&#9472;&#9472; <span class="var">variance_ratio_file</span>: path to varianceRatio.txt
+&#9474;   &#9500;&#9472;&#9472; <span class="var">genotype_file</span>: path to PLINK .bed/.bgen/.vcf
+&#9474;   &#9500;&#9472;&#9472; <span class="var">group_file</span>: path to group annotation file (region mode)
+&#9474;   &#9500;&#9472;&#9472; <span class="var">test_mode</span>: "marker" or "region"
+&#9474;   &#9492;&#9472;&#9472; <span class="var">output_prefix</span>: output file path prefix
+&#9474;
+&#9500;&#9472;&#9472; <span class="stub">loadNullModel</span>(model_dir, vr_file)                    <span class="file">[null_model_loader.cpp]</span> <span class="stub-badge">STUB</span>
+&#9474;   &#9500;&#9472;&#9472; Parse nullmodel.json (yaml-cpp)                       <span class="phase-badge">PHASE 1</span>
+&#9474;   &#9474;   &#9492;&#9472;&#9472; Extract: tau, traitType, n, p, sampleIDs, SPA_Cutoff, flags
+&#9474;   &#9500;&#9472;&#9472; <span class="done">loadArmaVec</span>() / <span class="done">loadArmaMat</span>() &times; 11 files       <span class="done-badge">DONE</span>
+&#9474;   &#9474;   &#9500;&#9472;&#9472; mu.arma, res.arma, y.arma, V.arma, S_a.arma      <span class="comment">(5 vectors)</span>
+&#9474;   &#9474;   &#9492;&#9472;&#9472; X.arma, XVX.arma, XVX_inv.arma, XXVX_inv.arma,   <span class="comment">(6 matrices)</span>
+&#9474;   &#9474;       XV.arma, XVX_inv_XV.arma
+&#9474;   &#9500;&#9472;&#9472; Compute <span class="var">mu2</span>:
+&#9474;   &#9474;   &#9500;&#9472;&#9472; Binary:       mu2 = mu % (1 - mu)
+&#9474;   &#9474;   &#9500;&#9472;&#9472; Quantitative: mu2.fill(1.0 / tau[0])
+&#9474;   &#9474;   &#9492;&#9472;&#9472; Survival:     mu2 = mu
+&#9474;   &#9500;&#9472;&#9472; <span class="stub">loadVarianceRatios</span>(vr_file)                        <span class="stub-badge">STUB</span>
+&#9474;   &#9474;   &#9492;&#9472;&#9472; Parse tab-delimited: VR_value \t null \t MAC_category
+&#9474;   &#9474;       &#9500;&#9472;&#9472; Fill: <span class="var">varRatio_null</span>, <span class="var">varRatio_sparse</span>
+&#9474;   &#9474;       &#9492;&#9472;&#9472; Fill: <span class="var">cateVarRatioMin/MaxMACVec</span>
+&#9474;   &#9492;&#9472;&#9472; (Optional) Load sparse GRM: locationMat + valueVec from .mtx
+&#9474;
+&#9500;&#9472;&#9472; Construct <span class="done">SAIGEClass</span>(NullModelData)                    <span class="file">[saige_test.cpp]</span> <span class="done-badge">DONE</span>
+&#9474;   &#9492;&#9472;&#9472; Constructor stores all members from <span class="struct">NullModelData</span>:
+&#9474;       &#9500;&#9472;&#9472; <span class="var">m_mu</span>, <span class="var">m_mu2</span>, <span class="var">m_res</span>, <span class="var">m_y</span>, <span class="var">m_tauvec</span>         <span class="comment">(N-vectors)</span>
+&#9474;       &#9500;&#9472;&#9472; <span class="var">m_X</span>, <span class="var">m_XVX</span>, <span class="var">m_XV</span>, <span class="var">m_XXVX_inv</span>, <span class="var">m_XVX_inv_XV</span>  <span class="comment">(matrices)</span>
+&#9474;       &#9500;&#9472;&#9472; <span class="var">m_varRatio_null</span>, <span class="var">m_varRatio_sparse</span>            <span class="comment">(VR vectors)</span>
+&#9474;       &#9500;&#9472;&#9472; <span class="var">m_SPA_Cutoff</span>, <span class="var">m_traitType</span>, flags
+&#9474;       &#9492;&#9472;&#9472; Build sparse GRM <span class="var">m_SigmaMat_sp</span> if flagSparseGRM
+&#9474;
+&#9500;&#9472;&#9472; Open <span class="new">GenotypeReader</span>(genotype_file)                    <span class="file">[genotype_reader.cpp]</span> <span class="new-badge">NEW</span>
+&#9474;   &#9500;&#9472;&#9472; PlinkClass: read .fam, .bim, .bed                    <span class="phase-badge">PHASE 2 / P0</span>
+&#9474;   &#9500;&#9472;&#9472; BgenClass: open .bgen (P1, deferred)
+&#9474;   &#9500;&#9472;&#9472; VcfClass: open .vcf/.bcf (P2, deferred)
+&#9474;   &#9492;&#9472;&#9472; PgenClass: open .pgen (P3, deferred)
+&#9474;
+&#9492;&#9472;&#9472; Dispatch based on <span class="var">test_mode</span>:
+    &#9500;&#9472;&#9472; "marker" &rarr; <span class="new">mainMarkerInCPP</span>()                      <span class="file">[main.cpp]</span> <span class="new-badge">NEW</span>
+    &#9492;&#9472;&#9472; "region" &rarr; <span class="new">mainRegionInCPP</span>()                      <span class="file">[main.cpp]</span> <span class="new-badge">NEW</span>
+</pre>
+    </div>
+
+    <div class="note">
+        <strong>Key difference from R version:</strong> In the R pipeline, initialization is split across three R files (<code>SAIGE_Test_main.R</code>, <code>readInGLMM.R</code>, <code>Main.cpp</code> via Rcpp). In the standalone version, <code>main()</code> orchestrates everything directly: YAML &rarr; <code>loadNullModel()</code> &rarr; <code>SAIGEClass</code> constructor &rarr; genotype reader &rarr; test loop.
+    </div>
+
+    <!-- ================================================================== -->
+    <h2 id="section3">3. Single-Variant Testing Pipeline</h2>
+    <!-- ================================================================== -->
+
+    <p>Replaces R's <code>SAIGE.Marker()</code> &rarr; <code>mainMarkerInCPP()</code>. Iterates over every marker in the genotype file, computes score test + SPA + Firth, writes results.</p>
+
+    <div class="call-tree">
+<pre>
+<span class="comment"># ===============================================================================</span>
+<span class="comment"># SINGLE-VARIANT TESTING: mainMarkerInCPP()</span>
+<span class="comment"># Replaces: Rcpp Main.cpp:219  +  R SAIGE_SPATest_Marker.R</span>
+<span class="comment"># ===============================================================================</span>
+
+<span class="new">mainMarkerInCPP</span>()                                        <span class="file">[main.cpp]</span> <span class="new-badge">NEW</span> <span class="phase-badge">PHASE 3</span>
+&#9492;&#9472;&#9472; For each marker i in genotype file:
+    &#9474;
+    &#9500;&#9472;&#9472; <span class="new">GenotypeReader::getOneMarker</span>(i)                  <span class="file">[genotype_reader.cpp]</span> <span class="new-badge">NEW</span>
+    &#9474;   &#9500;&#9472;&#9472; Decode genotype &rarr; <span class="var">GVec</span> [N&times;1]                 <span class="comment">(PLINK: 2-bit decode)</span>
+    &#9474;   &#9492;&#9472;&#9472; Return: <span class="struct">MarkerInfo</span> { chrom, pos, ref, alt, af, mac, ... }
+    &#9474;
+    &#9500;&#9472;&#9472; QC filter: MAC &ge; min_MAC, missing_rate &le; max_missing
+    &#9474;
+    &#9500;&#9472;&#9472; <span class="done">imputeGenoAndFlip</span>(<span class="var">GVec</span>, ...)                      <span class="file">[UTIL.cpp]</span> <span class="done-badge">DONE</span>
+    &#9474;   &#9500;&#9472;&#9472; Impute missing genotypes (mean/best_guess/minor)
+    &#9474;   &#9500;&#9472;&#9472; Flip if alt freq &gt; 0.5
+    &#9474;   &#9492;&#9472;&#9472; Compute <span class="var">MAC</span>, <span class="var">altFreq</span>, <span class="var">indexZero</span>, <span class="var">indexNonZero</span>
+    &#9474;
+    &#9500;&#9472;&#9472; <span class="done">assignVarianceRatio</span>(<span class="var">MAC</span>, issparseforVR)             <span class="file">[saige_test.cpp]</span> <span class="done-badge">DONE</span>
+    &#9474;   &#9492;&#9472;&#9472; Select VR by MAC bin: <span class="var">m_varRatioVal</span> = varRatio_null[k] or varRatio_sparse[k]
+    &#9474;
+    &#9500;&#9472;&#9472; <span class="done">getMarkerPval</span>(<span class="var">GVec</span>, ...)                           <span class="file">[saige_test.cpp]</span> <span class="done-badge">DONE</span>
+    &#9474;   &#9474;
+    &#9474;   &#9500;&#9472;&#9472; <strong>STEP 1: Score Test</strong> (one of 3 paths):
+    &#9474;   &#9474;   &#9500;&#9472;&#9472; Path A: <span class="done">scoreTestFast_noadjCov</span>()              <span class="done-badge">DONE</span>
+    &#9474;   &#9474;   &#9474;   &#9492;&#9472;&#9472; No sparse GRM, no covariates (fastest)
+    &#9474;   &#9474;   &#9500;&#9472;&#9472; Path B: <span class="done">scoreTest</span>()                             <span class="done-badge">DONE</span>
+    &#9474;   &#9474;   &#9474;   &#9492;&#9472;&#9472; With sparse GRM (uses PCG for variance)
+    &#9474;   &#9474;   &#9492;&#9472;&#9472; Path C: <span class="done">scoreTestFast</span>()                         <span class="done-badge">DONE</span>
+    &#9474;   &#9474;       &#9492;&#9472;&#9472; No sparse GRM, with covariates
+    &#9474;   &#9474;
+    &#9474;   &#9474;   Core computation (all paths):
+    &#9474;   &#9474;     <span class="var">g_tilde</span>   = G - X*(X'VX)^{-1}*X'V*G             <span class="comment">(adjusted genotype)</span>
+    &#9474;   &#9474;     <span class="var">S</span>         = dot(g_tilde, res) / tau[0]            <span class="comment">(score statistic)</span>
+    &#9474;   &#9474;     <span class="var">var2</span>      = dot(mu2, g_tilde^2)                    <span class="comment">(unadjusted variance)</span>
+    &#9474;   &#9474;     <span class="var">var1</span>      = var2 * varRatioVal                     <span class="comment">(VR-adjusted variance)</span>
+    &#9474;   &#9474;     <span class="var">Tstat</span>     = S / sqrt(var1)                         <span class="comment">(test statistic)</span>
+    &#9474;   &#9474;     <span class="var">pval_norm</span> = P(chi2_1 &gt; Tstat^2)                   <span class="comment">(normal approx p-value)</span>
+    &#9474;   &#9474;
+    &#9474;   &#9500;&#9472;&#9472; <strong>STEP 2: SPA</strong> (binary/survival only, if |Tstat| &gt; SPA_Cutoff)
+    &#9474;   &#9474;   &#9500;&#9472;&#9472; Compute: <span class="var">m1</span> = dot(mu, g_tilde), <span class="var">q</span> = T/sqrt(var1/var2) + m1
+    &#9474;   &#9474;   &#9500;&#9472;&#9472; <span class="done">SPA_fast</span>() or <span class="done">SPA</span>()                          <span class="file">[spa.cpp]</span> <span class="done-badge">DONE</span>
+    &#9474;   &#9474;   &#9474;   &#9500;&#9472;&#9472; <span class="done">getroot_K1_fast_Binom</span>()                  <span class="file">[spa_binary.cpp]</span> <span class="done-badge">DONE</span>
+    &#9474;   &#9474;   &#9474;   &#9474;   &#9492;&#9472;&#9472; Newton-Raphson: find zeta where K'(zeta) = q
+    &#9474;   &#9474;   &#9474;   &#9474;       &#9500;&#9472;&#9472; <span class="done">K1_adj_fast_Binom</span>()               <span class="done-badge">DONE</span>
+    &#9474;   &#9474;   &#9474;   &#9474;       &#9492;&#9472;&#9472; <span class="done">K2_fast_Binom</span>()                   <span class="done-badge">DONE</span>
+    &#9474;   &#9474;   &#9474;   &#9492;&#9472;&#9472; <span class="done">Get_Saddle_Prob_fast_Binom</span>()             <span class="file">[spa_binary.cpp]</span> <span class="done-badge">DONE</span>
+    &#9474;   &#9474;   &#9474;       &#9492;&#9472;&#9472; Lugannani-Rice formula &rarr; pval
+    &#9474;   &#9474;   &#9492;&#9472;&#9472; Combine: pval = |p_upper| + |p_lower|
+    &#9474;   &#9474;   <span class="comment"># Quantitative: SKIPS SPA entirely</span>
+    &#9474;   &#9474;
+    &#9474;   &#9500;&#9472;&#9472; <strong>STEP 3: Firth correction</strong> (binary only, if p &lt; pCutoffforFirth)
+    &#9474;   &#9474;   &#9492;&#9472;&#9472; <span class="done">fast_logistf_fit_simple</span>()                      <span class="file">[saige_test.cpp]</span> <span class="done-badge">DONE</span>
+    &#9474;   &#9474;       &#9492;&#9472;&#9472; Penalized logistic regression (iterative)
+    &#9474;   &#9474;   <span class="comment"># Quantitative &amp; Survival: SKIP Firth</span>
+    &#9474;   &#9474;
+    &#9474;   &#9500;&#9472;&#9472; <strong>STEP 4: ER test</strong> (binary only, if MAC &le; 4 and isER)
+    &#9474;   &#9474;   &#9492;&#9472;&#9472; <span class="new">SKATExactBin_Work</span>()                               <span class="file">[er_binary.cpp]</span> <span class="new-badge">NEW</span>
+    &#9474;   &#9474;       &#9500;&#9472;&#9472; SKATExactBin_ComputProb_New()
+    &#9474;   &#9474;       &#9492;&#9472;&#9472; HyperGeo::Run() &rarr; exact p-value
+    &#9474;   &#9474;   <span class="comment"># Currently throws "ER not yet implemented" &mdash; SPA fallback works</span>
+    &#9474;   &#9474;
+    &#9474;   &#9500;&#9472;&#9472; <strong>STEP 5: Conditional analysis</strong> (if isCondition)
+    &#9474;   &#9474;   &#9500;&#9472;&#9472; <span class="done">assignConditionFactors</span>()                        <span class="file">[saige_test.cpp]</span> <span class="done-badge">DONE</span>
+    &#9474;   &#9474;   &#9492;&#9472;&#9472; Conditional projection (G1P2), cond. score/variance   <span class="done-badge">DONE</span>
+    &#9474;   &#9474;
+    &#9474;   &#9492;&#9472;&#9472; Output: <span class="var">Beta</span>, <span class="var">seBeta</span>, <span class="var">pval</span>, <span class="var">pval_noSPA</span>, <span class="var">Tstat</span>, <span class="var">var1</span>
+    &#9474;
+    &#9492;&#9472;&#9472; <span class="new">Write marker-level TSV line</span>                          <span class="file">[main.cpp]</span> <span class="new-badge">NEW</span>
+        &#9492;&#9472;&#9472; Columns: CHROM POS MarkerID Ref Alt AC AF N Beta SE Tstat pval pval_noSPA
+            &#9500;&#9472;&#9472; Binary extra: AF_case AF_ctrl N_case N_ctrl
+            &#9492;&#9472;&#9472; Conditional extra: Beta_cond SE_cond Tstat_cond pval_cond
+</pre>
+    </div>
+
+    <h3>3b. Score Test Path Selection</h3>
+
+    <div class="side-by-side">
+        <div class="panel panel-done">
+            <h3>Path A: scoreTestFast_noadjCov() <span class="done-badge">DONE</span></h3>
+            <p style="margin-bottom: 10px; font-size: 12px; color: #666;">No sparse GRM, no covariates (fastest)</p>
+            <div class="formula-block">
+g_tilde = G  (raw genotype, no adjustment)
+S    = dot(G, res) / tau[0]
+var2 = dot(mu2, G^2)
+var1 = var2 * varRatio
+T    = S / sqrt(var1)
+pval = pchisq(T^2, df=1, lower=FALSE)
+            </div>
+        </div>
+        <div class="panel panel-done">
+            <h3>Path B: scoreTest() <span class="done-badge">DONE</span></h3>
+            <p style="margin-bottom: 10px; font-size: 12px; color: #666;">With sparse GRM (PCG solve for variance)</p>
+            <div class="formula-block">
+g_tilde = G - XXVX_inv * (XV * G)
+S    = dot(g_tilde, res) / tau[0]
+var2 = dot(mu2, g_tilde^2) + g' * P_cov * g
+ (P_cov via PCG solve on Sigma * x = g_tilde)
+var1 = var2 * varRatio
+T    = S / sqrt(var1)
+pval = pchisq(T^2, df=1, lower=FALSE)
+            </div>
+        </div>
+        <div class="panel panel-done">
+            <h3>Path C: scoreTestFast() <span class="done-badge">DONE</span></h3>
+            <p style="margin-bottom: 10px; font-size: 12px; color: #666;">No sparse GRM, with covariates</p>
+            <div class="formula-block">
+g_tilde = G - XXVX_inv * (XV * G)
+S    = dot(g_tilde, res) / tau[0]
+var2 = dot(mu2, g_tilde^2)
+var1 = var2 * varRatio
+T    = S / sqrt(var1)
+pval = pchisq(T^2, df=1, lower=FALSE)
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================== -->
+    <h2 id="section4">4. Region Testing Pipeline</h2>
+    <!-- ================================================================== -->
+
+    <p>Replaces R's <code>SAIGE.Region()</code> &rarr; <code>mainRegionInCPP()</code> &rarr; <code>get_SKAT_pvalue()</code> chain. Per gene: read all markers, compute score stats, build variance-covariance matrix, run BURDEN/SKAT/SKAT-O, combine via CCT.</p>
+
+    <div class="call-tree">
+<pre>
+<span class="comment"># ===============================================================================</span>
+<span class="comment"># REGION-LEVEL TESTING: mainRegionInCPP()</span>
+<span class="comment"># Replaces: R SAIGE.Region()  +  Rcpp Main.cpp:1032  +  R Region_Func.R</span>
+<span class="comment"># ===============================================================================</span>
+
+<span class="new">mainRegionInCPP</span>()                                        <span class="file">[main.cpp]</span> <span class="new-badge">NEW</span> <span class="phase-badge">PHASE 6</span>
+&#9474;
+&#9500;&#9472;&#9472; <span class="new">readGroupFile</span>(groupFilePath)                          <span class="file">[group_file.cpp]</span> <span class="new-badge">NEW</span> <span class="phase-badge">PHASE 4</span>
+&#9474;   &#9500;&#9472;&#9472; Parse 3-line-per-gene format:
+&#9474;   &#9474;     GENE1  var     chr1:100:A:G  chr1:200:C:T  ...
+&#9474;   &#9474;     GENE1  anno    lof           lof           ...
+&#9474;   &#9474;     GENE1  weight  1.5           1.0           ...
+&#9474;   &#9492;&#9472;&#9472; Return: vector&lt;<span class="struct">GroupEntry</span>&gt;
+&#9474;
+&#9500;&#9472;&#9472; <span class="new">checkGroupFile</span>(entries, genotypeReader)                <span class="file">[group_file.cpp]</span> <span class="new-badge">NEW</span>
+&#9474;   &#9492;&#9472;&#9472; Validate: all variant IDs exist in genotype file
+&#9474;
+&#9500;&#9472;&#9472; <span class="new">buildAnnoIndicatorMat</span>(annotations, mafThresholds)     <span class="file">[group_file.cpp]</span> <span class="new-badge">NEW</span>
+&#9474;   &#9492;&#9472;&#9472; Build <span class="var">annoIndicatorMat</span> [q_markers &times; q_anno_maf_strata]
+&#9474;       &#9492;&#9472;&#9472; Each column = which markers pass (annotation &times; MAF) filter
+&#9474;
+&#9492;&#9472;&#9472; For each gene in group file:
+    &#9474;
+    &#9500;&#9472;&#9472; <strong>Per-marker loop (in C++):</strong>                             <span class="phase-badge">PHASE 6</span>
+    &#9474;   &#9492;&#9472;&#9472; For each marker in this gene:
+    &#9474;       &#9500;&#9472;&#9472; <span class="new">GenotypeReader::getOneMarker</span>()                 <span class="file">[genotype_reader.cpp]</span> <span class="new-badge">NEW</span>
+    &#9474;       &#9500;&#9472;&#9472; <span class="done">imputeGenoAndFlip</span>()                             <span class="file">[UTIL.cpp]</span> <span class="done-badge">DONE</span>
+    &#9474;       &#9500;&#9472;&#9472; <span class="done">getadjGFast</span>() &rarr; <span class="var">g_tilde</span>                      <span class="file">[saige_test.cpp]</span> <span class="done-badge">DONE</span>
+    &#9474;       &#9500;&#9472;&#9472; <span class="done">scoreTest</span>() &rarr; <span class="var">Tstat</span>, <span class="var">var1</span>, <span class="var">var2</span>             <span class="file">[saige_test.cpp]</span> <span class="done-badge">DONE</span>
+    &#9474;       &#9500;&#9472;&#9472; Single-variant SPA (binary/survival):
+    &#9474;       &#9474;   &#9492;&#9472;&#9472; <span class="done">SPA_fast</span>() / <span class="done">SPA</span>()                          <span class="file">[spa.cpp]</span> <span class="done-badge">DONE</span>
+    &#9474;       &#9500;&#9472;&#9472; Accumulate <span class="var">P1Mat</span>[m, :] = sqrt(VR) * g_tilde'     <span class="comment">(score contribution)</span>
+    &#9474;       &#9500;&#9472;&#9472; Accumulate <span class="var">P2Mat</span>[:, m] = sqrt(VR) * Sigma_inv * G  <span class="comment">(variance contribution)</span>
+    &#9474;       &#9500;&#9472;&#9472; Accumulate <span class="var">TstatVec</span>[m], <span class="var">VarMat</span>[m,m], <span class="var">gyVec</span>[m]
+    &#9474;       &#9492;&#9472;&#9472; Store per-marker results for singleAssoc output
+    &#9474;
+    &#9500;&#9472;&#9472; <strong>URV collapsing:</strong> (if MAC &le; threshold)                 <span class="new-badge">NEW</span>
+    &#9474;   &#9500;&#9472;&#9472; Classify: regular markers (MAC &gt; 10) vs. ultra-rare (MAC &le; 10)
+    &#9474;   &#9500;&#9472;&#9472; <span class="new">Collapse</span>: genoURMat(i, jm) = max(current, w*G(i))  <span class="file">[main.cpp]</span>
+    &#9474;   &#9492;&#9472;&#9472; Score test on collapsed pseudo-markers
+    &#9474;
+    &#9500;&#9472;&#9472; <strong>Phi matrix computation:</strong>                               <span class="new-badge">NEW</span>
+    &#9474;   &#9500;&#9472;&#9472; <span class="var">Phi</span>[i,j] = P1Mat[i,:] * P2Mat[:,j]               <span class="comment">(variance-covariance)</span>
+    &#9474;   &#9492;&#9472;&#9472; Apply VR scaling
+    &#9474;
+    &#9500;&#9472;&#9472; <strong>Weight computation:</strong>                                    <span class="new-badge">NEW</span>
+    &#9474;   &#9500;&#9472;&#9472; <span class="done">getWeights</span>("beta", MAF, {1, 25})                   <span class="file">[UTIL.cpp]</span> <span class="done-badge">DONE</span>
+    &#9474;   &#9500;&#9472;&#9472; <span class="var">wStatVec</span> = TstatVec % AnnoWeights
+    &#9474;   &#9492;&#9472;&#9472; <span class="var">wadjVarSMat</span> = Phi % (w * w')
+    &#9474;
+    &#9500;&#9472;&#9472; For each annotation-MAF stratum:
+    &#9474;   &#9474;
+    &#9474;   &#9500;&#9472;&#9472; <strong>Binary Phi adjustment:</strong> (binary/survival only)
+    &#9474;   &#9474;   &#9500;&#9472;&#9472; <span class="new">get_newPhi_scaleFactor_traitType</span>()              <span class="file">[main.cpp]</span> <span class="new-badge">NEW</span>
+    &#9474;   &#9474;   &#9474;   &#9500;&#9472;&#9472; Compute burden SPA p-value
+    &#9474;   &#9474;   &#9474;   &#9492;&#9472;&#9472; <span class="new">SPA_ER_kernel_related_Phiadj_fast_new</span>()     <span class="new-badge">NEW</span>
+    &#9474;   &#9474;   &#9474;       &#9492;&#9472;&#9472; Scale Phi based on SPA-adjusted burden variance
+    &#9474;   &#9474;   &#9492;&#9472;&#9472; Result: <span class="var">Phi_ccadj</span>, <span class="var">scaleFactor</span>
+    &#9474;   &#9474;   <span class="comment"># Quantitative: uses Phi directly (no SPA adjustment)</span>
+    &#9474;   &#9474;
+    &#9474;   &#9500;&#9472;&#9472; <span class="new">BURDEN test</span>                                         <span class="file">[skat.cpp]</span> <span class="new-badge">NEW</span> <span class="phase-badge">PHASE 5</span>
+    &#9474;   &#9474;   &#9492;&#9472;&#9472; Q_Burden = (sum(w_i * S_i))^2
+    &#9474;   &#9474;       var_Burden = w' * Sigma * w
+    &#9474;   &#9474;       p_Burden = pchisq(Q_Burden / var_Burden, df=1)
+    &#9474;   &#9474;
+    &#9474;   &#9500;&#9472;&#9472; <span class="new">SKAT test</span> + <span class="new">Davies method</span>                            <span class="file">[skat.cpp]</span> <span class="new-badge">NEW</span>
+    &#9474;   &#9474;   &#9500;&#9472;&#9472; Q_SKAT = sum(w_i^2 * S_i^2)
+    &#9474;   &#9474;   &#9492;&#9472;&#9472; p_SKAT via Davies (mixture of chi-squares)
+    &#9474;   &#9474;       &#9492;&#9472;&#9472; <span class="new">qfc</span>() algorithm (C port from SKAT R package)  <span class="new-badge">NEW</span>
+    &#9474;   &#9474;
+    &#9474;   &#9492;&#9472;&#9472; <span class="new">SKAT-O</span>                                              <span class="file">[skat.cpp]</span> <span class="new-badge">NEW</span>
+    &#9474;       &#9492;&#9472;&#9472; Q(rho) = (1-rho)*Q_SKAT + rho*Q_Burden
+    &#9474;           &#9492;&#9472;&#9472; Grid search rho in [0, 1] for min p-value
+    &#9474;
+    &#9500;&#9472;&#9472; If multiple strata &rarr; <strong>CCT combination:</strong>
+    &#9474;   &#9492;&#9472;&#9472; <span class="done">CCT_cpp</span>(pval_vector)                                <span class="file">[cct.cpp]</span> <span class="done-badge">DONE</span>
+    &#9474;       &#9492;&#9472;&#9472; 1 - pcauchy(sum(w * tan((0.5 - p) * pi)))
+    &#9474;
+    &#9500;&#9472;&#9472; <span class="new">Write region-level TSV</span>                                <span class="file">[main.cpp]</span> <span class="new-badge">NEW</span>
+    &#9474;   &#9492;&#9472;&#9472; Columns: Region Annotation MaxMAF pval_SKATO Beta_Burden SE_Burden pval_Burden pval_SKAT
+    &#9474;
+    &#9492;&#9472;&#9472; <span class="new">Write per-region singleAssoc TSV</span>                      <span class="file">[main.cpp]</span> <span class="new-badge">NEW</span>
+        &#9492;&#9472;&#9472; Per-marker results within each gene/region
+</pre>
+    </div>
+
+    <div class="note-important">
+        <strong>Hardest new work:</strong> The Davies method (<code>qfc</code> algorithm for mixture of chi-squares) inside <code>skat.cpp</code> is the most complex new code to write. The R version calls into the SKAT R package. We need a C++ implementation of the <code>qfc()</code> function.
+    </div>
+
+    <!-- ================================================================== -->
+    <h2 id="section5">5. Data Flow Diagram</h2>
+    <!-- ================================================================== -->
+
+    <p>How data flows from Step 1 output files through the standalone pipeline to final p-values.</p>
+
+    <h3>5a. Initialization Flow</h3>
+
+    <div class="dep-graph">
+<pre>
+ <span class="dim">Step 1 Output Files</span>                 <span class="stub-node">null_model_loader.cpp</span>                 <span class="done-node">saige_test.cpp</span>
+ &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;                 &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;                 &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;
+
+ nullmodel.json  <span class="arrow">----&gt;</span>  parse JSON (tau, traitType, n, p)
+ mu.arma         <span class="arrow">----&gt;</span>  loadArmaVec()
+ res.arma        <span class="arrow">----&gt;</span>  loadArmaVec()       <span class="arrow">----&gt;</span>  <span class="done-node">NullModelData</span> struct  <span class="arrow">----&gt;</span>  SAIGEClass(...)
+ y.arma          <span class="arrow">----&gt;</span>  loadArmaVec()                                         &#9474;
+ V.arma          <span class="arrow">----&gt;</span>  loadArmaVec()                                         &#9474; Store as members:
+ S_a.arma        <span class="arrow">----&gt;</span>  loadArmaVec()                                         &#9474; m_mu, m_mu2, m_res
+ X.arma          <span class="arrow">----&gt;</span>  loadArmaMat()                                         &#9474; m_XVX, m_XV, ...
+ XVX.arma        <span class="arrow">----&gt;</span>  loadArmaMat()                                         &#9474; m_varRatio_null
+ XVX_inv.arma    <span class="arrow">----&gt;</span>  loadArmaMat()                                         &#9474; m_SPA_Cutoff
+ XXVX_inv.arma   <span class="arrow">----&gt;</span>  loadArmaMat()                                         &#9474; m_traitType
+ XV.arma         <span class="arrow">----&gt;</span>  loadArmaMat()                                         &#9474;
+ XVX_inv_XV.arma <span class="arrow">----&gt;</span>  loadArmaMat()                                         v
+
+ varianceRatio.txt <span class="arrow">--&gt;</span>  loadVarianceRatios()
+                        &#9492;&#9472;&gt; varRatio_null, varRatio_sparse, cateVarRatio*
+</pre>
+    </div>
+
+    <h3>5b. Single-Variant Testing Flow</h3>
+
+    <div class="dep-graph">
+<pre>
+ <span class="new-node">genotype_reader.cpp</span>           <span class="done-node">UTIL.cpp</span>              <span class="done-node">saige_test.cpp</span>          <span class="done-node">spa.cpp / spa_binary.cpp</span>
+ &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;           &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;              &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;          &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;
+
+ PLINK .bed  <span class="arrow">---&gt;</span>  getOneMarker()  <span class="arrow">---&gt;</span>  imputeGenoAndFlip()  <span class="arrow">---&gt;</span>  getMarkerPval()  <span class="arrow">---&gt;</span>  SPA_fast()
+   .bim                &#9474;                       &#9474;                          &#9474;                       &#9474;
+   .fam                v                       v                          v                       v
+                  arma::vec GVec         GVec (imputed,          scoreTestFast()         getroot_K1_fast_Binom()
+                  MarkerInfo              flipped)               scoreTest()             Get_Saddle_Prob_fast_Binom()
+                                          MAC, altFreq           scoreTestFast_noadjCov()
+                                          indexZero/NonZero              &#9474;
+                                                                        v
+                                                                  Beta, seBeta, pval, Tstat
+                                                                        &#9474;
+                                                                        v
+                                                                  <span class="new-node">main.cpp: write TSV line</span>
+</pre>
+    </div>
+
+    <h3>5c. Region Testing Flow</h3>
+
+    <div class="dep-graph">
+<pre>
+ <span class="new-node">group_file.cpp</span>     <span class="new-node">genotype_reader</span>     <span class="done-node">saige_test</span>        <span class="new-node">main.cpp (region)</span>     <span class="new-node">skat.cpp</span>         <span class="done-node">cct.cpp</span>
+ &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;     &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;     &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;        &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;     &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;         &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;
+
+ Group file  <span class="arrow">---&gt;</span>  readGroupFile()       getOneMarker()   scoreTest()      URV collapsing          BURDEN        CCT_cpp()
+   (text)         &#9474;               <span class="arrow">----&gt;</span>  &#9474;          <span class="arrow">---&gt;</span>  &#9474;         <span class="arrow">---&gt;</span>  Phi computation  <span class="arrow">---&gt;</span>  SKAT    <span class="arrow">---&gt;</span>   &#9474;
+                  v                     v                v                Phi SPA adj             SKAT-O         v
+            GroupEntry[]           GVec [N]         TstatVec [m]    annoIndicatorMat       Davies method   combined_pval
+            annoIndicatorMat       MarkerInfo       VarMat [m&times;m]     wadjVarSMat                &#9474;
+                                                   P1Mat, P2Mat                                  v
+                                                   gyVec                                    pval per stratum
+</pre>
+    </div>
+
+    <!-- ================================================================== -->
+    <h2 id="section6">6. Key Data Structures</h2>
+    <!-- ================================================================== -->
+
+    <p>Structs and classes that form the backbone of the standalone code. Blue <span class="data-badge">DATA</span> badge marks data structures.</p>
+
+    <div class="side-by-side">
+        <div class="panel panel-stub">
+            <h3>NullModelData <span class="stub-badge">STUB</span></h3>
+            <p style="font-size: 12px; color: #666; margin-bottom: 10px;">null_model_loader.hpp &mdash; Holds all Step 1 output. Struct is complete; loader body is stub.</p>
+            <div class="formula-block">
+struct NullModelData {
+  // Scalars (from nullmodel.json)
+  double tau0, tau1;
+  std::string traitType;  // "binary" / "quantitative"
+  int n, p;
+  double SPA_Cutoff;      // default 2.0
+  std::string impute_method;
+  bool flagSparseGRM, isFastTest, isnoadjCov;
+  bool isCondition, is_Firth_beta;
+  double pval_cutoff_for_fastTest, pCutoffforFirth;
+  std::vector&lt;std::string&gt; sampleIDs;
+
+  // Vectors [N] (from .arma binary files)
+  arma::vec mu, res, y, V, mu2, S_a;
+  arma::vec tauvec, offset, resout;
+
+  // Matrices (from .arma binary files)
+  arma::mat X;              // [N x p]
+  arma::mat XVX;            // [p x p]
+  arma::mat XVX_inv;        // [p x p]
+  arma::mat XXVX_inv;       // [N x p]
+  arma::mat XV;             // [p x N]
+  arma::mat XVX_inv_XV;     // [N x p]
+  arma::mat Sigma_iXXSigma_iX; // [p x p]
+
+  // Variance ratios
+  arma::vec varRatio_sparse, varRatio_null;
+  arma::vec varRatio_null_noXadj;
+  arma::vec cateVarRatioMinMACVecExclude;
+  arma::vec cateVarRatioMaxMACVecInclude;
+
+  // Sparse GRM (optional)
+  arma::umat locationMat;
+  arma::vec valueVec;
+  int dimNum;
+
+  // Condition (optional)
+  std::vector&lt;uint32_t&gt; condition_genoIndex;
+};
+            </div>
+        </div>
+        <div class="panel panel-done">
+            <h3>SAIGEClass <span class="done-badge">DONE</span></h3>
+            <p style="font-size: 12px; color: #666; margin-bottom: 10px;">saige_test.hpp &mdash; Core association test class. Fully ported (256 lines).</p>
+            <div class="formula-block">
+class SAIGEClass {
+ private:
+  arma::mat m_XVX, m_XVX_inv_XV, m_X;
+  arma::mat m_Sigma_iXXSigma_iX;
+  arma::vec m_res, m_resout, m_mu, m_mu2;
+  arma::vec m_tauvec, m_S_a, m_offset;
+  std::string m_impute_method, m_traitType;
+  std::mt19937 m_rng_engine;
+
+ public:
+  arma::mat m_XXVX_inv, m_XV;
+  int m_n, m_p;
+  double m_varRatioVal;
+  arma::vec m_varRatio_sparse, m_varRatio_null;
+  arma::vec m_y;
+  arma::sp_mat m_SigmaMat_sp, m_spSigmaMat;
+  arma::vec m_diagSigma;
+  bool m_flagSparseGRM, m_isFastTest, m_isnoadjCov;
+  double m_SPA_Cutoff, m_pCutoffforFirth;
+  bool m_isCondition, m_is_Firth_beta;
+  // ... (conditional analysis members, case/ctrl indices)
+
+  // Methods:
+  SAIGEClass(...);              // 30+ params
+  void scoreTest(...);          // Path B
+  void scoreTestFast(...);      // Path C
+  void scoreTestFast_noadjCov(...); // Path A
+  void getMarkerPval(...);      // Full pipeline
+  bool assignVarianceRatio(MAC, ...);
+  void getadjG(...);            // Adjusted genotype
+  void getadjGFast(...);        // Fast adjusted genotype
+  void fast_logistf_fit_simple(...); // Firth
+  void assignConditionFactors(...);
+  arma::vec getPCG1ofSigmaAndGtilde(...);
+};
+            </div>
+        </div>
+    </div>
+
+    <div class="side-by-side">
+        <div class="panel panel-done">
+            <h3>SPA Structs <span class="done-badge">DONE</span></h3>
+            <p style="font-size: 12px; color: #666; margin-bottom: 10px;">spa_binary.hpp &mdash; Replace Rcpp::List returns. 44 lines.</p>
+            <div class="formula-block">
+struct RootResult {
+  double root;        // saddlepoint root zeta
+  int niter;          // Newton-Raphson iterations
+  bool Isconverge;    // convergence flag
+};
+
+struct SaddleResult {
+  double pval;        // saddle-point p-value
+  bool isSaddle;      // true if saddle formula succeeded
+};
+
+struct SPAResult {
+  double pvalue;      // final SPA p-value
+  bool Isconverge;    // overall convergence
+};
+            </div>
+        </div>
+        <div class="panel panel-new">
+            <h3>GenotypeReader (proposed) <span class="new-badge">NEW</span></h3>
+            <p style="font-size: 12px; color: #666; margin-bottom: 10px;">genotype_reader.hpp &mdash; Unified genotype reading interface.</p>
+            <div class="formula-block">
+struct MarkerInfo {
+  std::string chrom, rsid, ref, alt;
+  int pos;
+  double af, mac, missing_rate;
+};
+
+class GenotypeReader {
+ public:
+  virtual ~GenotypeReader() = default;
+  virtual bool getOneMarker(
+    int idx,
+    arma::vec &amp; GVec,
+    MarkerInfo &amp; info
+  ) = 0;
+  virtual int getNumMarkers() = 0;
+  virtual void close() = 0;
+};
+
+class PlinkReader : public GenotypeReader { ... };
+class BgenReader  : public GenotypeReader { ... };
+class VcfReader   : public GenotypeReader { ... };
+class PgenReader  : public GenotypeReader { ... };
+            </div>
+        </div>
+    </div>
+
+    <div class="side-by-side">
+        <div class="panel panel-new">
+            <h3>GroupEntry (proposed) <span class="new-badge">NEW</span></h3>
+            <p style="font-size: 12px; color: #666; margin-bottom: 10px;">group_file.hpp &mdash; Holds parsed gene/region definition.</p>
+            <div class="formula-block">
+struct GroupEntry {
+  std::string gene_id;
+  std::vector&lt;std::string&gt; variant_ids;
+    // Format: chr:pos:ref:alt
+  std::vector&lt;std::string&gt; annotations;
+    // e.g., "lof", "missense", "synonymous"
+  std::vector&lt;double&gt; weights;
+    // Optional user-specified weights
+  std::vector&lt;int&gt; geno_indices;
+    // Indices into genotype file (filled by checkGroupFile)
+};
+
+// annoIndicatorMat: arma::umat [q_markers x q_strata]
+//   Strata = annotation x MAF_threshold combos
+//   Cell = 1 if marker passes this (anno, MAF) filter
+            </div>
+        </div>
+        <div class="panel panel-data">
+            <h3>Region Accumulation Matrices <span class="data-badge">DATA</span></h3>
+            <p style="font-size: 12px; color: #666; margin-bottom: 10px;">Built per-gene inside mainRegionInCPP().</p>
+            <div class="formula-block">
+// Per-gene accumulation (built in marker loop):
+arma::mat  P1Mat;      // [m x N] score contributions
+arma::mat  P2Mat;      // [N x m] variance contributions
+arma::vec  TstatVec;   // [m]     per-marker T-statistics
+arma::mat  VarMat;     // [m x m] variance-covariance matrix
+arma::vec  gyVec;      // [m]     genotype-phenotype products
+arma::mat  genoSumMat; // [N x m] genotype sums (for URV)
+arma::umat annoMAFIndicatorMat; // [m x strata]
+
+// Derived (after marker loop):
+arma::mat  Phi;        // [m x m] = P1Mat * P2Mat (VR-adjusted)
+arma::vec  wStatVec;   // [m]     weighted score statistics
+arma::mat  wadjVarSMat;// [m x m] weighted Phi matrix
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================== -->
+    <h2 id="section7">7. Dependency Graph</h2>
+    <!-- ================================================================== -->
+
+    <p>Which <code>.cpp</code> file includes which <code>.hpp</code> headers. Colors indicate implementation status. Arrows show compilation dependencies (downstream file depends on upstream header).</p>
+
+    <div class="dep-graph">
+<pre>
+                                         <span class="dim">STANDALONE C++ DEPENDENCY GRAPH</span>
+                                         <span class="dim">================================</span>
+
+       <span class="new-node">main.cpp</span>  <span class="new-badge">NEW</span>
+         &#9474;
+         &#9500;&#9472;&#9472; #include "<span class="stub-node">null_model_loader.hpp</span>"  <span class="stub-badge">STUB</span>
+         &#9474;      &#9492;&#9472;&#9472; <span class="dim">NullModelData struct, loadNullModel(), loadArmaVec/Mat()</span>
+         &#9474;
+         &#9500;&#9472;&#9472; #include "<span class="done-node">saige_test.hpp</span>"  <span class="done-badge">DONE</span>
+         &#9474;      &#9492;&#9472;&#9472; <span class="dim">SAIGEClass (constructor, score tests, getMarkerPval, Firth, cond.)</span>
+         &#9474;
+         &#9500;&#9472;&#9472; #include "<span class="new-node">genotype_reader.hpp</span>"  <span class="new-badge">NEW</span>
+         &#9474;      &#9492;&#9472;&#9472; <span class="dim">GenotypeReader base, PlinkReader, MarkerInfo</span>
+         &#9474;
+         &#9500;&#9472;&#9472; #include "<span class="new-node">group_file.hpp</span>"  <span class="new-badge">NEW</span>
+         &#9474;      &#9492;&#9472;&#9472; <span class="dim">readGroupFile(), GroupEntry, buildAnnoIndicatorMat()</span>
+         &#9474;
+         &#9500;&#9472;&#9472; #include "<span class="new-node">skat.hpp</span>"  <span class="new-badge">NEW</span>
+         &#9474;      &#9492;&#9472;&#9472; <span class="dim">BURDEN_test(), SKAT_test(), SKATO_test(), Davies()</span>
+         &#9474;
+         &#9500;&#9472;&#9472; #include "<span class="done-node">cct.hpp</span>"  <span class="done-badge">DONE</span>
+         &#9474;      &#9492;&#9472;&#9472; <span class="dim">CCT_cpp(pval_vector)</span>
+         &#9474;
+         &#9500;&#9472;&#9472; #include "<span class="done-node">UTIL.hpp</span>"  <span class="done-badge">DONE</span>
+         &#9474;      &#9492;&#9472;&#9472; <span class="dim">imputeGenoAndFlip(), getWeights(), getinvStd()</span>
+         &#9474;
+         &#9492;&#9472;&#9472; #include &lt;yaml-cpp/yaml.h&gt;  <span class="dim">(external dep)</span>
+
+
+       <span class="done-node">saige_test.cpp</span>  <span class="done-badge">DONE</span>
+         &#9500;&#9472;&#9472; #include "<span class="done-node">saige_test.hpp</span>"
+         &#9500;&#9472;&#9472; #include "<span class="done-node">spa.hpp</span>"  <span class="done-badge">DONE</span>
+         &#9500;&#9472;&#9472; #include "<span class="done-node">UTIL.hpp</span>"
+         &#9492;&#9472;&#9472; #include &lt;boost/math/...&gt;  <span class="dim">(chi_squared, normal)</span>
+
+       <span class="done-node">spa.cpp</span>  <span class="done-badge">DONE</span>
+         &#9500;&#9472;&#9472; #include "<span class="done-node">spa.hpp</span>"
+         &#9492;&#9472;&#9472; #include "<span class="done-node">spa_binary.hpp</span>"  <span class="done-badge">DONE</span>
+
+       <span class="done-node">spa_binary.cpp</span>  <span class="done-badge">DONE</span>
+         &#9500;&#9472;&#9472; #include "<span class="done-node">spa_binary.hpp</span>"
+         &#9492;&#9472;&#9472; #include &lt;boost/math/...&gt;  <span class="dim">(normal)</span>
+
+       <span class="done-node">cct.cpp</span>  <span class="done-badge">DONE</span>
+         &#9500;&#9472;&#9472; #include "<span class="done-node">cct.hpp</span>"
+         &#9492;&#9472;&#9472; #include &lt;boost/math/...&gt;  <span class="dim">(cauchy)</span>
+
+       <span class="done-node">UTIL.cpp</span>  <span class="done-badge">DONE</span>
+         &#9500;&#9472;&#9472; #include "<span class="done-node">UTIL.hpp</span>"
+         &#9492;&#9472;&#9472; #include &lt;boost/math/...&gt;  <span class="dim">(beta_distribution)</span>
+
+       <span class="stub-node">null_model_loader.cpp</span>  <span class="stub-badge">STUB</span>
+         &#9500;&#9472;&#9472; #include "<span class="stub-node">null_model_loader.hpp</span>"
+         &#9492;&#9472;&#9472; #include &lt;yaml-cpp/yaml.h&gt;  <span class="dim">(for JSON parsing)</span>
+
+       <span class="new-node">genotype_reader.cpp</span>  <span class="new-badge">NEW</span>
+         &#9500;&#9472;&#9472; #include "<span class="new-node">genotype_reader.hpp</span>"
+         &#9492;&#9472;&#9472; <span class="dim">(standalone &mdash; no external deps beyond armadillo)</span>
+
+       <span class="new-node">group_file.cpp</span>  <span class="new-badge">NEW</span>
+         &#9492;&#9472;&#9472; #include "<span class="new-node">group_file.hpp</span>"
+
+       <span class="new-node">skat.cpp</span>  <span class="new-badge">NEW</span>
+         &#9500;&#9472;&#9472; #include "<span class="new-node">skat.hpp</span>"
+         &#9492;&#9472;&#9472; #include &lt;boost/math/...&gt;  <span class="dim">(chi_squared for BURDEN)</span>
+
+       <span class="new-node">er_binary.cpp</span>  <span class="new-badge">NEW</span>  <span class="dim">(Phase 7, deferred)</span>
+         &#9492;&#9472;&#9472; #include "<span class="new-node">er_binary.hpp</span>"
+
+       <span class="done-node">getMem.cpp</span>  <span class="done-badge">DONE</span>
+         &#9492;&#9472;&#9472; #include "<span class="done-node">getMem.hpp</span>"
+
+       <span class="dim">Makefile</span>  <span class="done-badge">DONE</span>
+         &#9492;&#9472;&#9472; <span class="dim">Links: armadillo, openblas, lapack, yaml-cpp, boost, superlu</span>
+</pre>
+    </div>
+
+    <div class="note">
+        <strong>Build order:</strong> All <code>.cpp</code> files compile independently into <code>.o</code> files and are linked together. The Makefile already handles the done files. New files must be added to the <code>OBJS</code> list: <code>main.o genotype_reader.o group_file.o skat.o</code> (and later <code>er_binary.o ldmat.o</code>).
+    </div>
+
+    <!-- ================================================================== -->
+    <h2 id="section8">8. File Cross-Reference (Original SAIGE &rarr; Standalone)</h2>
+    <!-- ================================================================== -->
+
+    <p>Complete mapping from every original SAIGE source file to its standalone counterpart, with status and key functions.</p>
+
+    <h3>8a. C++ Source Files (SAIGE/src/ &rarr; cpp_standalone/)</h3>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Original SAIGE File</th>
+                <th>Lines</th>
+                <th>Standalone Target</th>
+                <th>Lines</th>
+                <th>Status</th>
+                <th>Key Functions</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="done-row">
+                <td>SAIGE_test.cpp</td>
+                <td>1,256</td>
+                <td>saige_test.cpp</td>
+                <td>1,118</td>
+                <td><span class="done-badge">DONE</span></td>
+                <td>SAIGEClass, scoreTest (3 paths), getMarkerPval, Firth, conditional, VR assignment</td>
+            </tr>
+            <tr class="done-row">
+                <td>SAIGE_test.hpp</td>
+                <td>265</td>
+                <td>saige_test.hpp</td>
+                <td>256</td>
+                <td><span class="done-badge">DONE</span></td>
+                <td>SAIGEClass declaration (Rcpp removed)</td>
+            </tr>
+            <tr class="done-row">
+                <td>SPA.cpp</td>
+                <td>299</td>
+                <td>spa.cpp</td>
+                <td>209</td>
+                <td><span class="done-badge">DONE</span></td>
+                <td>SPA(), SPA_fast(), SPA_pval() &mdash; struct returns replace Rcpp::List</td>
+            </tr>
+            <tr class="done-row">
+                <td>SPA_binary.cpp</td>
+                <td>529</td>
+                <td>spa_binary.cpp</td>
+                <td>432</td>
+                <td><span class="done-badge">DONE</span></td>
+                <td>Korg, K1_adj, K2, getroot, Get_Saddle_Prob (standard + fast); 12 Rcpp::List &rarr; structs</td>
+            </tr>
+            <tr class="done-row">
+                <td>SPA_binary.hpp</td>
+                <td>16</td>
+                <td>spa_binary.hpp</td>
+                <td>44</td>
+                <td><span class="done-badge">DONE</span></td>
+                <td>RootResult, SaddleResult, SPAResult struct declarations + function signatures</td>
+            </tr>
+            <tr class="done-row">
+                <td>CCT.cpp</td>
+                <td>82</td>
+                <td>cct.cpp</td>
+                <td>74</td>
+                <td><span class="done-badge">DONE</span></td>
+                <td>CCT_cpp() via boost::math::cauchy_distribution</td>
+            </tr>
+            <tr class="done-row">
+                <td>UTIL.cpp</td>
+                <td>~200</td>
+                <td>UTIL.cpp</td>
+                <td>207</td>
+                <td><span class="done-badge">DONE</span></td>
+                <td>getWeights (Beta dist), imputeGenoAndFlip, nb() RNG, add_logp</td>
+            </tr>
+            <tr class="done-row">
+                <td>getMem.cpp</td>
+                <td>52</td>
+                <td>getMem.cpp</td>
+                <td>53</td>
+                <td><span class="done-badge">DONE</span></td>
+                <td>getPhysMem, getVirtMem (macOS mach API added)</td>
+            </tr>
+            <tr class="new-row">
+                <td>Main.cpp</td>
+                <td>3,044</td>
+                <td>main.cpp</td>
+                <td>&mdash;</td>
+                <td><span class="new-badge">NEW</span></td>
+                <td>main(), mainMarkerInCPP(), mainRegionInCPP(), output writers, URV collapsing</td>
+            </tr>
+            <tr class="new-row">
+                <td>Main.hpp</td>
+                <td>382</td>
+                <td>(split across headers)</td>
+                <td>&mdash;</td>
+                <td><span class="new-badge">NEW</span></td>
+                <td>Global declarations split into genotype_reader.hpp, group_file.hpp, skat.hpp</td>
+            </tr>
+            <tr class="new-row">
+                <td>PLINK.cpp</td>
+                <td>345</td>
+                <td rowspan="4">genotype_reader.cpp</td>
+                <td rowspan="4">&mdash;</td>
+                <td><span class="new-badge">NEW</span> (P0)</td>
+                <td>PlinkReader: .fam/.bim/.bed parsing, 2-bit decode</td>
+            </tr>
+            <tr class="new-row">
+                <td>BGEN.cpp</td>
+                <td>582</td>
+                <td><span class="new-badge">NEW</span> (P1)</td>
+                <td>BgenReader: BGEN v1.2 reading</td>
+            </tr>
+            <tr class="new-row">
+                <td>VCF.cpp</td>
+                <td>256</td>
+                <td><span class="new-badge">NEW</span> (P2)</td>
+                <td>VcfReader: VCF/BCF reading</td>
+            </tr>
+            <tr class="new-row">
+                <td>PGEN.cpp</td>
+                <td>371</td>
+                <td><span class="new-badge">NEW</span> (P3)</td>
+                <td>PgenReader: PLINK 2.0 reading</td>
+            </tr>
+            <tr class="new-row">
+                <td>ER_binary_func.cpp</td>
+                <td>278</td>
+                <td rowspan="2">er_binary.cpp</td>
+                <td rowspan="2">&mdash;</td>
+                <td rowspan="2"><span class="new-badge">NEW</span></td>
+                <td>SKATExactBin_Work, SKATExactBin_ComputProb_New</td>
+            </tr>
+            <tr class="new-row">
+                <td>Binary_HyperGeo.cpp</td>
+                <td>195</td>
+                <td>HyperGeo class: Run(), Recursive(), Get_lprob()</td>
+            </tr>
+            <tr class="new-row">
+                <td>LDmat.cpp</td>
+                <td>580</td>
+                <td>ldmat.cpp</td>
+                <td>&mdash;</td>
+                <td><span class="new-badge">NEW</span></td>
+                <td>LDmatRegionInCPP() (optional)</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3>8b. R Source Files (SAIGE/R/ &rarr; cpp_standalone/)</h3>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Original R File</th>
+                <th>Standalone Target</th>
+                <th>Status</th>
+                <th>What It Becomes</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="new-row">
+                <td>SAIGE_Test_main.R</td>
+                <td>main.cpp</td>
+                <td><span class="new-badge">NEW</span></td>
+                <td>CLI entry point: YAML config parsing, initialization, dispatch to marker/region</td>
+            </tr>
+            <tr class="stub-row">
+                <td>readInGLMM.R</td>
+                <td>null_model_loader.cpp</td>
+                <td><span class="stub-badge">STUB</span></td>
+                <td>loadNullModel(): parse JSON + load 11 .arma files</td>
+            </tr>
+            <tr class="new-row">
+                <td>SAIGE_SPATest_Marker.R</td>
+                <td>main.cpp</td>
+                <td><span class="new-badge">NEW</span></td>
+                <td>mainMarkerInCPP() loop + marker TSV output</td>
+            </tr>
+            <tr class="new-row">
+                <td>SAIGE_SPATest_Region.R</td>
+                <td>main.cpp + group_file.cpp</td>
+                <td><span class="new-badge">NEW</span></td>
+                <td>mainRegionInCPP() loop + region TSV output</td>
+            </tr>
+            <tr class="new-row">
+                <td>SPATest_Region_Func.R</td>
+                <td>main.cpp + skat.cpp + group_file.cpp</td>
+                <td><span class="new-badge">NEW</span></td>
+                <td>get_SKAT_pvalue(), get_newPhi_scaleFactor(), readGroupFile(), checkGroupFile()</td>
+            </tr>
+            <tr class="done-row">
+                <td>CCT_modified.R</td>
+                <td>cct.cpp</td>
+                <td><span class="done-badge">DONE</span></td>
+                <td>CCT_cpp() &mdash; already ported</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3>8c. Implementation Priority Summary</h3>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Phase</th>
+                <th>What</th>
+                <th>Blocks</th>
+                <th>Est. Lines</th>
+                <th>Difficulty</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr style="background: #f1f8e9;">
+                <td><span class="phase-badge">PHASE 0</span></td>
+                <td>saige_test, spa_binary, spa, cct, UTIL, getMem</td>
+                <td>&mdash;</td>
+                <td>2,093 (done)</td>
+                <td>COMPLETE</td>
+            </tr>
+            <tr style="background: #faf3ff;">
+                <td><span class="phase-badge">PHASE 1</span></td>
+                <td>null_model_loader: implement loadNullModel() + loadVarianceRatios()</td>
+                <td>Everything</td>
+                <td>~150</td>
+                <td>LOW</td>
+            </tr>
+            <tr style="background: #fff8f8;">
+                <td><span class="phase-badge">PHASE 2</span></td>
+                <td>genotype_reader: PlinkReader (PLINK BED)</td>
+                <td>Marker + Region testing</td>
+                <td>~400</td>
+                <td>MEDIUM</td>
+            </tr>
+            <tr style="background: #fff8f8;">
+                <td><span class="phase-badge">PHASE 3</span></td>
+                <td>main.cpp: CLI + mainMarkerInCPP() + marker output</td>
+                <td>Single-variant testing</td>
+                <td>~500</td>
+                <td>MEDIUM</td>
+            </tr>
+            <tr style="background: #fff8f8;">
+                <td><span class="phase-badge">PHASE 4</span></td>
+                <td>group_file: readGroupFile() + buildAnnoIndicatorMat()</td>
+                <td>Region testing</td>
+                <td>~300</td>
+                <td>LOW</td>
+            </tr>
+            <tr style="background: #fff8f8;">
+                <td><span class="phase-badge">PHASE 5</span></td>
+                <td>skat.cpp: BURDEN + SKAT + SKAT-O + Davies method</td>
+                <td>Region testing</td>
+                <td>~600</td>
+                <td><strong>HIGH</strong> (Davies)</td>
+            </tr>
+            <tr style="background: #fff8f8;">
+                <td><span class="phase-badge">PHASE 6</span></td>
+                <td>main.cpp: mainRegionInCPP() + URV + Phi + output</td>
+                <td>Region testing</td>
+                <td>~700</td>
+                <td>HIGH</td>
+            </tr>
+            <tr style="background: #fff8f8;">
+                <td><span class="phase-badge">PHASE 7</span></td>
+                <td>er_binary, ldmat, survival SPA, additional genotype formats</td>
+                <td>Optional features</td>
+                <td>~1,000</td>
+                <td>MEDIUM</td>
+            </tr>
+        </tbody>
+        <tfoot>
+            <tr>
+                <td colspan="3"><strong>Total estimated remaining</strong></td>
+                <td><strong>~2,650</strong></td>
+                <td>&mdash;</td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <div class="note">
+        <strong>Critical path to single-variant testing:</strong> Phase 1 &rarr; Phase 2 &rarr; Phase 3 &rarr; validate vs R output. Estimated ~1,050 lines of new code.
+    </div>
+    <div class="note">
+        <strong>Critical path to region testing (after single-variant):</strong> Phase 4 &rarr; Phase 5 &rarr; Phase 6 &rarr; validate vs R output. Estimated ~1,600 lines of new code.
+    </div>
+
+    <div style="margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 5px; font-size: 12px; color: #666;">
+        <strong>Document info:</strong> Generated Feb 11, 2025. Based on analysis of files in <code>Step_2_Feb_11/code_copy/cpp_standalone/</code> (7 .cpp + 7 .hpp files, 2,661 total lines) and <code>Step_2_Feb_11/TODO.txt</code>. Mirrors structure of <code>STEP2_CALL_GRAPH_v2.html</code> but shows the standalone C++ architecture instead of R/Rcpp.
+    </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,12 @@
+# Build artifacts
+*.o
+*.d
+saige-step2
+
+# OS files
+.DS_Store
+
+# R checkpoint outputs in wrong directory
+code_copy/cpp_standalone/ckpt_*.txt
+code_copy/cpp_standalone/r_step2_results.txt
+code_copy/cpp_standalone/r_step2_results.txt.index
