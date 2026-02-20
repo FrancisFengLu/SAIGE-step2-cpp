@@ -1,0 +1,68 @@
+SAIGE Step 2: R vs C++ Binary Region Comparison Results (Test 4)
+Date: 2026-02-20
+R results: test/R/r_step2_binary_region_results.txt
+C++ results: test/output/cpp_compare_binary_region_results.txt
+==============================================================================================================
+
+Column            |   Total |   EXACT |   MATCH |   CLOSE |    NEAR |  DIFFER |   MaxRelDiff |   MaxAbsDiff
+--------------------------------------------------------------------------------------------------------------
+Pvalue (SKATO)    |       9 |       0 |       0 |       3 |       0 |       6 |    8.485e-02 |    3.074e-02
+Pvalue_Burden     |       9 |       0 |       0 |       4 |       5 |       0 |    3.199e-04 |    1.797e-04
+Pvalue_SKAT       |       9 |       0 |       0 |       9 |       0 |       0 |    1.987e-06 |    3.172e-07
+BETA_Burden       |       7 |       0 |       0 |       7 |       0 |       0 |    3.003e-06 |    4.876e-08
+SE_Burden         |       7 |       0 |       0 |       5 |       2 |       0 |    4.880e-04 |    1.068e-05
+MAC               |       7 |       7 |       0 |       0 |       0 |       0 |    0.000e+00 |    0.000e+00
+MAC_case          |       7 |       7 |       0 |       0 |       0 |       0 |    0.000e+00 |    0.000e+00
+MAC_control       |       7 |       7 |       0 |       0 |       0 |       0 |    0.000e+00 |    0.000e+00
+Number_rare       |       7 |       7 |       0 |       0 |       0 |       0 |    0.000e+00 |    0.000e+00
+Number_ultra_rare |       7 |       7 |       0 |       0 |       0 |       0 |    0.000e+00 |    0.000e+00
+
+Classification thresholds:
+  EXACT:  rel diff < 1e-12
+  MATCH:  rel diff < 1e-8
+  CLOSE:  rel diff < 1e-4
+  NEAR:   rel diff < 1e-2
+  DIFFER: rel diff >= 1e-2
+
+Key findings:
+  1. BETA_Burden: ALL match to < 3.0e-6 relative difference (PASS)
+  2. Pvalue_SKAT: ALL match to < 2.0e-6 relative difference (PASS)
+     - Davies method working correctly for binary trait with SPA Phi adjustment
+  3. Pvalue_Burden: All < 0.032% relative difference (PASS)
+     - 4 CLOSE + 5 NEAR; max rel diff 3.2e-4
+     - SPA correction on burden p-value introduces small differences
+  4. SE_Burden: All < 0.049% relative difference (PASS)
+     - 5 CLOSE + 2 NEAR; max rel diff 4.9e-4
+  5. MAC, MAC_case, MAC_control, Number_rare, Number_ultra_rare: ALL EXACT (PASS)
+  6. Pvalue (SKAT-O): 3-8.5% relative difference for multi-variant groups (KNOWN ISSUE)
+     - Single-variant groups (max_MAF=0.001, all ultra-rare): CLOSE match
+     - Multi-variant groups (max_MAF=0.01): 3-8% relative difference
+     - Cauchy rows inherit SKAT-O differences (since they combine SKAT-O p-values)
+
+SKAT-O (Pvalue column) differences are consistent with Test 3 (quantitative region):
+  - Test 3 quantitative: max 5.2% relative difference
+  - Test 4 binary:       max 8.5% relative difference
+  The additional error in binary comes from the SPA Phi adjustment, which
+  modifies the variance-covariance matrix before SKAT-O integration.
+
+Root cause of SKAT-O differences (same as Test 3):
+  a) tau_rho thresholds computed via Liu quantile approximation (C++) vs
+     Davies qchisq binary search (R SKAT package) -- ~0.5% error per rho
+  b) Adaptive Gauss-Kronrod integration (C++) vs R's integrate() internals
+  c) For binary: SPA Phi adjustment adds compounding approximation effects
+
+Binary-specific features validated:
+  - SPA Phi adjustment (SPA_ER_kernel_related_Phiadj_fast_new): Working
+  - Burden p-value via SPA in region context (get_newPhi_scaleFactor_traitType): Working
+  - Efficient Resampling (ER) for ultra-rare binary variants (MAC <= 4): Working
+  - MAC_case / MAC_control counting: EXACT
+  - Binary variance weights mu*(1-mu): Correct
+
+Overall assessment:
+  - Score test, variance estimation, URV collapsing: CORRECT
+  - BURDEN test: CORRECT (< 0.032% error)
+  - SKAT test: CORRECT (< 0.0002% error)
+  - SKAT-O test: APPROXIMATE (3-8.5% error for multi-variant groups)
+  - Binary SPA Phi adjustment: CORRECT
+  - All integer/count values: EXACT
+  - OVERALL: CONDITIONAL PASS (same known SKAT-O limitation as Test 3)

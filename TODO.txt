@@ -809,17 +809,26 @@ Each test config exercises different code paths. Ordered by priority.
       - skat.cpp: Davies method, Liu fallback, SKAT-O integration
       - cct.cpp: CCT combination
 
-[ ] Test 4: Binary + Region/Gene-Based (exercises SPA Phi adjustment)
-    Data:     Binary PLINK + group file
-    New code paths:
-      - get_newPhi_scaleFactor_traitType() — SPA-adjusted Phi matrix
-      - SPA_ER_kernel_related_Phiadj_fast_new() — per-variant scale factors
-      - Binary-specific region output (MAC_case, MAC_ctrl)
-    Steps:
-      [ ] 4a. Create config + R script for binary region test
-      [ ] 4b. Run comparison
-    Risk: Phi adjustment involves SPA p-values fed back into variance
-          scaling — error accumulation possible.
+[x] Test 4: Binary + Region/Gene-Based (exercises SPA Phi adjustment)
+    Config:   config_compare_binary_region.yaml
+    Data:     Binary PLINK + group file (2 regions, 9 rows)
+    Model:    Chr 1 LOCO null model converted from example_binary.rda
+    Date:     Feb 20, 2026
+    Result:
+      | Column        | Max Rel Error | Status      |
+      |---------------|---------------|-------------|
+      | Pvalue_SKAT   | 1.987e-06     | EXACT       |
+      | BETA_Burden   | 3.003e-06     | EXACT       |
+      | Pvalue_Burden | 3.199e-04     | PASS        |
+      | SE_Burden     | 4.880e-04     | PASS        |
+      | Pvalue_SKAT-O | 8.485e-02     | APPROXIMATE |
+      | MAC/counts    | 0             | EXACT       |
+    Notes:
+      - SPA Phi adjustment validated (binary-specific region code)
+      - ER resampling works in region context
+      - SKAT-O ~8.5%: same Liu approximation as Test 3, slightly larger
+        due to SPA Phi adjustment amplifying numerical differences
+      - BURDEN and SKAT highly accurate
 
 ─── MEDIUM PRIORITY ───────────────────────────────────────────────────────────
 

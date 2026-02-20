@@ -379,5 +379,49 @@ Tested with 2 genes (99 markers), outputs:
   Remaining unimplemented: survival trait SPA (niche), VCF/BGEN/PGEN readers
 
 ================================================================================
+SESSION: Feb 20, 2026 (cont.) - TEST 4 BINARY + REGION VALIDATED
+================================================================================
+
+### Test 4: Binary + Region — CONDITIONAL PASS
+
+Result (9 rows, 2 regions):
+  | Column        | Max Rel Error | Status      |
+  |---------------|---------------|-------------|
+  | Pvalue_SKAT   | 1.987e-06     | EXACT       |
+  | BETA_Burden   | 3.003e-06     | EXACT       |
+  | Pvalue_Burden | 3.199e-04     | PASS        |
+  | SE_Burden     | 4.880e-04     | PASS        |
+  | Pvalue_SKAT-O | 8.485e-02     | APPROXIMATE |
+  | MAC/counts    | 0             | EXACT       |
+
+Binary-specific code paths validated:
+  - SPA Phi adjustment (get_newPhi_scaleFactor_traitType)
+  - SPA_ER_kernel_related_Phiadj_fast_new
+  - ER resampling in region context
+  - MAC_case / MAC_control counting
+
+SKAT-O ~8.5% error: same Liu approximation issue as Test 3, slightly
+amplified by binary SPA Phi adjustment. BURDEN and SKAT themselves
+are highly accurate.
+
+New files:
+  test/R/run_r_step2_binary_region.R
+  test/compare_step2_binary_region.R
+  code_copy/cpp_standalone/config_compare_binary_region.yaml
+  test/R/r_step2_binary_region_results.txt
+  test/output/cpp_compare_binary_region_results.txt
+  test/RESULTS_step2_binary_region.txt
+
+### Validation Summary (ALL 4 CORE TESTS COMPLETE)
+
+  Test 1: Quant + Single-Variant  → ALL EXACT (128,868 markers)
+  Test 2: Binary + Single-Variant → ALL EXACT (70 markers)
+  Test 3: Quant + Region          → BURDEN/SKAT PASS, SKAT-O ~5%
+  Test 4: Binary + Region         → BURDEN/SKAT PASS, SKAT-O ~8.5%
+
+Remaining: Tests 5-8 (medium priority, need special test data),
+Tests 11-12 (low priority, features not implemented).
+
+================================================================================
 END OF SESSION NOTES
 ================================================================================

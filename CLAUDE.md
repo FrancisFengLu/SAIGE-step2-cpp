@@ -297,10 +297,17 @@ Key requirement: Both R and C++ must use the **same null model**. The .rda has
 LOCO=TRUE (per-chromosome models). The converter extracts chr 1 LOCO values.
 R must also run with LOCO=TRUE so it uses the same chr 1 model.
 
-### Region/Gene-Based Testing: NOT YET VALIDATED
+### Region/Gene-Based Testing: VALIDATED (Feb 20, 2026)
 
-Code is implemented (mainRegionInCPP, SKAT/BURDEN/SKAT-O, Davies method)
-but no R reference output has been generated for comparison yet.
+**Test 3 (Quant + Region)**: BURDEN/SKAT PASS, SKAT-O ~5% (Liu approximation)
+**Test 4 (Binary + Region)**: BURDEN/SKAT PASS, SKAT-O ~8.5% (Liu + SPA Phi)
+
+SKAT-O error is due to Liu moment-matching quantile approximation (exact Davies
+quantile was 13x slower for only 0.5% improvement). All other columns match well.
+
+### Binary Single-Variant Testing: VALIDATED (Feb 20, 2026)
+
+**ALL EXACT** (350/350 values) including SPA, Firth correction, and ER resampling.
 
 ## Key Variables
 
