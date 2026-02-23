@@ -52,6 +52,9 @@ VCF::VcfClass* ptr_gVCFobj = nullptr;
 // Global pointer to BGEN object (mirrors SAIGE's ptr_gBGENobj in Main.cpp)
 BGEN::BgenClass* ptr_gBGENobj = nullptr;
 
+// Global pointer to PGEN object (mirrors SAIGE's ptr_gPGENobj in Main.cpp)
+PGEN::PgenClass* ptr_gPGENobj = nullptr;
+
 // Static counter for checkpoint tracking
 static uint64_t s_checkpointMarkerCount = 0;
 
@@ -1450,6 +1453,490 @@ void BgenClass::closegenofile()
 
 
 // ============================================================
+// PGEN namespace: PGEN v2 reader (mode 0x02 basic variant-major)
+// Standalone implementation without pgenlib dependency
+// ============================================================
+namespace PGEN {
+
+// ============================================================
+// Constructor
+// ============================================================
+PgenClass::PgenClass(const std::string& t_pgenFile,
+                     const std::string& t_psamFile,
+                     const std::string& t_pvarFile,
+                     std::vector<std::string>& t_SampleInModel)
+    : m_pgenFile(t_pgenFile), m_pvarFile(t_pvarFile), m_psamFile(t_psamFile),
+      m_fin(nullptr), m_M0(0), m_N0(0), m_mode(0), m_dataOffset(0),
+      m_bytesPerVariant(0), m_M(0), m_N(0)
+{
+    std::cout << "pgenFile: " << t_pgenFile << std::endl;
+    std::cout << "psamFile: " << t_psamFile << std::endl;
+    std::cout << "pvarFile: " << t_pvarFile << std::endl;
+
+    readPvarFile();
+    readPsamFile();
+    readPgenHeader();
+    setPosSampleInPgen(t_SampleInModel);
+
+    // Allocate raw buffer for one variant
+    m_bytesPerVariant = (m_N0 + 3) / 4;
+    m_OneMarkerRaw.resize(m_bytesPerVariant);
+}
+
+// ============================================================
+// Destructor
+// ============================================================
+PgenClass::~PgenClass()
+{
+    closegenofile();
+}
+
+// ============================================================
+// readPgenHeader: read and validate .pgen file header
+//
+// PGEN format (mode 0x02):
+//   Bytes 0-1: magic 0x6c 0x1b
+//   Byte 2:    mode (0x02 = basic variant-major)
+//   Bytes 3-6: variant count (4 bytes, little-endian)
+//   Bytes 7-10: sample count (4 bytes, little-endian)
+//   Byte 11:   header control byte (0x00 for mode 0x02)
+//   Data starts at byte 12
+// ============================================================
+void PgenClass::readPgenHeader()
+{
+    m_fin = fopen(m_pgenFile.c_str(), "rb");
+    if (!m_fin) {
+        throw std::runtime_error("Cannot open PGEN file: " + m_pgenFile);
+    }
+
+    // Read magic bytes
+    uint8_t magic[2];
+    if (fread(magic, 1, 2, m_fin) != 2) {
+        throw std::runtime_error("Cannot read magic bytes from PGEN file: " + m_pgenFile);
+    }
+    if (magic[0] != 0x6c || magic[1] != 0x1b) {
+        throw std::runtime_error("Invalid PGEN magic bytes. Expected 0x6c 0x1b, got 0x"
+            + std::to_string(magic[0]) + " 0x" + std::to_string(magic[1]));
+    }
+
+    // Read mode byte
+    if (fread(&m_mode, 1, 1, m_fin) != 1) {
+        throw std::runtime_error("Cannot read mode byte from PGEN file: " + m_pgenFile);
+    }
+
+    if (m_mode == 0x01) {
+        // PLINK 1 variant-major mode (essentially .bed format in .pgen container)
+        // Header is just 3 bytes (magic + mode), data starts at byte 3
+        // Use fam/bim sample/variant counts from .psam/.pvar
+        m_N0 = m_SampleInPgen.size();
+        m_M0 = m_M;
+        m_dataOffset = 3;
+        m_bytesPerVariant = (m_N0 + 3) / 4;
+        std::cout << "PGEN mode 0x01 (PLINK 1 variant-major)" << std::endl;
+        std::cout << "  Variants: " << m_M0 << " (from .pvar)" << std::endl;
+        std::cout << "  Samples:  " << m_N0 << " (from .psam)" << std::endl;
+    } else if (m_mode == 0x02) {
+        // PLINK 2 basic variant-major mode
+        // Read variant count
+        if (fread(&m_M0, 4, 1, m_fin) != 1) {
+            throw std::runtime_error("Cannot read variant count from PGEN header");
+        }
+        // Read sample count
+        if (fread(&m_N0, 4, 1, m_fin) != 1) {
+            throw std::runtime_error("Cannot read sample count from PGEN header");
+        }
+        // Read header control byte
+        uint8_t headerCtrl;
+        if (fread(&headerCtrl, 1, 1, m_fin) != 1) {
+            throw std::runtime_error("Cannot read header control byte from PGEN header");
+        }
+
+        // For mode 0x02, header control bits 0-5 should be zero
+        // Bits 6-7 encode nonref flags: 00=unstored, 01=all ref/alt, 10=never, 11=explicit
+        uint8_t nonrefFlags = (headerCtrl >> 6) & 0x03;
+        m_dataOffset = 12;  // 2(magic) + 1(mode) + 4(M) + 4(N) + 1(ctrl)
+
+        // If nonref flags are explicitly stored (bits 6-7 = 11), skip the bitarray
+        if (nonrefFlags == 3) {
+            uint64_t nonrefBytes = (m_M0 + 7) / 8;
+            m_dataOffset += nonrefBytes;
+        }
+
+        std::cout << "PGEN mode 0x02 (basic variant-major)" << std::endl;
+        std::cout << "  Variants in header: " << m_M0 << std::endl;
+        std::cout << "  Samples in header:  " << m_N0 << std::endl;
+        std::cout << "  Header control:     0x" << std::hex << (int)headerCtrl << std::dec << std::endl;
+        std::cout << "  Data offset:        " << m_dataOffset << std::endl;
+    } else {
+        throw std::runtime_error(
+            "Unsupported PGEN mode 0x" + std::to_string((int)m_mode) +
+            ". This standalone reader only supports mode 0x01 (PLINK 1) and 0x02 (basic variant-major). "
+            "For mode 0x10/0x11 (variable-type records with LD compression or dosage), "
+            "the full pgenlib library would be required.");
+    }
+
+    // Validate consistency with .pvar
+    if (m_M0 != m_M) {
+        std::cerr << "WARNING: PGEN header variant count (" << m_M0
+                  << ") differs from .pvar count (" << m_M << "). Using .pvar count." << std::endl;
+        // Trust .pvar count (pgen may have extra variants)
+    }
+
+    // Validate consistency with .psam
+    uint32_t psamN = m_SampleInPgen.size();
+    if (m_N0 != psamN) {
+        std::cerr << "WARNING: PGEN header sample count (" << m_N0
+                  << ") differs from .psam count (" << psamN << ")." << std::endl;
+    }
+
+    m_bytesPerVariant = (m_N0 + 3) / 4;
+    m_OneMarkerRaw.resize(m_bytesPerVariant);
+
+    // Seek to start of variant data
+    fseek(m_fin, m_dataOffset, SEEK_SET);
+}
+
+// ============================================================
+// readPvarFile: parse the .pvar file
+// Supports both:
+//   - Header with #CHROM line (standard .pvar)
+//   - No header, 6-column .bim-like format (fallback)
+// ============================================================
+void PgenClass::readPvarFile()
+{
+    std::cout << "Reading pvar file...." << std::endl;
+    std::ifstream pvar(m_pvarFile);
+    if (!pvar.is_open()) {
+        throw std::runtime_error("Cannot open .pvar file: " + m_pvarFile);
+    }
+
+    std::string line;
+    int col_chr = -1, col_pos = -1, col_id = -1, col_ref = -1, col_alt = -1;
+    bool hasHeader = false;
+
+    while (std::getline(pvar, line)) {
+        if (line.empty()) continue;
+
+        // Remove trailing \r
+        if (!line.empty() && line.back() == '\r') {
+            line.pop_back();
+        }
+
+        // Parse header line
+        if (line[0] == '#') {
+            if (line.rfind("#CHROM", 0) == 0) {
+                hasHeader = true;
+                // Parse column positions from header
+                std::istringstream iss(line);
+                std::string token;
+                int colIdx = 0;
+                while (iss >> token) {
+                    if (token == "#CHROM" || token == "CHROM") col_chr = colIdx;
+                    else if (token == "POS") col_pos = colIdx;
+                    else if (token == "ID") col_id = colIdx;
+                    else if (token == "REF") col_ref = colIdx;
+                    else if (token == "ALT") col_alt = colIdx;
+                    colIdx++;
+                }
+                if (col_pos == -1 || col_id == -1 || col_ref == -1 || col_alt == -1) {
+                    throw std::runtime_error(
+                        ".pvar file header missing required columns (POS/ID/REF/ALT)");
+                }
+            }
+            continue;  // skip all comment/header lines
+        }
+
+        // If no header found, assume .bim-like 6-column format:
+        // CHR ID CM POS ALT REF
+        if (!hasHeader) {
+            col_chr = 0;
+            col_id = 1;
+            // col 2 = CM (ignored)
+            col_pos = 3;
+            col_alt = 4;
+            col_ref = 5;
+            hasHeader = true;  // only set defaults once
+        }
+
+        // Parse data line
+        std::vector<std::string> tokens;
+        std::istringstream iss(line);
+        std::string token;
+        while (iss >> token) {
+            tokens.push_back(token);
+        }
+
+        int maxCol = std::max({col_chr, col_pos, col_id, col_ref, col_alt});
+        if ((int)tokens.size() <= maxCol) {
+            throw std::runtime_error(
+                ".pvar file has too few columns at variant " +
+                std::to_string(m_chr.size() + 1));
+        }
+
+        m_chr.push_back(tokens[col_chr]);
+        m_position.push_back(std::stoul(tokens[col_pos]));
+        m_variantId.push_back(tokens[col_id]);
+
+        // Convert alleles to uppercase (matching SAIGE behavior)
+        std::string refAllele = tokens[col_ref];
+        std::string altAllele = tokens[col_alt];
+        std::transform(refAllele.begin(), refAllele.end(), refAllele.begin(), ::toupper);
+        std::transform(altAllele.begin(), altAllele.end(), altAllele.begin(), ::toupper);
+
+        m_ref.push_back(refAllele);
+        m_alt.push_back(altAllele);
+    }
+
+    m_M = m_chr.size();
+    std::cout << "Number of markers in pvar file: " << m_M << std::endl;
+}
+
+// ============================================================
+// readPsamFile: parse the .psam file
+// Supports both:
+//   - Header with #FID or #IID line (standard .psam)
+//   - No header, .fam-like format (uses first 2 columns as FID IID)
+// ============================================================
+void PgenClass::readPsamFile()
+{
+    std::cout << "Reading psam file (" << m_psamFile << ")...." << std::endl;
+    std::ifstream psam(m_psamFile);
+    if (!psam.is_open()) {
+        throw std::runtime_error("Cannot open .psam file: " + m_psamFile);
+    }
+
+    std::string line;
+    int col_iid = -1;
+    bool hasHeader = false;
+
+    while (std::getline(psam, line)) {
+        if (line.empty()) continue;
+
+        // Remove trailing \r
+        if (!line.empty() && line.back() == '\r') {
+            line.pop_back();
+        }
+
+        // Parse header line
+        if (line[0] == '#') {
+            // Look for #FID or #IID in header
+            std::istringstream iss(line);
+            std::string token;
+            int colIdx = 0;
+            bool hasFID = false;
+            while (iss >> token) {
+                if (token == "#IID" || token == "IID") col_iid = colIdx;
+                if (token == "#FID" || token == "FID") hasFID = true;
+                colIdx++;
+            }
+            // If #FID is present but #IID not found as separate column,
+            // IID is typically the second column
+            if (col_iid == -1 && hasFID) {
+                col_iid = 1;
+            }
+            hasHeader = true;
+            continue;
+        }
+
+        // If no header found, assume .fam-like format (FID IID ...)
+        if (!hasHeader) {
+            col_iid = 1;  // second column = IID
+            // But if file has only IID column (plink2 --make-psam with --no-fid)
+            // we check if there's only one column
+            std::istringstream testIss(line);
+            std::string testTok;
+            int ncols = 0;
+            while (testIss >> testTok) ncols++;
+            if (ncols == 1) {
+                col_iid = 0;
+            }
+            hasHeader = true;  // only set defaults once
+        }
+
+        // Parse data line
+        std::istringstream iss(line);
+        std::string token;
+        int colIdx = 0;
+        std::string iid;
+        while (iss >> token) {
+            if (colIdx == col_iid) {
+                iid = token;
+                break;
+            }
+            colIdx++;
+        }
+
+        if (!iid.empty()) {
+            m_SampleInPgen.push_back(iid);
+        }
+    }
+
+    std::cout << "Number of samples in psam file: " << m_SampleInPgen.size() << std::endl;
+}
+
+// ============================================================
+// setPosSampleInPgen: find positions of model samples in PGEN file
+// ============================================================
+void PgenClass::setPosSampleInPgen(std::vector<std::string>& t_SampleInModel)
+{
+    std::cout << "Setting position of samples in PGEN file...." << std::endl;
+
+    // If no sample IDs provided, use all .psam samples in order
+    if (t_SampleInModel.empty()) {
+        m_N = m_SampleInPgen.size();
+        std::cout << "  No sampleIDs in null model; using all " << m_N
+                  << " samples from .psam file." << std::endl;
+        m_posSampleInPgen.resize(m_N);
+        for (uint32_t i = 0; i < m_N; i++) {
+            m_posSampleInPgen[i] = i;
+        }
+        std::cout << "Number of samples in analysis: " << m_N << std::endl;
+        return;
+    }
+
+    m_N = t_SampleInModel.size();
+
+    // Build map of .psam sample IID -> index (0-based)
+    std::unordered_map<std::string, uint32_t> pgenSampleMap;
+    for (uint32_t i = 0; i < m_SampleInPgen.size(); i++) {
+        pgenSampleMap[m_SampleInPgen[i]] = i;
+    }
+
+    m_posSampleInPgen.resize(m_N);
+    for (uint32_t i = 0; i < m_N; i++) {
+        auto it = pgenSampleMap.find(t_SampleInModel[i]);
+        if (it == pgenSampleMap.end()) {
+            throw std::runtime_error(
+                "At least one subject requested is not in .psam file. "
+                "Sample not found: " + t_SampleInModel[i]);
+        }
+        m_posSampleInPgen[i] = it->second;
+    }
+
+    std::cout << "Number of samples in analysis: " << m_N << std::endl;
+}
+
+// ============================================================
+// getOneMarker: read one marker from .pgen and decode genotypes
+//
+// For PGEN mode 0x02, the genotype encoding is:
+//   00 = hom ref (genotype 0)
+//   01 = het     (genotype 1)
+//   10 = hom alt (genotype 2)
+//   11 = missing
+//
+// Note: Unlike PLINK .bed (which encodes 00=hom_alt, 01=missing,
+//   10=het, 11=hom_ref), PGEN mode 0x02 uses a cleaner encoding.
+//   The SAIGE PGEN reader in PGEN.cpp calls Read() which calls
+//   PgrGet1D -> Dosage16ToDoubles -> kGenoRDoublePairs which maps
+//   to {0.0, 1.0, 2.0, NA_REAL}, i.e. 00->0, 01->1, 10->2, 11->NA.
+// ============================================================
+void PgenClass::getOneMarker(
+    uint64_t& t_gIndex,
+    std::string& t_ref,
+    std::string& t_alt,
+    std::string& t_marker,
+    uint32_t& t_pd,
+    std::string& t_chr,
+    double& t_altFreq,
+    double& t_altCounts,
+    double& t_missingRate,
+    double& t_imputeInfo,
+    bool& t_isOutputIndexForMissing,
+    std::vector<uint>& t_indexForMissing,
+    bool& t_isOnlyOutputNonZero,
+    std::vector<uint>& t_indexForNonZero,
+    arma::vec& OneMarkerG1)
+{
+    t_indexForMissing.clear();
+    t_indexForNonZero.clear();
+
+    // Variant metadata from .pvar
+    t_chr = m_chr[t_gIndex];
+    t_pd = m_position[t_gIndex];
+    t_ref = m_ref[t_gIndex];
+    t_alt = m_alt[t_gIndex];
+    t_marker = m_variantId[t_gIndex];
+
+    // Seek to the variant record in .pgen
+    uint64_t filePos = m_dataOffset + m_bytesPerVariant * t_gIndex;
+    fseek(m_fin, filePos, SEEK_SET);
+
+    // Read raw genotype bytes
+    if (fread(m_OneMarkerRaw.data(), 1, m_bytesPerVariant, m_fin) != m_bytesPerVariant) {
+        throw std::runtime_error(
+            "Failed to read variant " + std::to_string(t_gIndex) + " from PGEN file");
+    }
+
+    // Decode genotypes for each sample in the analysis
+    // PGEN mode 0x02 encoding: 00=0(ref), 01=1(het), 10=2(alt), 11=missing
+    uint32_t numMissing = 0;
+    t_altCounts = 0;
+    uint j = 0;
+
+    for (uint32_t i = 0; i < m_N; i++) {
+        uint32_t sampleIdx = m_posSampleInPgen[i];
+        uint8_t geno = getGenotype(sampleIdx);
+
+        double genoVal;
+        if (geno == 0x03) {
+            // Missing
+            genoVal = std::numeric_limits<double>::quiet_NaN();
+            numMissing++;
+            if (t_isOutputIndexForMissing) {
+                t_indexForMissing.push_back(i);
+            }
+        } else {
+            // 00->0, 01->1, 10->2
+            genoVal = (double)geno;
+            t_altCounts += genoVal;
+        }
+
+        if (geno > 0 && geno != 0x03) {
+            t_indexForNonZero.push_back(i);
+        }
+
+        if (t_isOnlyOutputNonZero) {
+            if (geno > 0 && geno != 0x03) {
+                OneMarkerG1[j] = genoVal;
+                j++;
+            }
+        } else {
+            OneMarkerG1[i] = genoVal;
+        }
+    }
+
+    // Compute frequency and missing rate
+    uint32_t count = m_N - numMissing;
+    t_missingRate = (double)numMissing / (double)m_N;
+    t_imputeInfo = 1.0;
+
+    if (count > 0) {
+        t_altFreq = t_altCounts / (double)count / 2.0;
+    } else {
+        t_altFreq = 0;
+    }
+
+    if (t_isOnlyOutputNonZero) {
+        OneMarkerG1.resize(j);
+    }
+}
+
+// ============================================================
+// closegenofile: close the .pgen file handle
+// ============================================================
+void PgenClass::closegenofile()
+{
+    if (m_fin) {
+        fclose(m_fin);
+        m_fin = nullptr;
+    }
+}
+
+} // namespace PGEN
+
+
+// ============================================================
 // whichCPP: C++ version of which(). Note: start from 0, not 1
 // (Outside PLINK namespace, as declared in header)
 // ============================================================
@@ -1544,10 +2031,32 @@ void setBGENobjInCPP(const std::string& t_bgenFileName,
 
 
 // ============================================================
+// setPGENobjInCPP: create and configure the global PGEN object
+// Mirrors SAIGE Main.cpp::setPGENobjInCPP
+// ============================================================
+void setPGENobjInCPP(const std::string& t_pgenFile,
+                      const std::string& t_psamFile,
+                      const std::string& t_pvarFile,
+                      std::vector<std::string>& t_SampleInModel)
+{
+    // Clean up any existing object
+    if (ptr_gPGENobj != nullptr) {
+        ptr_gPGENobj->closegenofile();
+        delete ptr_gPGENobj;
+        ptr_gPGENobj = nullptr;
+    }
+
+    ptr_gPGENobj = new PGEN::PgenClass(t_pgenFile, t_psamFile, t_pvarFile, t_SampleInModel);
+
+    int n = ptr_gPGENobj->getN();
+    std::cout << "n:\t" << n << std::endl;
+}
+
+
+// ============================================================
 // Unified_getOneMarker: unified dispatcher for genotype reading
 //
-// Ported from SAIGE Main.cpp. Supports "plink", "vcf", and "bgen".
-// Throws for "pgen" (not yet implemented).
+// Ported from SAIGE Main.cpp. Supports "plink", "vcf", "bgen", and "pgen".
 // ============================================================
 bool Unified_getOneMarker(std::string& t_genoType,
                           uint64_t& t_gIndex_prev,
@@ -1613,8 +2122,18 @@ bool Unified_getOneMarker(std::string& t_genoType,
                                     t_isOnlyOutputNonZero, t_indexForNonZero,
                                     isBoolRead, t_GVec, t_isImputation);
     } else if (t_genoType == "pgen") {
-        throw std::runtime_error(
-            "Unified_getOneMarker: PGEN format not yet supported in standalone C++ port.");
+        if (ptr_gPGENobj == nullptr) {
+            throw std::runtime_error(
+                "Unified_getOneMarker: PGEN object not initialized. "
+                "Call setPGENobjInCPP first.");
+        }
+
+        ptr_gPGENobj->getOneMarker(t_gIndex,
+                                    t_ref, t_alt, t_marker, t_pd, t_chr,
+                                    t_altFreq, t_altCounts, t_missingRate, t_imputeInfo,
+                                    t_isOutputIndexForMissing, t_indexForMissing,
+                                    t_isOnlyOutputNonZero, t_indexForNonZero,
+                                    t_GVec);
     } else {
         throw std::runtime_error(
             "Unified_getOneMarker: Unknown genotype type '" + t_genoType + "'. "
@@ -1645,6 +2164,11 @@ uint32_t Unified_getMarkerCount(std::string& t_genoType)
             throw std::runtime_error("Unified_getMarkerCount: BGEN object not initialized.");
         }
         return ptr_gBGENobj->getM0();
+    } else if (t_genoType == "pgen") {
+        if (ptr_gPGENobj == nullptr) {
+            throw std::runtime_error("Unified_getMarkerCount: PGEN object not initialized.");
+        }
+        return ptr_gPGENobj->getM();
     } else {
         throw std::runtime_error(
             "Unified_getMarkerCount: Unsupported type: " + t_genoType);
@@ -1676,6 +2200,12 @@ uint32_t Unified_getSampleSizeinGeno(std::string& t_genoType)
                 "Unified_getSampleSizeinGeno: BGEN object not initialized.");
         }
         N0 = ptr_gBGENobj->getN0();
+    } else if (t_genoType == "pgen") {
+        if (ptr_gPGENobj == nullptr) {
+            throw std::runtime_error(
+                "Unified_getSampleSizeinGeno: PGEN object not initialized.");
+        }
+        N0 = ptr_gPGENobj->getN0();
     } else {
         throw std::runtime_error(
             "Unified_getSampleSizeinGeno: Unsupported type: " + t_genoType);
@@ -1708,6 +2238,12 @@ uint32_t Unified_getSampleSizeinAnalysis(std::string& t_genoType)
                 "Unified_getSampleSizeinAnalysis: BGEN object not initialized.");
         }
         N = ptr_gBGENobj->getN();
+    } else if (t_genoType == "pgen") {
+        if (ptr_gPGENobj == nullptr) {
+            throw std::runtime_error(
+                "Unified_getSampleSizeinAnalysis: PGEN object not initialized.");
+        }
+        N = ptr_gPGENobj->getN();
     } else {
         throw std::runtime_error(
             "Unified_getSampleSizeinAnalysis: Unsupported type: " + t_genoType);
@@ -1736,6 +2272,11 @@ std::unordered_map<std::string, uint32_t> Unified_getMarkerIDToIndex(std::string
             throw std::runtime_error("Unified_getMarkerIDToIndex: BGEN object not initialized.");
         }
         return ptr_gBGENobj->getMarkerIDToIndex();
+    } else if (t_genoType == "pgen") {
+        if (ptr_gPGENobj == nullptr) {
+            throw std::runtime_error("Unified_getMarkerIDToIndex: PGEN object not initialized.");
+        }
+        return ptr_gPGENobj->getMarkerIDToIndex();
     } else {
         throw std::runtime_error(
             "Unified_getMarkerIDToIndex: Unsupported type: " + t_genoType);
@@ -1759,6 +2300,10 @@ void closeGenoFile(std::string& t_genoType)
     } else if (t_genoType == "bgen") {
         if (ptr_gBGENobj != nullptr) {
             ptr_gBGENobj->closegenofile();
+        }
+    } else if (t_genoType == "pgen") {
+        if (ptr_gPGENobj != nullptr) {
+            ptr_gPGENobj->closegenofile();
         }
     } else {
         throw std::runtime_error(

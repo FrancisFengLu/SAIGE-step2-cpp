@@ -1,0 +1,64 @@
+===============================================================
+SAIGE Step 2 — PGEN Reader Validation Report
+Date: 2026-02-23
+===============================================================
+
+SUMMARY: EXACT MATCH — PGEN output is byte-for-byte identical to PLINK output.
+
+Test Setup:
+-----------
+- Null model: test/data/nullmodel_from_rda (quantitative trait, LOCO chr 1)
+- Variance ratio: SAIGE/extdata/output/example_quantitative.varianceRatio.txt
+- PLINK source: SAIGE/extdata/input/nfam_100_nindep_0_step1_includeMoreRareVariants_poly
+- PGEN files: test/data/test_genotypes.pgen/.pvar/.psam
+  (converted from PLINK using test/data/bed_to_pgen, mode 0x02)
+- Allele order: alt-first
+- 128,868 markers, 1,000 samples
+
+PGEN Format:
+------------
+- Mode 0x02: basic variant-major (hard-calls only)
+- Header: 12 bytes (2 magic + 1 mode + 4 variants + 4 samples + 1 ctrl)
+- Genotype encoding: 00=hom_ref, 01=het, 10=hom_alt, 11=missing
+- Data: 250 bytes per variant (1000 samples, ceil(1000/4) = 250)
+- Total file size: 32,217,012 bytes
+
+Comparison Results:
+-------------------
+- PLINK output: test/output/cpp_compare_results.txt (128,869 lines, header + 128,868 markers)
+- PGEN output:  test/output/cpp_pgen_results.txt  (128,869 lines, header + 128,868 markers)
+- diff: no differences
+- MD5 (PLINK): 1e72c1e5e23afaa37bc2b4c827112ec9
+- MD5 (PGEN):  1e72c1e5e23afaa37bc2b4c827112ec9
+
+Columns compared (all identical across 128,868 markers):
+  CHR, POS, MarkerID, Allele1, Allele2, AC_Allele2, AF_Allele2,
+  MissingRate, BETA, SE, Tstat, var, p.value, N
+
+Implementation:
+---------------
+- Standalone PGEN reader in genotype_reader.cpp/hpp (PGEN namespace)
+- Supports mode 0x01 (PLINK 1 in pgen container) and 0x02 (basic variant-major)
+- Parses .pvar (with #CHROM header or .bim-like fallback)
+- Parses .psam (with #FID/#IID header or .fam-like fallback)
+- Random access by variant index (no sequential-seek tracking needed)
+- No external pgenlib dependency (standalone binary parser)
+- Does NOT support mode 0x10/0x11 (variable-type/LD-compressed/dosage)
+
+Config keys:
+  genoType: pgen
+  pgenFile: <path to .pgen>
+  pvarFile: <path to .pvar>
+  psamFile: <path to .psam>
+
+Files modified:
+  code_copy/cpp_standalone/genotype_reader.hpp  — Added PGEN namespace + PgenClass
+  code_copy/cpp_standalone/genotype_reader.cpp  — Added PGEN implementation + Unified_* pgen support
+  code_copy/cpp_standalone/main.cpp             — Added pgen config parsing + genotype reader setup
+
+Files created:
+  code_copy/cpp_standalone/config_compare_pgen.yaml  — PGEN test config
+  test/data/bed_to_pgen.cpp                          — PLINK-to-PGEN converter tool
+  test/data/test_genotypes.pgen/.pvar/.psam          — PGEN test data
+  test/RESULTS_step2_pgen.txt                        — This file
+===============================================================

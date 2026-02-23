@@ -550,6 +550,35 @@ Code changes:
 
 Config usage: genoType: bgen, bgenFile: path, bgenSampleFile: path
 
+### PGEN Reader Implemented + Validated
+
+Implemented minimal PGEN reader (mode 0x01/0x02, hard-call 2-bit genotypes).
+128,868 markers: PGEN output identical to PLINK output (MD5 match).
+No pgenlib dependency — standalone parser (~350 lines).
+
+Config usage: genoType: pgen, pgenFile/pvarFile/psamFile: paths
+
+### Test 12: Non-PLINK Formats — ALL COMPLETE
+
+  VCF:  EXACT (128,868 markers, htslib)
+  BGEN: EXACT (128,868 markers, zstd/zlib)
+  PGEN: EXACT (128,868 markers, minimal parser)
+
+### FINAL VALIDATION SUMMARY (12/12 TESTS)
+
+  Test 1:  Quant + Single-Variant  → ALL EXACT
+  Test 2:  Binary + Single-Variant → ALL EXACT
+  Test 3:  Quant + Region          → BURDEN/SKAT PASS, SKAT-O ~5%
+  Test 4:  Binary + Region         → BURDEN/SKAT PASS, SKAT-O ~8.5%
+  Test 5:  Sparse + Single-Variant → ALL EXACT
+  Test 6:  Sparse + noadjCov       → ALL EXACT
+  Test 7:  Conditional Analysis    → ALL EXACT
+  Test 8:  Multi-VR Categories     → ALL EXACT
+  Test 9:  ER (Efficient Resampling) → PASS
+  Test 10: LDmat                   → PASS
+  Test 11: Survival trait          → NOT IMPLEMENTED (niche)
+  Test 12: Non-PLINK formats       → VCF/BGEN/PGEN ALL EXACT
+
 ================================================================================
 END OF SESSION NOTES
 ================================================================================

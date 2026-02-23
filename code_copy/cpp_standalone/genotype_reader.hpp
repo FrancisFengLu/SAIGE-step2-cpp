@@ -405,6 +405,169 @@ public:
 } // namespace BGEN
 
 
+// ============================================================
+// PGEN namespace: PGEN v2 reader (mode 0x02 basic variant-major)
+// Standalone implementation that reads .pgen + .pvar + .psam files
+// Ported from SAIGE/src/PGEN.hpp and PGEN.cpp without pgenlib dependency
+//
+// Supports mode 0x02 (basic variant-major, hard-calls only):
+//   00 = hom ref, 01 = het, 10 = hom alt, 11 = missing
+// This is the most common output of `plink2 --make-pgen` for hard-call data.
+// For dosage data (mode 0x03/0x04/0x10/0x11), the full pgenlib would be needed.
+// ============================================================
+namespace PGEN {
+
+class PgenClass {
+private:
+    // PGEN file paths
+    std::string m_pgenFile, m_pvarFile, m_psamFile;
+
+    // File handle for .pgen binary
+    FILE* m_fin;
+
+    // PGEN header info
+    uint32_t m_M0;       // total variants in .pgen header
+    uint32_t m_N0;       // total samples in .pgen header
+    uint8_t  m_mode;     // storage mode (must be 0x02 for our reader)
+
+    // Offset to first variant record in .pgen file
+    uint64_t m_dataOffset;
+
+    // Bytes per variant record = ceil(N0 / 4)
+    uint64_t m_bytesPerVariant;
+
+    // Information from .pvar file
+    std::vector<std::string> m_chr;
+    std::vector<std::string> m_variantId;
+    std::vector<uint32_t>    m_position;
+    std::vector<std::string> m_ref;
+    std::vector<std::string> m_alt;
+    uint32_t m_M;   // marker count from pvar (should match m_M0)
+
+    // Information from .psam file
+    std::vector<std::string> m_SampleInPgen;   // IID list
+    uint32_t m_N;   // samples in analysis (after subsetting)
+
+    // Sample mapping: model sample index -> pgen sample index
+    std::vector<uint32_t> m_posSampleInPgen;
+
+    // Raw genotype buffer for one variant
+    std::vector<unsigned char> m_OneMarkerRaw;
+
+    // Internal parsers
+    void readPvarFile();
+    void readPsamFile();
+    void readPgenHeader();
+
+    // Extract 2-bit genotype at sample index from raw buffer
+    inline uint8_t getGenotype(uint32_t sampleIdx) const {
+        uint32_t byteIdx = sampleIdx / 4;
+        uint32_t bitShift = (sampleIdx % 4) * 2;
+        return (m_OneMarkerRaw[byteIdx] >> bitShift) & 0x03;
+    }
+
+public:
+    PgenClass(const std::string& t_pgenFile,
+              const std::string& t_psamFile,
+              const std::string& t_pvarFile,
+              std::vector<std::string>& t_SampleInModel);
+
+    ~PgenClass();
+
+    void setPosSampleInPgen(std::vector<std::string>& t_SampleInModel);
+
+    void getOneMarker(
+        uint64_t& t_gIndex,
+        std::string& t_ref,
+        std::string& t_alt,
+        std::string& t_marker,
+        uint32_t& t_pd,
+        std::string& t_chr,
+        double& t_altFreq,
+        double& t_altCounts,
+        double& t_missingRate,
+        double& t_imputeInfo,
+        bool& t_isOutputIndexForMissing,
+        std::vector<uint>& t_indexForMissing,
+        bool& t_isOnlyOutputNonZero,
+        std::vector<uint>& t_indexForNonZero,
+        arma::vec& OneMarkerG1);
+
+    // Convenience overload: simplified getOneMarker
+    void getOneMarker(uint64_t t_gIndex,
+                      double& t_altFreq,
+                      double& t_missingRate,
+                      std::string& t_chr,
+                      arma::vec& OneMarkerG1)
+    {
+        std::string ref, alt, marker;
+        uint32_t pd;
+        double altCounts, imputeInfo;
+        std::vector<uint> indexForMissing, indexForNonZero;
+        bool isOutputIndexForMissing = false;
+        bool isOnlyOutputNonZero = false;
+        getOneMarker(t_gIndex, ref, alt, marker, pd, t_chr,
+                     t_altFreq, altCounts, t_missingRate, imputeInfo,
+                     isOutputIndexForMissing, indexForMissing,
+                     isOnlyOutputNonZero, indexForNonZero, OneMarkerG1);
+    }
+
+    // Convenience overload: with indexForMissing output
+    void getOneMarker(uint64_t t_gIndex,
+                      double& t_altFreq,
+                      double& t_missingRate,
+                      std::vector<uint>& t_indexForMissing,
+                      arma::vec& OneMarkerG1)
+    {
+        std::string ref, alt, marker, chr;
+        uint32_t pd;
+        double altCounts, imputeInfo;
+        std::vector<uint> indexForNonZero;
+        bool isOutputIndexForMissing = false;
+        bool isOnlyOutputNonZero = false;
+        getOneMarker(t_gIndex, ref, alt, marker, pd, chr,
+                     t_altFreq, altCounts, t_missingRate, imputeInfo,
+                     isOutputIndexForMissing, t_indexForMissing,
+                     isOnlyOutputNonZero, indexForNonZero, OneMarkerG1);
+    }
+
+    uint32_t getN0() { return m_N0; }
+    uint32_t getN()  { return m_N; }
+    uint32_t getM()  { return m_M; }
+
+    std::vector<std::string> getChrVec() { return m_chr; }
+
+    // Build a map from "chr:pos:ref:alt" (and "chr:pos:alt:ref") to marker index
+    std::unordered_map<std::string, uint32_t> getMarkerIDToIndex() {
+        std::unordered_map<std::string, uint32_t> idMap;
+        for (uint32_t i = 0; i < m_M; i++) {
+            std::string id1 = m_chr[i] + ":" + std::to_string(m_position[i]) + ":"
+                             + m_ref[i] + ":" + m_alt[i];
+            idMap[id1] = i;
+            std::string id2 = m_chr[i] + ":" + std::to_string(m_position[i]) + ":"
+                             + m_alt[i] + ":" + m_ref[i];
+            if (idMap.find(id2) == idMap.end()) {
+                idMap[id2] = i;
+            }
+        }
+        return idMap;
+    }
+
+    // Build a map from variant ID to marker index
+    std::unordered_map<std::string, uint32_t> getMarkerNameToIndex() {
+        std::unordered_map<std::string, uint32_t> nameMap;
+        for (uint32_t i = 0; i < m_M; i++) {
+            nameMap[m_variantId[i]] = i;
+        }
+        return nameMap;
+    }
+
+    void closegenofile();
+};
+
+} // namespace PGEN
+
+
 // Global checkpoint flag for debugging
 extern bool g_writeCheckpoints;
 extern std::string g_checkpointDir;
@@ -418,8 +581,11 @@ extern VCF::VcfClass* ptr_gVCFobj;
 // Global pointer to BGEN object (mirrors SAIGE's ptr_gBGENobj in Main.cpp)
 extern BGEN::BgenClass* ptr_gBGENobj;
 
+// Global pointer to PGEN object (mirrors SAIGE's ptr_gPGENobj in Main.cpp)
+extern PGEN::PgenClass* ptr_gPGENobj;
+
 // Unified dispatcher (like SAIGE Main.cpp)
-// Supports "plink", "vcf", and "bgen" types. Throws for pgen.
+// Supports "plink", "vcf", "bgen", and "pgen" types.
 bool Unified_getOneMarker(std::string& t_genoType,
                           uint64_t& t_gIndex_prev,
                           uint64_t& t_gIndex,
@@ -456,6 +622,12 @@ void setBGENobjInCPP(const std::string& t_bgenFileName,
                       const std::vector<std::string>& t_SampleInBgen,
                       std::vector<std::string>& t_SampleInModel,
                       const std::string& t_AlleleOrder);
+
+// Helper: set up PGEN object (mirrors SAIGE Main.cpp::setPGENobjInCPP)
+void setPGENobjInCPP(const std::string& t_pgenFile,
+                      const std::string& t_psamFile,
+                      const std::string& t_pvarFile,
+                      std::vector<std::string>& t_SampleInModel);
 
 // Helper: get total marker count from genotype file
 uint32_t Unified_getMarkerCount(std::string& t_genoType);

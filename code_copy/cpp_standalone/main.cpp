@@ -2645,7 +2645,10 @@ int main(int argc, char* argv[])
             std::cerr << "  AlleleOrder:       'alt-first' or 'ref-first' (default: 'alt-first')" << std::endl;
             std::cerr << "  dosage_zerod_cutoff:     (default: 0)" << std::endl;
             std::cerr << "  dosage_zerod_MAC_cutoff: (default: 0)" << std::endl;
-            std::cerr << "  genoType:          'plink', 'vcf', or 'bgen' (default: 'plink')" << std::endl;
+            std::cerr << "  pgenFile:          Path to .pgen file [for genoType=pgen]" << std::endl;
+            std::cerr << "  pvarFile:          Path to .pvar file [for genoType=pgen]" << std::endl;
+            std::cerr << "  psamFile:          Path to .psam file [for genoType=pgen]" << std::endl;
+            std::cerr << "  genoType:          'plink', 'vcf', 'bgen', or 'pgen' (default: 'plink')" << std::endl;
             std::cerr << "  vcfField:          'GT' or 'DS' (default: 'GT', for genoType=vcf)" << std::endl;
             std::cerr << "  isImputation:      true/false (default: false)" << std::endl;
             std::cerr << "  isMoreOutput:      true/false (default: false)" << std::endl;
@@ -2715,9 +2718,19 @@ int main(int argc, char* argv[])
             if (!config["bgenSampleFile"]) {
                 throw std::runtime_error("Config missing required key: bgenSampleFile (needed for genoType=bgen)");
             }
+        } else if (genoType_early == "pgen") {
+            if (!config["pgenFile"]) {
+                throw std::runtime_error("Config missing required key: pgenFile (needed for genoType=pgen)");
+            }
+            if (!config["pvarFile"]) {
+                throw std::runtime_error("Config missing required key: pvarFile (needed for genoType=pgen)");
+            }
+            if (!config["psamFile"]) {
+                throw std::runtime_error("Config missing required key: psamFile (needed for genoType=pgen)");
+            }
         } else {
             throw std::runtime_error("Unsupported genoType: " + genoType_early +
-                                     ". Supported types: plink, vcf, bgen");
+                                     ". Supported types: plink, vcf, bgen, pgen");
         }
 
         std::string modelFile = config["modelFile"].as<std::string>();
@@ -2727,6 +2740,9 @@ int main(int argc, char* argv[])
         std::string vcfField = config["vcfField"] ? config["vcfField"].as<std::string>() : "GT";
         std::string bgenFile = config["bgenFile"] ? config["bgenFile"].as<std::string>() : "";
         std::string bgenSampleFile = config["bgenSampleFile"] ? config["bgenSampleFile"].as<std::string>() : "";
+        std::string pgenFile = config["pgenFile"] ? config["pgenFile"].as<std::string>() : "";
+        std::string pvarFile = config["pvarFile"] ? config["pvarFile"].as<std::string>() : "";
+        std::string psamFile = config["psamFile"] ? config["psamFile"].as<std::string>() : "";
         std::string outputFile = config["outputFile"].as<std::string>();
 
         // Optional keys with defaults
@@ -2879,6 +2895,10 @@ int main(int argc, char* argv[])
         } else if (genoType == "bgen") {
             std::cout << "  bgenFile:          " << bgenFile << std::endl;
             std::cout << "  bgenSampleFile:    " << bgenSampleFile << std::endl;
+        } else if (genoType == "pgen") {
+            std::cout << "  pgenFile:          " << pgenFile << std::endl;
+            std::cout << "  pvarFile:          " << pvarFile << std::endl;
+            std::cout << "  psamFile:          " << psamFile << std::endl;
         }
         std::cout << "  outputFile:        " << outputFile << std::endl;
         std::cout << "  genoType:          " << genoType << std::endl;
@@ -3119,6 +3139,9 @@ int main(int argc, char* argv[])
 
             setBGENobjInCPP(bgenFile, sampleInBgen, nullModel.sampleIDs, alleleOrder);
             numMarkers = ptr_gBGENobj->getM0();
+        } else if (genoType == "pgen") {
+            setPGENobjInCPP(pgenFile, psamFile, pvarFile, nullModel.sampleIDs);
+            numMarkers = ptr_gPGENobj->getM();
         }
 
         uint32_t numSamplesGeno = Unified_getSampleSizeinGeno(genoType);
