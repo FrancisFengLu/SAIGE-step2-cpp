@@ -892,7 +892,9 @@ Each test config exercises different code paths. Ordered by priority.
     Note: Very niche use case.
 
 [ ] Test 12: Non-PLINK genotype formats (VCF, BGEN, PGEN)
-    Status: Only PLINK implemented in genotype_reader.cpp.
+    VCF:  DONE — htslib-based, validated EXACT match (128,868 markers)
+    BGEN: IN PROGRESS
+    PGEN: TODO
 
 ─── TESTING INFRASTRUCTURE ────────────────────────────────────────────────────
 

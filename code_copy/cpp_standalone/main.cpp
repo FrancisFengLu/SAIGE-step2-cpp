@@ -730,7 +730,7 @@ void mainMarkerInCPP(
             std::string t_genoIndex_prev_str;
             if (t_genoType == "bgen") {
                 t_genoIndex_prev_str = t_genoIndex_prev.at(i - 1);
-            } else if (t_genoType == "plink" || t_genoType == "pgen") {
+            } else if (t_genoType == "plink" || t_genoType == "pgen" || t_genoType == "vcf") {
                 t_genoIndex_prev_str = t_genoIndex.at(i - 1);
             }
             gIndex_prev = std::strtoull(t_genoIndex_prev_str.c_str(), &end_prev, 10);
@@ -1796,7 +1796,7 @@ void mainRegionInCPP(
             std::string t_genoIndex_prev_str;
             if (t_genoType == "bgen") {
                 t_genoIndex_prev_str = t_genoIndex_prev.at(i - 1);
-            } else if (t_genoType == "plink" || t_genoType == "pgen") {
+            } else if (t_genoType == "plink" || t_genoType == "pgen" || t_genoType == "vcf") {
                 t_genoIndex_prev_str = t_genoIndex.at(i - 1);
             }
             gIndex_prev = std::strtoull(t_genoIndex_prev_str.c_str(), &end_prev, 10);
@@ -2631,7 +2631,8 @@ int main(int argc, char* argv[])
             std::cerr << "Required YAML config keys:" << std::endl;
             std::cerr << "  modelFile:         Path to null model directory (from Step 1)" << std::endl;
             std::cerr << "  varianceRatioFile: Path to varianceRatio.txt" << std::endl;
-            std::cerr << "  plinkFile:         Path to PLINK prefix (.bed/.bim/.fam)" << std::endl;
+            std::cerr << "  plinkFile:         Path to PLINK prefix (.bed/.bim/.fam) [for genoType=plink]" << std::endl;
+            std::cerr << "  vcfFile:           Path to VCF/BCF/VCF.GZ file [for genoType=vcf]" << std::endl;
             std::cerr << "  outputFile:        Output file path" << std::endl;
             std::cerr << std::endl;
             std::cerr << "Optional YAML config keys (general):" << std::endl;
@@ -2642,7 +2643,8 @@ int main(int argc, char* argv[])
             std::cerr << "  AlleleOrder:       'alt-first' or 'ref-first' (default: 'alt-first')" << std::endl;
             std::cerr << "  dosage_zerod_cutoff:     (default: 0)" << std::endl;
             std::cerr << "  dosage_zerod_MAC_cutoff: (default: 0)" << std::endl;
-            std::cerr << "  genoType:          'plink' (default: 'plink')" << std::endl;
+            std::cerr << "  genoType:          'plink' or 'vcf' (default: 'plink')" << std::endl;
+            std::cerr << "  vcfField:          'GT' or 'DS' (default: 'GT', for genoType=vcf)" << std::endl;
             std::cerr << "  isImputation:      true/false (default: false)" << std::endl;
             std::cerr << "  isMoreOutput:      true/false (default: false)" << std::endl;
             std::cerr << "  marker_chunksize:  markers per progress report (default: 10000)" << std::endl;
@@ -2688,16 +2690,32 @@ int main(int argc, char* argv[])
         if (!config["varianceRatioFile"]) {
             throw std::runtime_error("Config missing required key: varianceRatioFile");
         }
-        if (!config["plinkFile"]) {
-            throw std::runtime_error("Config missing required key: plinkFile");
-        }
         if (!config["outputFile"]) {
             throw std::runtime_error("Config missing required key: outputFile");
         }
 
+        // Determine genotype type early (needed for input file validation)
+        std::string genoType_early = config["genoType"] ? config["genoType"].as<std::string>() : "plink";
+
+        // Validate genotype input file
+        if (genoType_early == "plink") {
+            if (!config["plinkFile"]) {
+                throw std::runtime_error("Config missing required key: plinkFile (needed for genoType=plink)");
+            }
+        } else if (genoType_early == "vcf") {
+            if (!config["vcfFile"]) {
+                throw std::runtime_error("Config missing required key: vcfFile (needed for genoType=vcf)");
+            }
+        } else {
+            throw std::runtime_error("Unsupported genoType: " + genoType_early +
+                                     ". Supported types: plink, vcf");
+        }
+
         std::string modelFile = config["modelFile"].as<std::string>();
         std::string varianceRatioFile = config["varianceRatioFile"].as<std::string>();
-        std::string plinkPrefix = config["plinkFile"].as<std::string>();
+        std::string plinkPrefix = config["plinkFile"] ? config["plinkFile"].as<std::string>() : "";
+        std::string vcfFile = config["vcfFile"] ? config["vcfFile"].as<std::string>() : "";
+        std::string vcfField = config["vcfField"] ? config["vcfField"].as<std::string>() : "GT";
         std::string outputFile = config["outputFile"].as<std::string>();
 
         // Optional keys with defaults
@@ -2842,7 +2860,12 @@ int main(int argc, char* argv[])
         std::cout << "Configuration:" << std::endl;
         std::cout << "  modelFile:         " << modelFile << std::endl;
         std::cout << "  varianceRatioFile: " << varianceRatioFile << std::endl;
-        std::cout << "  plinkFile:         " << plinkPrefix << std::endl;
+        if (genoType == "plink") {
+            std::cout << "  plinkFile:         " << plinkPrefix << std::endl;
+        } else if (genoType == "vcf") {
+            std::cout << "  vcfFile:           " << vcfFile << std::endl;
+            std::cout << "  vcfField:          " << vcfField << std::endl;
+        }
         std::cout << "  outputFile:        " << outputFile << std::endl;
         std::cout << "  genoType:          " << genoType << std::endl;
         std::cout << "  alleleOrder:       " << alleleOrder << std::endl;
@@ -3038,15 +3061,27 @@ int main(int argc, char* argv[])
         std::cout << "  n = " << ptr_gSAIGEobj->m_n << ", p = " << ptr_gSAIGEobj->m_p << std::endl;
         std::cout << std::endl;
 
-        // ---- 6. Set up genotype reader (PLINK) ----
+        // ---- 6. Set up genotype reader (PLINK or VCF) ----
         std::cout << "===== Setting up genotype reader =====" << std::endl;
-        std::string bimFile = plinkPrefix + ".bim";
-        std::string famFile = plinkPrefix + ".fam";
-        std::string bedFile = plinkPrefix + ".bed";
+        uint32_t numMarkers = 0;
 
-        setPLINKobjInCPP(bimFile, famFile, bedFile, nullModel.sampleIDs, alleleOrder);
+        if (genoType == "plink") {
+            std::string bimFile = plinkPrefix + ".bim";
+            std::string famFile = plinkPrefix + ".fam";
+            std::string bedFile = plinkPrefix + ".bed";
 
-        uint32_t numMarkers = ptr_gPLINKobj->getM();
+            setPLINKobjInCPP(bimFile, famFile, bedFile, nullModel.sampleIDs, alleleOrder);
+            numMarkers = ptr_gPLINKobj->getM();
+        } else if (genoType == "vcf") {
+            setVCFobjInCPP(vcfFile, vcfField, nullModel.sampleIDs);
+            // Pre-scan to count markers (needed for index generation)
+            numMarkers = ptr_gVCFobj->prescanMarkerCount();
+            // Reset to beginning for actual reading
+            ptr_gVCFobj->resetFile();
+            // Re-set sample mapping after reset
+            ptr_gVCFobj->setPosSampleInVcf(nullModel.sampleIDs);
+        }
+
         uint32_t numSamplesGeno = Unified_getSampleSizeinGeno(genoType);
         uint32_t numSamplesAnalysis = Unified_getSampleSizeinAnalysis(genoType);
 
@@ -3068,6 +3103,13 @@ int main(int argc, char* argv[])
                       << " conditioning marker(s) in genotype file..." << std::endl;
 
             // Build lookup maps: rsID -> index and chr:pos:ref:alt -> index
+            // Note: For VCF, conditional analysis requires a pre-scan of all markers first.
+            // Currently conditional analysis is only fully supported with PLINK input.
+            if (genoType == "vcf") {
+                throw std::runtime_error(
+                    "Conditional analysis is not yet supported with VCF input. "
+                    "Please use PLINK format for conditional analysis.");
+            }
             std::unordered_map<std::string, uint32_t> markerNameMap = ptr_gPLINKobj->getMarkerNameToIndex();
             std::unordered_map<std::string, uint32_t> markerIDMap = ptr_gPLINKobj->getMarkerIDToIndex();
 
@@ -3160,7 +3202,7 @@ int main(int argc, char* argv[])
 
             // Build marker ID to index map
             std::cout << "===== Building marker ID to index map =====" << std::endl;
-            std::unordered_map<std::string, uint32_t> markerIDToIndex = ptr_gPLINKobj->getMarkerIDToIndex();
+            std::unordered_map<std::string, uint32_t> markerIDToIndex = Unified_getMarkerIDToIndex(genoType);
             std::cout << "  Built map with " << markerIDToIndex.size() << " entries." << std::endl;
             std::cout << std::endl;
 
@@ -3345,7 +3387,7 @@ int main(int argc, char* argv[])
 
             // ---- 8b. Build marker ID to index map ----
             std::cout << "===== Building marker ID to index map =====" << std::endl;
-            std::unordered_map<std::string, uint32_t> markerIDToIndex = ptr_gPLINKobj->getMarkerIDToIndex();
+            std::unordered_map<std::string, uint32_t> markerIDToIndex = Unified_getMarkerIDToIndex(genoType);
             std::cout << "  Built map with " << markerIDToIndex.size() << " entries." << std::endl;
             std::cout << std::endl;
 

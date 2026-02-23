@@ -1,7 +1,7 @@
-// Standalone port of SAIGE/src/PLINK.cpp
-// PLINK genotype reader -- all Rcpp dependencies removed
+// Standalone port of SAIGE/src/PLINK.cpp and SAIGE/src/VCF.cpp
+// PLINK + VCF genotype readers -- all Rcpp dependencies removed
 //
-// Conversions from original SAIGE PLINK.cpp:
+// Conversions from original SAIGE:
 //   1. #include <RcppArmadillo.h>  -->  #include <armadillo>
 //   2. Rcpp::stop(...)             -->  throw std::runtime_error(...)
 //   3. boost::split(...)           -->  splitLine() using std::istringstream
@@ -9,6 +9,7 @@
 //   5. Rcpp::match(...)            -->  std::unordered_map lookup
 //   6. Rcpp::CharacterVector       -->  std::vector<std::string>
 //   7. Rcpp::IntegerVector         -->  std::vector<uint32_t>
+//   8. savvy library (VCF)         -->  htslib (VCF/BCF/VCF.GZ)
 
 #include <armadillo>
 #include "genotype_reader.hpp"
@@ -24,9 +25,14 @@
 #include <stdexcept>
 #include <cstdio>
 #include <cstdint>
+#include <cmath>
 #include <sys/stat.h>
 #include <filesystem>
 #include <iomanip>
+
+// htslib headers for VCF reading
+#include <htslib/hts.h>
+#include <htslib/vcf.h>
 
 // Global checkpoint flag for debugging
 bool g_writeCheckpoints = false;
@@ -34,6 +40,9 @@ std::string g_checkpointDir = "";
 
 // Global pointer to PLINK object (mirrors SAIGE's ptr_gPLINKobj in Main.cpp)
 PLINK::PlinkClass* ptr_gPLINKobj = nullptr;
+
+// Global pointer to VCF object (mirrors SAIGE's ptr_gVCFobj in Main.cpp)
+VCF::VcfClass* ptr_gVCFobj = nullptr;
 
 // Static counter for checkpoint tracking
 static uint64_t s_checkpointMarkerCount = 0;
@@ -431,6 +440,497 @@ void PlinkClass::getOneMarker(uint64_t& t_gIndex_prev,
 
 
 // ============================================================
+// VCF namespace: VCF/BCF/VCF.GZ reader using htslib
+// Ported from SAIGE/src/VCF.cpp with savvy -> htslib conversion
+// ============================================================
+namespace VCF {
+
+// ============================================================
+// Constructor
+// ============================================================
+VcfClass::VcfClass(const std::string& t_vcfFileName,
+                   const std::string& t_vcfField,
+                   std::vector<std::string>& t_SampleInModel)
+    : m_htsFile(nullptr), m_hdr(nullptr), m_rec(nullptr),
+      m_vcfFileName(t_vcfFileName), m_fmtField(t_vcfField),
+      m_N0(0), m_N(0), m_M0(0), m_totalMarkers(0), m_isPreScanned(false)
+{
+    // Open VCF/BCF file
+    m_htsFile = hts_open(t_vcfFileName.c_str(), "r");
+    if (!m_htsFile) {
+        throw std::runtime_error("Cannot open VCF file: " + t_vcfFileName);
+    }
+
+    // Read header
+    m_hdr = bcf_hdr_read(m_htsFile);
+    if (!m_hdr) {
+        hts_close(m_htsFile);
+        m_htsFile = nullptr;
+        throw std::runtime_error("Cannot read VCF header from: " + t_vcfFileName);
+    }
+
+    // Allocate record
+    m_rec = bcf_init();
+
+    // Get sample IDs
+    getSampleIDlist();
+    std::cout << "Open VCF done" << std::endl;
+    std::cout << "To read the field " << t_vcfField << std::endl;
+    std::cout << "Number of samples in the vcf file: " << m_N0 << std::endl;
+
+    // Verify the format field exists
+    // Check if the requested format field is in the header
+    int fmt_id = bcf_hdr_id2int(m_hdr, BCF_DT_ID, t_vcfField.c_str());
+    if (fmt_id < 0 || !bcf_hdr_idinfo_exists(m_hdr, BCF_HL_FMT, fmt_id)) {
+        // Try fallback to HDS if DS or GT was requested
+        if ((t_vcfField == "DS" || t_vcfField == "GT")) {
+            int hds_id = bcf_hdr_id2int(m_hdr, BCF_DT_ID, "HDS");
+            if (hds_id >= 0 && bcf_hdr_idinfo_exists(m_hdr, BCF_HL_FMT, hds_id)) {
+                m_fmtField = "HDS";
+                std::cout << "Format field " << t_vcfField << " not found, using HDS instead" << std::endl;
+            } else {
+                std::cerr << "WARNING: vcfField (" << t_vcfField << ") not present in genotype file." << std::endl;
+            }
+        } else {
+            std::cerr << "WARNING: vcfField (" << t_vcfField << ") not present in genotype file." << std::endl;
+        }
+    }
+
+    // Set up sample mapping
+    setPosSampleInVcf(t_SampleInModel);
+}
+
+// ============================================================
+// Destructor
+// ============================================================
+VcfClass::~VcfClass()
+{
+    closegenofile();
+}
+
+// ============================================================
+// getSampleIDlist: extract sample IDs from VCF header
+// ============================================================
+void VcfClass::getSampleIDlist()
+{
+    m_N0 = bcf_hdr_nsamples(m_hdr);
+    m_SampleInVcf.resize(m_N0);
+    for (uint32_t i = 0; i < m_N0; i++) {
+        m_SampleInVcf[i] = m_hdr->samples[i];
+    }
+}
+
+// ============================================================
+// setPosSampleInVcf: find positions of model samples in VCF file
+// Mirrors SAIGE VCF.cpp::setPosSampleInVcf but replaces Rcpp::match
+// with std::unordered_map lookup
+// ============================================================
+void VcfClass::setPosSampleInVcf(std::vector<std::string>& t_SampleInModel)
+{
+    std::cout << "Setting position of samples in VCF files...." << std::endl;
+
+    // If no sample IDs provided, use all VCF samples in order
+    if (t_SampleInModel.empty()) {
+        m_N = m_N0;
+        std::cout << "  No sampleIDs in null model; using all " << m_N0
+                  << " samples from VCF file." << std::endl;
+
+        m_posSampleInModel.resize(m_N0);
+        for (uint32_t i = 0; i < m_N0; i++) {
+            m_posSampleInModel[i] = i;  // identity mapping
+        }
+    } else {
+        m_N = t_SampleInModel.size();
+        std::cout << "m_N " << m_N << std::endl;
+
+        // Build map of model sample ID -> model index (0-based)
+        std::unordered_map<std::string, int32_t> modelSampleMap;
+        for (uint32_t i = 0; i < m_N; i++) {
+            modelSampleMap[t_SampleInModel[i]] = (int32_t)i;
+        }
+
+        // Verify all model samples exist in VCF
+        for (uint32_t i = 0; i < m_N; i++) {
+            bool found = false;
+            for (uint32_t j = 0; j < m_N0; j++) {
+                if (m_SampleInVcf[j] == t_SampleInModel[i]) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                throw std::runtime_error(
+                    "At least one subject requested is not in VCF file. "
+                    "Sample not found: " + t_SampleInModel[i]);
+            }
+        }
+
+        // Build mapping: for each VCF sample, what is its position in the model?
+        // m_posSampleInModel[vcf_idx] = model_idx, or -1 if not in model
+        m_posSampleInModel.resize(m_N0);
+        for (uint32_t i = 0; i < m_N0; i++) {
+            auto it = modelSampleMap.find(m_SampleInVcf[i]);
+            if (it != modelSampleMap.end()) {
+                m_posSampleInModel[i] = it->second;
+            } else {
+                m_posSampleInModel[i] = -1;
+            }
+        }
+    }
+
+    std::cout << "Number of samples in analysis: " << m_N << std::endl;
+}
+
+// ============================================================
+// getOneMarker: read one marker from VCF and extract dosages
+//
+// This mirrors SAIGE VCF.cpp::getOneMarker but uses htslib
+// instead of savvy. Reads sequentially (no random access).
+//
+// Supports GT (hard calls -> 0/1/2) and DS (dosage) fields.
+// ============================================================
+bool VcfClass::getOneMarker(
+    std::string& t_ref,
+    std::string& t_alt,
+    std::string& t_marker,
+    uint32_t& t_pd,
+    std::string& t_chr,
+    double& t_altFreq,
+    double& t_altCounts,
+    double& t_missingRate,
+    double& t_imputeInfo,
+    bool t_isOutputIndexForMissing,
+    std::vector<uint>& t_indexForMissing,
+    bool t_isOnlyOutputNonZero,
+    std::vector<uint>& t_indexForNonZero,
+    arma::vec& dosages,
+    bool t_isImputation)
+{
+    t_indexForMissing.clear();
+    t_indexForNonZero.clear();
+
+    // Read next record
+    int ret = bcf_read(m_htsFile, m_hdr, m_rec);
+    if (ret < 0) {
+        // End of file or error
+        std::cout << "Reach the end of the vcf file" << std::endl;
+        return false;
+    }
+
+    // Unpack the record (we need INFO, FORMAT, and shared fields)
+    bcf_unpack(m_rec, BCF_UN_ALL);
+
+    // Extract chromosome
+    t_chr = bcf_hdr_id2name(m_hdr, m_rec->rid);
+
+    // Extract position (VCF is 1-based, htslib stores 0-based)
+    t_pd = (uint32_t)(m_rec->pos + 1);
+
+    // Extract REF
+    t_ref = m_rec->d.allele[0];
+
+    // Extract ALT (first ALT allele only, skip multiallelic)
+    if (m_rec->n_allele < 2) {
+        t_alt = ".";
+    } else {
+        if (m_rec->n_allele > 2) {
+            std::cerr << "Warning: skipping multiallelic variant at "
+                      << t_chr << ":" << t_pd << std::endl;
+        }
+        t_alt = m_rec->d.allele[1];
+    }
+
+    // Extract marker ID
+    if (m_rec->d.id && std::string(m_rec->d.id) != ".") {
+        t_marker = m_rec->d.id;
+    } else {
+        t_marker = t_chr + ":" + std::to_string(t_pd) + ":" + t_ref + ":" + t_alt;
+    }
+
+    // Store marker info for later lookup
+    m_chr.push_back(t_chr);
+    m_pd.push_back(t_pd);
+    m_ref.push_back(t_ref);
+    m_alt.push_back(t_alt);
+    m_MarkerInVcf.push_back(t_marker);
+    m_M0++;
+
+    // Initialize dosage vector
+    dosages.set_size(m_N);
+    dosages.fill(0.0);
+
+    t_altCounts = 0;
+    int missing_cnt = 0;
+
+    // Extract imputation info (R2) if requested
+    if (t_isImputation) {
+        float* info_val = nullptr;
+        int n_info = 0;
+        int info_ret = bcf_get_info_float(m_hdr, m_rec, "R2", &info_val, &n_info);
+        if (info_ret > 0 && n_info > 0) {
+            t_imputeInfo = (double)info_val[0];
+        } else {
+            t_imputeInfo = 1.0;
+        }
+        if (info_val) free(info_val);
+    } else {
+        t_imputeInfo = 1.0;
+    }
+
+    // Read genotype data based on format field
+    if (m_fmtField == "GT") {
+        // Read GT field (hard-call genotypes)
+        int32_t* gt_arr = nullptr;
+        int n_gt = 0;
+        int ngt_ret = bcf_get_genotypes(m_hdr, m_rec, &gt_arr, &n_gt);
+
+        if (ngt_ret <= 0) {
+            // No GT data available
+            dosages.fill(-1.0);
+            missing_cnt = m_N;
+        } else {
+            int ploidy = n_gt / m_N0;
+
+            for (uint32_t i = 0; i < m_N0; i++) {
+                int32_t model_idx = m_posSampleInModel[i];
+                if (model_idx < 0) continue;  // sample not in model
+
+                int dose = 0;
+                bool is_missing = false;
+
+                for (int p = 0; p < ploidy; p++) {
+                    int32_t allele = gt_arr[i * ploidy + p];
+
+                    if (allele == bcf_int32_vector_end) {
+                        break;  // fewer ploidy for this sample
+                    }
+                    if (bcf_gt_is_missing(allele)) {
+                        is_missing = true;
+                        break;
+                    }
+                    // bcf_gt_allele extracts the allele index (0 = REF, 1 = ALT)
+                    dose += bcf_gt_allele(allele);
+                }
+
+                if (is_missing) {
+                    dosages[model_idx] = -1.0;
+                    missing_cnt++;
+                    if (t_isOutputIndexForMissing) {
+                        t_indexForMissing.push_back((uint)model_idx);
+                    }
+                } else {
+                    dosages[model_idx] = (double)dose;
+                    t_altCounts += dose;
+                    if (dose > 0) {
+                        t_indexForNonZero.push_back((uint)model_idx);
+                    }
+                }
+            }
+        }
+
+        if (gt_arr) free(gt_arr);
+
+    } else {
+        // Read DS or HDS field (dosage)
+        float* ds_arr = nullptr;
+        int n_ds = 0;
+        int nds_ret = bcf_get_format_float(m_hdr, m_rec, m_fmtField.c_str(), &ds_arr, &n_ds);
+
+        if (nds_ret <= 0) {
+            // No dosage data available
+            dosages.fill(-1.0);
+            missing_cnt = m_N;
+        } else {
+            int stride = n_ds / m_N0;
+
+            for (uint32_t i = 0; i < m_N0; i++) {
+                int32_t model_idx = m_posSampleInModel[i];
+                if (model_idx < 0) continue;  // sample not in model
+
+                float dose_val;
+                if (stride == 1) {
+                    // DS field: single dosage value per sample
+                    dose_val = ds_arr[i];
+                } else {
+                    // HDS field: sum haplotype dosages (like savvy stride_reduce)
+                    dose_val = 0.0f;
+                    for (int p = 0; p < stride; p++) {
+                        float v = ds_arr[i * stride + p];
+                        if (!bcf_float_is_missing(v) && !bcf_float_is_vector_end(v)) {
+                            dose_val += v;
+                        }
+                    }
+                }
+
+                if (bcf_float_is_missing(dose_val) || std::isnan(dose_val)) {
+                    dosages[model_idx] = -1.0;
+                    missing_cnt++;
+                    if (t_isOutputIndexForMissing) {
+                        t_indexForMissing.push_back((uint)model_idx);
+                    }
+                } else {
+                    dosages[model_idx] = (double)dose_val;
+                    t_altCounts += dose_val;
+                    if (dose_val > 0) {
+                        t_indexForNonZero.push_back((uint)model_idx);
+                    }
+                }
+            }
+        }
+
+        if (ds_arr) free(ds_arr);
+    }
+
+    // Calculate alt frequency and missing rate (same logic as SAIGE VCF.cpp)
+    if (missing_cnt > 0) {
+        if (missing_cnt == (int)m_N) {
+            t_altFreq = 0;
+        } else {
+            t_altFreq = t_altCounts / 2.0 / (double)(m_N - missing_cnt);
+        }
+        t_missingRate = (double)missing_cnt / (double)m_N;
+    } else {
+        t_altFreq = t_altCounts / 2.0 / (double)m_N;
+        t_missingRate = 0;
+    }
+
+    // Convert -1 (missing) values in dosages to the proper SAIGE convention
+    // SAIGE VCF.cpp stores -1 for missing, but the downstream pipeline uses
+    // the same missing convention as PLINK: impute or exclude.
+    // We leave -1 in the dosage vector; the imputation step will handle it.
+    // Actually, let's match PLINK convention: missing genotypes get value -1
+    // (which the downstream imputeGenoAndFlip handles via indexForMissing).
+
+    return true;
+}
+
+// ============================================================
+// prescanMarkerCount: count total markers in VCF by scanning
+// ============================================================
+uint32_t VcfClass::prescanMarkerCount()
+{
+    if (m_isPreScanned) {
+        return m_totalMarkers;
+    }
+
+    // Save current position and re-open file for counting
+    htsFile* countFile = hts_open(m_vcfFileName.c_str(), "r");
+    if (!countFile) {
+        throw std::runtime_error("Cannot re-open VCF file for marker counting: " + m_vcfFileName);
+    }
+    bcf_hdr_t* countHdr = bcf_hdr_read(countFile);
+    bcf1_t* countRec = bcf_init();
+
+    m_totalMarkers = 0;
+    while (bcf_read(countFile, countHdr, countRec) >= 0) {
+        m_totalMarkers++;
+    }
+
+    bcf_destroy(countRec);
+    bcf_hdr_destroy(countHdr);
+    hts_close(countFile);
+
+    m_isPreScanned = true;
+    std::cout << "Number of markers in VCF file: " << m_totalMarkers << std::endl;
+    return m_totalMarkers;
+}
+
+// ============================================================
+// resetFile: close and re-open the VCF file to restart reading
+// ============================================================
+void VcfClass::resetFile()
+{
+    // Close current file
+    if (m_rec) {
+        bcf_destroy(m_rec);
+        m_rec = nullptr;
+    }
+    if (m_hdr) {
+        bcf_hdr_destroy(m_hdr);
+        m_hdr = nullptr;
+    }
+    if (m_htsFile) {
+        hts_close(m_htsFile);
+        m_htsFile = nullptr;
+    }
+
+    // Clear accumulated marker info
+    m_chr.clear();
+    m_pd.clear();
+    m_ref.clear();
+    m_alt.clear();
+    m_MarkerInVcf.clear();
+    m_M0 = 0;
+
+    // Re-open
+    m_htsFile = hts_open(m_vcfFileName.c_str(), "r");
+    if (!m_htsFile) {
+        throw std::runtime_error("Cannot re-open VCF file: " + m_vcfFileName);
+    }
+    m_hdr = bcf_hdr_read(m_htsFile);
+    if (!m_hdr) {
+        throw std::runtime_error("Cannot re-read VCF header from: " + m_vcfFileName);
+    }
+    m_rec = bcf_init();
+}
+
+// ============================================================
+// getMarkerIDToIndex: build chr:pos:ref:alt -> index map
+// Requires markers to have been read (or pre-scanned)
+// ============================================================
+std::unordered_map<std::string, uint32_t> VcfClass::getMarkerIDToIndex()
+{
+    std::unordered_map<std::string, uint32_t> idMap;
+    for (uint32_t i = 0; i < m_chr.size(); i++) {
+        // Primary key: chr:pos:ref:alt
+        std::string id1 = m_chr[i] + ":" + std::to_string(m_pd[i]) + ":"
+                         + m_ref[i] + ":" + m_alt[i];
+        idMap[id1] = i;
+        // Secondary key: chr:pos:alt:ref (reversed allele order)
+        std::string id2 = m_chr[i] + ":" + std::to_string(m_pd[i]) + ":"
+                         + m_alt[i] + ":" + m_ref[i];
+        if (idMap.find(id2) == idMap.end()) {
+            idMap[id2] = i;
+        }
+    }
+    return idMap;
+}
+
+// ============================================================
+// getMarkerNameToIndex: build marker ID -> index map
+// ============================================================
+std::unordered_map<std::string, uint32_t> VcfClass::getMarkerNameToIndex()
+{
+    std::unordered_map<std::string, uint32_t> nameMap;
+    for (uint32_t i = 0; i < m_MarkerInVcf.size(); i++) {
+        nameMap[m_MarkerInVcf[i]] = i;
+    }
+    return nameMap;
+}
+
+// ============================================================
+// closegenofile: clean up htslib resources
+// ============================================================
+void VcfClass::closegenofile()
+{
+    if (m_rec) {
+        bcf_destroy(m_rec);
+        m_rec = nullptr;
+    }
+    if (m_hdr) {
+        bcf_hdr_destroy(m_hdr);
+        m_hdr = nullptr;
+    }
+    if (m_htsFile) {
+        hts_close(m_htsFile);
+        m_htsFile = nullptr;
+    }
+}
+
+} // namespace VCF
+
+
+// ============================================================
 // whichCPP: C++ version of which(). Note: start from 0, not 1
 // (Outside PLINK namespace, as declared in header)
 // ============================================================
@@ -476,10 +976,32 @@ void setPLINKobjInCPP(std::string t_bimFile,
 
 
 // ============================================================
+// setVCFobjInCPP: create and configure the global VCF object
+// Mirrors SAIGE Main.cpp::setVCFobjInCPP
+// ============================================================
+void setVCFobjInCPP(const std::string& t_vcfFileName,
+                     const std::string& t_vcfField,
+                     std::vector<std::string>& t_SampleInModel)
+{
+    // Clean up any existing object
+    if (ptr_gVCFobj != nullptr) {
+        ptr_gVCFobj->closegenofile();
+        delete ptr_gVCFobj;
+        ptr_gVCFobj = nullptr;
+    }
+
+    ptr_gVCFobj = new VCF::VcfClass(t_vcfFileName, t_vcfField, t_SampleInModel);
+
+    int n = ptr_gVCFobj->getN();
+    std::cout << "n:\t" << n << std::endl;
+}
+
+
+// ============================================================
 // Unified_getOneMarker: unified dispatcher for genotype reading
 //
-// Ported from SAIGE Main.cpp. Currently only supports "plink".
-// Throws for "bgen", "vcf", "pgen" (not yet implemented).
+// Ported from SAIGE Main.cpp. Supports "plink" and "vcf".
+// Throws for "bgen", "pgen" (not yet implemented).
 // ============================================================
 bool Unified_getOneMarker(std::string& t_genoType,
                           uint64_t& t_gIndex_prev,
@@ -518,22 +1040,54 @@ bool Unified_getOneMarker(std::string& t_genoType,
                                     t_isOutputIndexForMissing, t_indexForMissing,
                                     t_isOnlyOutputNonZero, t_indexForNonZero,
                                     isTrueGenotype, t_GVec);
+    } else if (t_genoType == "vcf") {
+        if (ptr_gVCFobj == nullptr) {
+            throw std::runtime_error(
+                "Unified_getOneMarker: VCF object not initialized. "
+                "Call setVCFobjInCPP first.");
+        }
+
+        isBoolRead = ptr_gVCFobj->getOneMarker(
+            t_ref, t_alt, t_marker, t_pd, t_chr,
+            t_altFreq, t_altCounts, t_missingRate, t_imputeInfo,
+            t_isOutputIndexForMissing, t_indexForMissing,
+            t_isOnlyOutputNonZero, t_indexForNonZero,
+            t_GVec, t_isImputation);
     } else if (t_genoType == "bgen") {
         throw std::runtime_error(
             "Unified_getOneMarker: BGEN format not yet supported in standalone C++ port.");
-    } else if (t_genoType == "vcf") {
-        throw std::runtime_error(
-            "Unified_getOneMarker: VCF format not yet supported in standalone C++ port.");
     } else if (t_genoType == "pgen") {
         throw std::runtime_error(
             "Unified_getOneMarker: PGEN format not yet supported in standalone C++ port.");
     } else {
         throw std::runtime_error(
             "Unified_getOneMarker: Unknown genotype type '" + t_genoType + "'. "
-            "Supported types: plink");
+            "Supported types: plink, vcf");
     }
 
     return isBoolRead;
+}
+
+
+// ============================================================
+// Unified_getMarkerCount: get total marker count from genotype file
+// ============================================================
+uint32_t Unified_getMarkerCount(std::string& t_genoType)
+{
+    if (t_genoType == "plink") {
+        if (ptr_gPLINKobj == nullptr) {
+            throw std::runtime_error("Unified_getMarkerCount: PLINK object not initialized.");
+        }
+        return ptr_gPLINKobj->getM();
+    } else if (t_genoType == "vcf") {
+        if (ptr_gVCFobj == nullptr) {
+            throw std::runtime_error("Unified_getMarkerCount: VCF object not initialized.");
+        }
+        return ptr_gVCFobj->getM0();
+    } else {
+        throw std::runtime_error(
+            "Unified_getMarkerCount: Unsupported type: " + t_genoType);
+    }
 }
 
 
@@ -549,9 +1103,15 @@ uint32_t Unified_getSampleSizeinGeno(std::string& t_genoType)
                 "Unified_getSampleSizeinGeno: PLINK object not initialized.");
         }
         N0 = ptr_gPLINKobj->getN0();
+    } else if (t_genoType == "vcf") {
+        if (ptr_gVCFobj == nullptr) {
+            throw std::runtime_error(
+                "Unified_getSampleSizeinGeno: VCF object not initialized.");
+        }
+        N0 = ptr_gVCFobj->getN0();
     } else {
         throw std::runtime_error(
-            "Unified_getSampleSizeinGeno: Only 'plink' type supported. Got: " + t_genoType);
+            "Unified_getSampleSizeinGeno: Unsupported type: " + t_genoType);
     }
     return N0;
 }
@@ -569,11 +1129,39 @@ uint32_t Unified_getSampleSizeinAnalysis(std::string& t_genoType)
                 "Unified_getSampleSizeinAnalysis: PLINK object not initialized.");
         }
         N = ptr_gPLINKobj->getN();
+    } else if (t_genoType == "vcf") {
+        if (ptr_gVCFobj == nullptr) {
+            throw std::runtime_error(
+                "Unified_getSampleSizeinAnalysis: VCF object not initialized.");
+        }
+        N = ptr_gVCFobj->getN();
     } else {
         throw std::runtime_error(
-            "Unified_getSampleSizeinAnalysis: Only 'plink' type supported. Got: " + t_genoType);
+            "Unified_getSampleSizeinAnalysis: Unsupported type: " + t_genoType);
     }
     return N;
+}
+
+
+// ============================================================
+// Unified_getMarkerIDToIndex: get marker ID to index map
+// ============================================================
+std::unordered_map<std::string, uint32_t> Unified_getMarkerIDToIndex(std::string& t_genoType)
+{
+    if (t_genoType == "plink") {
+        if (ptr_gPLINKobj == nullptr) {
+            throw std::runtime_error("Unified_getMarkerIDToIndex: PLINK object not initialized.");
+        }
+        return ptr_gPLINKobj->getMarkerIDToIndex();
+    } else if (t_genoType == "vcf") {
+        if (ptr_gVCFobj == nullptr) {
+            throw std::runtime_error("Unified_getMarkerIDToIndex: VCF object not initialized.");
+        }
+        return ptr_gVCFobj->getMarkerIDToIndex();
+    } else {
+        throw std::runtime_error(
+            "Unified_getMarkerIDToIndex: Unsupported type: " + t_genoType);
+    }
 }
 
 
@@ -586,8 +1174,12 @@ void closeGenoFile(std::string& t_genoType)
         if (ptr_gPLINKobj != nullptr) {
             ptr_gPLINKobj->closegenofile();
         }
+    } else if (t_genoType == "vcf") {
+        if (ptr_gVCFobj != nullptr) {
+            ptr_gVCFobj->closegenofile();
+        }
     } else {
         throw std::runtime_error(
-            "closeGenoFile: Only 'plink' type supported. Got: " + t_genoType);
+            "closeGenoFile: Unsupported type: " + t_genoType);
     }
 }

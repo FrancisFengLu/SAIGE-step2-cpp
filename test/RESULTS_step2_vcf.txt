@@ -1,0 +1,41 @@
+============================================================
+  SAIGE Step 2: VCF vs PLINK Comparison Results
+  Date: 2026-02-23
+============================================================
+
+TEST: VCF genotype reader produces identical results to PLINK reader.
+
+RESULT: EXACT MATCH
+
+Details:
+  - PLINK output: test/output/cpp_compare_results.txt
+  - VCF output:   test/output/cpp_vcf_results.txt (bgzipped VCF.GZ)
+  - VCF output:   test/output/cpp_vcf_uncompressed_results.txt (plain VCF)
+
+  - Total markers tested:  128,868
+  - Total output lines:    128,869 (including header)
+  - MD5 checksum (PLINK):  1e72c1e5e23afaa37bc2b4c827112ec9
+  - MD5 checksum (VCF.GZ): 1e72c1e5e23afaa37bc2b4c827112ec9
+  - MD5 checksum (VCF):    1e72c1e5e23afaa37bc2b4c827112ec9
+  - diff exit code:        0 (no differences)
+
+  All columns match exactly:
+    CHR, POS, MarkerID, Allele1, Allele2, AC_Allele2,
+    AF_Allele2, MissingRate, BETA, SE, Tstat, var, p.value, N
+
+VCF formats tested:
+  1. Uncompressed VCF (.vcf)   -- EXACT MATCH
+  2. Bgzipped VCF (.vcf.gz)    -- EXACT MATCH
+
+Library used: htslib 1.22 (via /opt/homebrew/Cellar/htslib/1.22/)
+VCF field: GT (hard-call genotypes)
+
+Performance:
+  - PLINK: ~1.3 seconds for 128,868 markers
+  - VCF.GZ: ~2.4 seconds for 128,868 markers
+  - VCF: ~2.7 seconds for 128,868 markers
+
+Note: The PLINK output was previously validated as EXACT MATCH with
+R SAIGE output (see RESULTS_step2.txt). Therefore, VCF output is
+transitively validated against R SAIGE as well.
+============================================================

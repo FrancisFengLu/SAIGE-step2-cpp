@@ -8,11 +8,15 @@ ifeq ($(strip $(PKG_CONFIG)),)
   ARMA_LIBS   :=
   YAML_CFLAGS :=
   YAML_LIBS   :=
+  HTS_CFLAGS  :=
+  HTS_LIBS    :=
 else
   ARMA_CFLAGS := $(shell "$(PKG_CONFIG)" --cflags armadillo 2>/dev/null)
   ARMA_LIBS   := $(shell "$(PKG_CONFIG)" --libs armadillo 2>/dev/null)
   YAML_CFLAGS := $(shell "$(PKG_CONFIG)" --cflags yaml-cpp 2>/dev/null)
   YAML_LIBS   := $(shell "$(PKG_CONFIG)" --libs yaml-cpp 2>/dev/null)
+  HTS_CFLAGS  := $(shell "$(PKG_CONFIG)" --cflags htslib 2>/dev/null)
+  HTS_LIBS    := $(shell "$(PKG_CONFIG)" --libs htslib 2>/dev/null)
 endif
 
 INCLUDES := -I/usr/local/include \
@@ -25,18 +29,25 @@ endif
 ifneq ($(strip $(ARMA_CFLAGS)),)
   INCLUDES += $(ARMA_CFLAGS)
 endif
+ifneq ($(strip $(HTS_CFLAGS)),)
+  INCLUDES += $(HTS_CFLAGS)
+endif
 
 LIBS := -lyaml-cpp \
         -larmadillo \
         -L/opt/homebrew/opt/openblas/lib -lopenblas \
         -llapack \
-        -L/opt/homebrew/opt/superlu/lib -lsuperlu
+        -L/opt/homebrew/opt/superlu/lib -lsuperlu \
+        -L/opt/homebrew/lib -lhts
 
 ifneq ($(strip $(YAML_LIBS)),)
   LIBS += $(YAML_LIBS)
 endif
 ifneq ($(strip $(ARMA_LIBS)),)
   LIBS += $(ARMA_LIBS)
+endif
+ifneq ($(strip $(HTS_LIBS)),)
+  LIBS += $(HTS_LIBS)
 endif
 
 SOURCES := $(wildcard *.cpp)

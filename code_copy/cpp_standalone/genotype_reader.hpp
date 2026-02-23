@@ -1,6 +1,7 @@
-// Standalone port of SAIGE/src/PLINK.hpp
-// PLINK genotype reader -- all Rcpp dependencies removed
-// Ported from: /SAIGE/src/PLINK.hpp and /SAIGE/src/PLINK.cpp
+// Standalone port of SAIGE/src/PLINK.hpp and SAIGE/src/VCF.hpp
+// PLINK + VCF genotype readers -- all Rcpp dependencies removed
+// Ported from: /SAIGE/src/PLINK.hpp, /SAIGE/src/PLINK.cpp,
+//              /SAIGE/src/VCF.hpp, /SAIGE/src/VCF.cpp
 
 #ifndef GENOTYPE_READER_HPP
 #define GENOTYPE_READER_HPP
@@ -10,6 +11,11 @@
 #include <vector>
 #include <cstdio>
 #include <unordered_map>
+
+// Forward-declare htslib types to avoid including htslib headers in the header
+struct htsFile;
+struct bcf_hdr_t;
+struct bcf1_t;
 
 namespace PLINK {
 
@@ -186,6 +192,104 @@ public:
 
 } // namespace PLINK
 
+
+// ============================================================
+// VCF namespace: VCF/BCF/VCF.GZ reader using htslib
+// Ported from SAIGE/src/VCF.hpp and VCF.cpp
+// ============================================================
+namespace VCF {
+
+class VcfClass {
+private:
+    // htslib file handles
+    htsFile*   m_htsFile;
+    bcf_hdr_t* m_hdr;
+    bcf1_t*    m_rec;
+
+    // VCF file path
+    std::string m_vcfFileName;
+
+    // Format field to read: "GT", "DS", or "HDS"
+    std::string m_fmtField;
+
+    // Sample information
+    std::vector<std::string> m_SampleInVcf;  // sample IDs from VCF header
+    uint32_t m_N0;  // total samples in VCF
+    uint32_t m_N;   // samples in analysis
+
+    // Mapping from VCF sample index -> model sample index
+    // m_posSampleInModel[vcf_idx] = model_idx, or -1 if not in model
+    std::vector<int32_t> m_posSampleInModel;
+
+    // Marker information (accumulated as markers are read)
+    uint32_t m_M0;          // total markers read so far
+    std::vector<std::string> m_chr;
+    std::vector<uint32_t> m_pd;
+    std::vector<std::string> m_ref;
+    std::vector<std::string> m_alt;
+    std::vector<std::string> m_MarkerInVcf;
+
+    // Pre-scanned marker count (total markers in file)
+    uint32_t m_totalMarkers;
+    bool m_isPreScanned;
+
+    // Internal: read sample IDs from VCF header
+    void getSampleIDlist();
+
+public:
+    VcfClass(const std::string& t_vcfFileName,
+             const std::string& t_vcfField,
+             std::vector<std::string>& t_SampleInModel);
+
+    ~VcfClass();
+
+    // Set up sample position mapping (model samples -> VCF samples)
+    void setPosSampleInVcf(std::vector<std::string>& t_SampleInModel);
+
+    // Read one marker from VCF (sequential read, ignores gIndex for seeking)
+    // Returns false if end of file reached
+    bool getOneMarker(
+        std::string& t_ref,
+        std::string& t_alt,
+        std::string& t_marker,
+        uint32_t& t_pd,
+        std::string& t_chr,
+        double& t_altFreq,
+        double& t_altCounts,
+        double& t_missingRate,
+        double& t_imputeInfo,
+        bool t_isOutputIndexForMissing,
+        std::vector<uint>& t_indexForMissing,
+        bool t_isOnlyOutputNonZero,
+        std::vector<uint>& t_indexForNonZero,
+        arma::vec& dosages,
+        bool t_isImputation);
+
+    uint32_t getN0() { return m_N0; }
+    uint32_t getN()  { return m_N; }
+    uint32_t getM0() { return m_totalMarkers; }
+
+    // Pre-scan VCF to count total markers (needed for index generation)
+    uint32_t prescanMarkerCount();
+
+    // Reset file to beginning for re-reading
+    void resetFile();
+
+    // Build marker ID to index map (chr:pos:ref:alt -> index)
+    // Note: requires a full prescan first
+    std::unordered_map<std::string, uint32_t> getMarkerIDToIndex();
+
+    // Build marker name to index map (ID field -> index)
+    std::unordered_map<std::string, uint32_t> getMarkerNameToIndex();
+
+    std::vector<std::string> getChrVec() { return m_chr; }
+
+    void closegenofile();
+};
+
+} // namespace VCF
+
+
 // Global checkpoint flag for debugging
 extern bool g_writeCheckpoints;
 extern std::string g_checkpointDir;
@@ -193,8 +297,11 @@ extern std::string g_checkpointDir;
 // Global pointer to PLINK object (mirrors SAIGE's ptr_gPLINKobj in Main.cpp)
 extern PLINK::PlinkClass* ptr_gPLINKobj;
 
+// Global pointer to VCF object (mirrors SAIGE's ptr_gVCFobj in Main.cpp)
+extern VCF::VcfClass* ptr_gVCFobj;
+
 // Unified dispatcher (like SAIGE Main.cpp)
-// For now, only handles "plink" type. Throws for bgen/vcf/pgen.
+// Supports "plink" and "vcf" types. Throws for bgen/pgen.
 bool Unified_getOneMarker(std::string& t_genoType,
                           uint64_t& t_gIndex_prev,
                           uint64_t& t_gIndex,
@@ -221,6 +328,14 @@ void setPLINKobjInCPP(std::string t_bimFile,
                       std::vector<std::string>& t_SampleInModel,
                       std::string t_AlleleOrder);
 
+// Helper: set up VCF object (mirrors SAIGE Main.cpp::setVCFobjInCPP)
+void setVCFobjInCPP(const std::string& t_vcfFileName,
+                     const std::string& t_vcfField,
+                     std::vector<std::string>& t_SampleInModel);
+
+// Helper: get total marker count from genotype file
+uint32_t Unified_getMarkerCount(std::string& t_genoType);
+
 // Helper: get sample size from genotype file
 uint32_t Unified_getSampleSizeinGeno(std::string& t_genoType);
 
@@ -229,6 +344,9 @@ uint32_t Unified_getSampleSizeinAnalysis(std::string& t_genoType);
 
 // Helper: close genotype file
 void closeGenoFile(std::string& t_genoType);
+
+// Helper: get marker ID to index map (for region testing)
+std::unordered_map<std::string, uint32_t> Unified_getMarkerIDToIndex(std::string& t_genoType);
 
 // C++ version of which(). Note: start from 0, not 1
 std::vector<unsigned int> whichCPP(std::vector<std::string>& strVec,

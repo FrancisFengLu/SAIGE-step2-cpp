@@ -524,6 +524,19 @@ Remaining:
   Test 11: Survival trait — SPA not implemented (niche)
   Test 12: Non-PLINK formats — VCF/BGEN/PGEN not implemented
 
+### VCF Reader Implemented + Validated
+
+Implemented VCF/BCF/VCF.GZ genotype reader using htslib (not savvy).
+128,868 markers: VCF output identical to PLINK output (MD5 match).
+Supports GT (hard calls) and DS (dosage) fields.
+
+Code changes:
+  - genotype_reader.cpp/hpp: VCF::VcfClass with htslib
+  - main.cpp: vcfFile/vcfField config, Unified dispatcher updates
+  - Makefile: htslib detection via pkg-config
+
+Config usage: genoType: vcf, vcfFile: path, vcfField: GT/DS
+
 ================================================================================
 END OF SESSION NOTES
 ================================================================================
