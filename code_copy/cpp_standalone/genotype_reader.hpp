@@ -1,7 +1,8 @@
-// Standalone port of SAIGE/src/PLINK.hpp and SAIGE/src/VCF.hpp
-// PLINK + VCF genotype readers -- all Rcpp dependencies removed
+// Standalone port of SAIGE/src/PLINK.hpp, SAIGE/src/VCF.hpp, and SAIGE/src/BGEN.hpp
+// PLINK + VCF + BGEN genotype readers -- all Rcpp dependencies removed
 // Ported from: /SAIGE/src/PLINK.hpp, /SAIGE/src/PLINK.cpp,
-//              /SAIGE/src/VCF.hpp, /SAIGE/src/VCF.cpp
+//              /SAIGE/src/VCF.hpp, /SAIGE/src/VCF.cpp,
+//              /SAIGE/src/BGEN.hpp, /SAIGE/src/BGEN.cpp
 
 #ifndef GENOTYPE_READER_HPP
 #define GENOTYPE_READER_HPP
@@ -290,6 +291,120 @@ public:
 } // namespace VCF
 
 
+// ============================================================
+// BGEN namespace: BGEN v1.2 reader (manual binary parsing)
+// Ported from SAIGE/src/BGEN.hpp and BGEN.cpp
+// Supports zstd and zlib decompression
+// ============================================================
+namespace BGEN {
+
+static constexpr uint32_t COMPRESSION_ZLIB = 1;
+static constexpr uint32_t COMPRESSION_ZSTD = 2;
+
+class BgenClass {
+private:
+    // Allele order: "alt-first" or "ref-first"
+    std::string m_AlleleOrder;
+
+    // BGEN file path
+    std::string m_bgenFileName;
+
+    // File handle for binary reading
+    FILE* m_fin;
+
+    // Decompression buffers
+    std::vector<unsigned char> m_buf;
+    std::vector<unsigned char> m_zBuf;
+    uint32_t m_zBufLens;
+    uint32_t m_bufLens;
+    uint32_t CompressedSNPBlocks;  // 1=zlib, 2=zstd
+
+    // Sample mapping: m_posSampleInModel[bgen_idx] = model_idx, or -1 if not in model
+    std::vector<int32_t> m_posSampleInModel;
+
+    // Sample information
+    std::vector<std::string> m_SampleInBgen;
+    uint32_t m_N0;   // total samples in BGEN
+    uint32_t m_N;    // samples in analysis
+    uint32_t m_M0;   // total markers in BGEN header
+
+    // Marker metadata (accumulated during sequential reading for index maps)
+    std::vector<std::string> m_chr;
+    std::vector<uint32_t> m_pd;
+    std::vector<std::string> m_ref;
+    std::vector<std::string> m_alt;
+    std::vector<std::string> m_MarkerInBgen;
+
+    // Pre-allocated allele buffers (to avoid repeated allocation)
+    std::vector<char> allele0, allele1;
+
+    // Internal: decompress and parse genotype probabilities
+    void Parse2(unsigned char* buf, uint32_t bufLen,
+                const unsigned char* zBuf, uint32_t zBufLen,
+                std::string& snpName,
+                arma::vec& dosages,
+                double& AC, double& AF,
+                std::vector<uint>& indexforMissing,
+                double& info,
+                std::vector<uint>& indexNonZero,
+                bool isImputation);
+
+public:
+    BgenClass(const std::string& t_bgenFileName,
+              const std::vector<std::string>& t_SampleInBgen,
+              std::vector<std::string>& t_SampleInModel,
+              const std::string& t_AlleleOrder);
+
+    ~BgenClass();
+
+    // Set up BGEN file: read header, validate
+    void setBgenObj(const std::string& t_bgenFileName,
+                    const std::vector<std::string>& t_SampleInBgen);
+
+    // Set up sample position mapping
+    void setPosSampleInBgen(std::vector<std::string>& t_SampleInModel);
+
+    // Read one marker from BGEN (sequential read using byte-position seeking)
+    // t_gIndex / t_gIndex_prev are byte positions (for BGEN), not marker indices
+    // Returns false via t_isBoolRead if EOF
+    void getOneMarker(uint64_t& t_gIndex_prev,
+                      uint64_t& t_gIndex,
+                      std::string& t_ref,
+                      std::string& t_alt,
+                      std::string& t_marker,
+                      uint32_t& t_pd,
+                      std::string& t_chr,
+                      double& t_altFreq,
+                      double& t_altCounts,
+                      double& t_missingRate,
+                      double& t_imputeInfo,
+                      bool& t_isOutputIndexForMissing,
+                      std::vector<uint>& t_indexForMissing,
+                      bool& t_isOnlyOutputNonZero,
+                      std::vector<uint>& t_indexForNonZero,
+                      bool& t_isBoolRead,
+                      arma::vec& dosages,
+                      bool t_isImputation);
+
+    uint32_t getN0() { return m_N0; }
+    uint32_t getN()  { return m_N; }
+    uint32_t getM0() { return m_M0; }
+
+    // Build marker ID to index map (chr:pos:ref:alt -> marker read order index)
+    // Note: only contains markers that have been read so far
+    std::unordered_map<std::string, uint32_t> getMarkerIDToIndex();
+
+    // Build marker name to index map (RSID -> marker read order index)
+    std::unordered_map<std::string, uint32_t> getMarkerNameToIndex();
+
+    std::vector<std::string> getChrVec() { return m_chr; }
+
+    void closegenofile();
+};
+
+} // namespace BGEN
+
+
 // Global checkpoint flag for debugging
 extern bool g_writeCheckpoints;
 extern std::string g_checkpointDir;
@@ -300,8 +415,11 @@ extern PLINK::PlinkClass* ptr_gPLINKobj;
 // Global pointer to VCF object (mirrors SAIGE's ptr_gVCFobj in Main.cpp)
 extern VCF::VcfClass* ptr_gVCFobj;
 
+// Global pointer to BGEN object (mirrors SAIGE's ptr_gBGENobj in Main.cpp)
+extern BGEN::BgenClass* ptr_gBGENobj;
+
 // Unified dispatcher (like SAIGE Main.cpp)
-// Supports "plink" and "vcf" types. Throws for bgen/pgen.
+// Supports "plink", "vcf", and "bgen" types. Throws for pgen.
 bool Unified_getOneMarker(std::string& t_genoType,
                           uint64_t& t_gIndex_prev,
                           uint64_t& t_gIndex,
@@ -332,6 +450,12 @@ void setPLINKobjInCPP(std::string t_bimFile,
 void setVCFobjInCPP(const std::string& t_vcfFileName,
                      const std::string& t_vcfField,
                      std::vector<std::string>& t_SampleInModel);
+
+// Helper: set up BGEN object (mirrors SAIGE Main.cpp::setBGENobjInCPP)
+void setBGENobjInCPP(const std::string& t_bgenFileName,
+                      const std::vector<std::string>& t_SampleInBgen,
+                      std::vector<std::string>& t_SampleInModel,
+                      const std::string& t_AlleleOrder);
 
 // Helper: get total marker count from genotype file
 uint32_t Unified_getMarkerCount(std::string& t_genoType);

@@ -537,6 +537,19 @@ Code changes:
 
 Config usage: genoType: vcf, vcfFile: path, vcfField: GT/DS
 
+### BGEN Reader Implemented + Validated
+
+Implemented BGEN v1.2 reader with zstd/zlib decompression.
+128,868 markers: BGEN output identical to PLINK output (MD5 match).
+Probability-to-dosage conversion: dosage = 2*P(AA) + P(Aa).
+
+Code changes:
+  - genotype_reader.cpp/hpp: BGEN::BgenClass with zstd/zlib
+  - main.cpp: bgenFile/bgenSampleFile config
+  - Makefile: -lzstd -lz linking
+
+Config usage: genoType: bgen, bgenFile: path, bgenSampleFile: path
+
 ================================================================================
 END OF SESSION NOTES
 ================================================================================

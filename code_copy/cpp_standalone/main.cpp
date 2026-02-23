@@ -2633,6 +2633,8 @@ int main(int argc, char* argv[])
             std::cerr << "  varianceRatioFile: Path to varianceRatio.txt" << std::endl;
             std::cerr << "  plinkFile:         Path to PLINK prefix (.bed/.bim/.fam) [for genoType=plink]" << std::endl;
             std::cerr << "  vcfFile:           Path to VCF/BCF/VCF.GZ file [for genoType=vcf]" << std::endl;
+            std::cerr << "  bgenFile:          Path to BGEN file [for genoType=bgen]" << std::endl;
+            std::cerr << "  bgenSampleFile:    Path to BGEN .sample file [for genoType=bgen]" << std::endl;
             std::cerr << "  outputFile:        Output file path" << std::endl;
             std::cerr << std::endl;
             std::cerr << "Optional YAML config keys (general):" << std::endl;
@@ -2643,7 +2645,7 @@ int main(int argc, char* argv[])
             std::cerr << "  AlleleOrder:       'alt-first' or 'ref-first' (default: 'alt-first')" << std::endl;
             std::cerr << "  dosage_zerod_cutoff:     (default: 0)" << std::endl;
             std::cerr << "  dosage_zerod_MAC_cutoff: (default: 0)" << std::endl;
-            std::cerr << "  genoType:          'plink' or 'vcf' (default: 'plink')" << std::endl;
+            std::cerr << "  genoType:          'plink', 'vcf', or 'bgen' (default: 'plink')" << std::endl;
             std::cerr << "  vcfField:          'GT' or 'DS' (default: 'GT', for genoType=vcf)" << std::endl;
             std::cerr << "  isImputation:      true/false (default: false)" << std::endl;
             std::cerr << "  isMoreOutput:      true/false (default: false)" << std::endl;
@@ -2706,9 +2708,16 @@ int main(int argc, char* argv[])
             if (!config["vcfFile"]) {
                 throw std::runtime_error("Config missing required key: vcfFile (needed for genoType=vcf)");
             }
+        } else if (genoType_early == "bgen") {
+            if (!config["bgenFile"]) {
+                throw std::runtime_error("Config missing required key: bgenFile (needed for genoType=bgen)");
+            }
+            if (!config["bgenSampleFile"]) {
+                throw std::runtime_error("Config missing required key: bgenSampleFile (needed for genoType=bgen)");
+            }
         } else {
             throw std::runtime_error("Unsupported genoType: " + genoType_early +
-                                     ". Supported types: plink, vcf");
+                                     ". Supported types: plink, vcf, bgen");
         }
 
         std::string modelFile = config["modelFile"].as<std::string>();
@@ -2716,6 +2725,8 @@ int main(int argc, char* argv[])
         std::string plinkPrefix = config["plinkFile"] ? config["plinkFile"].as<std::string>() : "";
         std::string vcfFile = config["vcfFile"] ? config["vcfFile"].as<std::string>() : "";
         std::string vcfField = config["vcfField"] ? config["vcfField"].as<std::string>() : "GT";
+        std::string bgenFile = config["bgenFile"] ? config["bgenFile"].as<std::string>() : "";
+        std::string bgenSampleFile = config["bgenSampleFile"] ? config["bgenSampleFile"].as<std::string>() : "";
         std::string outputFile = config["outputFile"].as<std::string>();
 
         // Optional keys with defaults
@@ -2865,6 +2876,9 @@ int main(int argc, char* argv[])
         } else if (genoType == "vcf") {
             std::cout << "  vcfFile:           " << vcfFile << std::endl;
             std::cout << "  vcfField:          " << vcfField << std::endl;
+        } else if (genoType == "bgen") {
+            std::cout << "  bgenFile:          " << bgenFile << std::endl;
+            std::cout << "  bgenSampleFile:    " << bgenSampleFile << std::endl;
         }
         std::cout << "  outputFile:        " << outputFile << std::endl;
         std::cout << "  genoType:          " << genoType << std::endl;
@@ -3061,7 +3075,7 @@ int main(int argc, char* argv[])
         std::cout << "  n = " << ptr_gSAIGEobj->m_n << ", p = " << ptr_gSAIGEobj->m_p << std::endl;
         std::cout << std::endl;
 
-        // ---- 6. Set up genotype reader (PLINK or VCF) ----
+        // ---- 6. Set up genotype reader (PLINK, VCF, or BGEN) ----
         std::cout << "===== Setting up genotype reader =====" << std::endl;
         uint32_t numMarkers = 0;
 
@@ -3080,6 +3094,31 @@ int main(int argc, char* argv[])
             ptr_gVCFobj->resetFile();
             // Re-set sample mapping after reset
             ptr_gVCFobj->setPosSampleInVcf(nullModel.sampleIDs);
+        } else if (genoType == "bgen") {
+            // Read sample IDs from .sample file
+            std::vector<std::string> sampleInBgen;
+            std::ifstream sampleFile(bgenSampleFile);
+            if (!sampleFile.is_open()) {
+                throw std::runtime_error("Cannot open BGEN sample file: " + bgenSampleFile);
+            }
+            std::string line;
+            int lineNum = 0;
+            while (std::getline(sampleFile, line)) {
+                lineNum++;
+                // Skip first two header lines of .sample file
+                if (lineNum <= 2) continue;
+                // First column is FID, second is IID
+                std::istringstream iss(line);
+                std::string fid, iid;
+                if (iss >> fid >> iid) {
+                    sampleInBgen.push_back(iid);
+                }
+            }
+            sampleFile.close();
+            std::cout << "Read " << sampleInBgen.size() << " sample IDs from " << bgenSampleFile << std::endl;
+
+            setBGENobjInCPP(bgenFile, sampleInBgen, nullModel.sampleIDs, alleleOrder);
+            numMarkers = ptr_gBGENobj->getM0();
         }
 
         uint32_t numSamplesGeno = Unified_getSampleSizeinGeno(genoType);
@@ -3105,9 +3144,9 @@ int main(int argc, char* argv[])
             // Build lookup maps: rsID -> index and chr:pos:ref:alt -> index
             // Note: For VCF, conditional analysis requires a pre-scan of all markers first.
             // Currently conditional analysis is only fully supported with PLINK input.
-            if (genoType == "vcf") {
+            if (genoType == "vcf" || genoType == "bgen") {
                 throw std::runtime_error(
-                    "Conditional analysis is not yet supported with VCF input. "
+                    "Conditional analysis is not yet supported with " + genoType + " input. "
                     "Please use PLINK format for conditional analysis.");
             }
             std::unordered_map<std::string, uint32_t> markerNameMap = ptr_gPLINKobj->getMarkerNameToIndex();
@@ -3326,15 +3365,27 @@ int main(int argc, char* argv[])
             // ---- 7a. Build genotype index vectors ----
             // In the R pipeline, these are passed as vectors of marker indices.
             // For the standalone version, we test ALL markers in the file sequentially.
+            //
+            // For PLINK/VCF: genoIndex = 0, 1, 2, ... (marker index for seeking)
+            // For BGEN: genoIndex = 0 for all (sequential read, no seeking needed;
+            //           BGEN uses byte positions for seeking, but we read sequentially)
             std::cout << "===== Building marker index vectors =====" << std::endl;
             std::vector<std::string> genoIndex(numMarkers);
             std::vector<std::string> genoIndex_prev(numMarkers);
-            for (uint32_t i = 0; i < numMarkers; i++) {
-                genoIndex[i] = std::to_string(i);
-                if (i > 0) {
-                    genoIndex_prev[i] = std::to_string(i - 1);
-                } else {
+            if (genoType == "bgen") {
+                // BGEN: all zeros = "just read next variant, no seeking"
+                for (uint32_t i = 0; i < numMarkers; i++) {
+                    genoIndex[i] = "0";
                     genoIndex_prev[i] = "0";
+                }
+            } else {
+                for (uint32_t i = 0; i < numMarkers; i++) {
+                    genoIndex[i] = std::to_string(i);
+                    if (i > 0) {
+                        genoIndex_prev[i] = std::to_string(i - 1);
+                    } else {
+                        genoIndex_prev[i] = "0";
+                    }
                 }
             }
 

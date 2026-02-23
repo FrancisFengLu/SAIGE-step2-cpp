@@ -10,6 +10,8 @@ ifeq ($(strip $(PKG_CONFIG)),)
   YAML_LIBS   :=
   HTS_CFLAGS  :=
   HTS_LIBS    :=
+  ZSTD_CFLAGS :=
+  ZSTD_LIBS   :=
 else
   ARMA_CFLAGS := $(shell "$(PKG_CONFIG)" --cflags armadillo 2>/dev/null)
   ARMA_LIBS   := $(shell "$(PKG_CONFIG)" --libs armadillo 2>/dev/null)
@@ -17,11 +19,14 @@ else
   YAML_LIBS   := $(shell "$(PKG_CONFIG)" --libs yaml-cpp 2>/dev/null)
   HTS_CFLAGS  := $(shell "$(PKG_CONFIG)" --cflags htslib 2>/dev/null)
   HTS_LIBS    := $(shell "$(PKG_CONFIG)" --libs htslib 2>/dev/null)
+  ZSTD_CFLAGS := $(shell "$(PKG_CONFIG)" --cflags libzstd 2>/dev/null)
+  ZSTD_LIBS   := $(shell "$(PKG_CONFIG)" --libs libzstd 2>/dev/null)
 endif
 
 INCLUDES := -I/usr/local/include \
             -I/opt/homebrew/opt/boost/include \
-            -I/opt/homebrew/include
+            -I/opt/homebrew/include \
+            -I/opt/homebrew/Cellar/zstd/1.5.7/include
 
 ifneq ($(strip $(YAML_CFLAGS)),)
   INCLUDES += $(YAML_CFLAGS)
@@ -32,13 +37,18 @@ endif
 ifneq ($(strip $(HTS_CFLAGS)),)
   INCLUDES += $(HTS_CFLAGS)
 endif
+ifneq ($(strip $(ZSTD_CFLAGS)),)
+  INCLUDES += $(ZSTD_CFLAGS)
+endif
 
 LIBS := -lyaml-cpp \
         -larmadillo \
         -L/opt/homebrew/opt/openblas/lib -lopenblas \
         -llapack \
         -L/opt/homebrew/opt/superlu/lib -lsuperlu \
-        -L/opt/homebrew/lib -lhts
+        -L/opt/homebrew/lib -lhts \
+        -L/opt/homebrew/Cellar/zstd/1.5.7/lib -lzstd \
+        -lz
 
 ifneq ($(strip $(YAML_LIBS)),)
   LIBS += $(YAML_LIBS)
@@ -48,6 +58,9 @@ ifneq ($(strip $(ARMA_LIBS)),)
 endif
 ifneq ($(strip $(HTS_LIBS)),)
   LIBS += $(HTS_LIBS)
+endif
+ifneq ($(strip $(ZSTD_LIBS)),)
+  LIBS += $(ZSTD_LIBS)
 endif
 
 SOURCES := $(wildcard *.cpp)

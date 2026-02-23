@@ -1,5 +1,5 @@
-// Standalone port of SAIGE/src/PLINK.cpp and SAIGE/src/VCF.cpp
-// PLINK + VCF genotype readers -- all Rcpp dependencies removed
+// Standalone port of SAIGE/src/PLINK.cpp, SAIGE/src/VCF.cpp, and SAIGE/src/BGEN.cpp
+// PLINK + VCF + BGEN genotype readers -- all Rcpp dependencies removed
 //
 // Conversions from original SAIGE:
 //   1. #include <RcppArmadillo.h>  -->  #include <armadillo>
@@ -10,6 +10,7 @@
 //   6. Rcpp::CharacterVector       -->  std::vector<std::string>
 //   7. Rcpp::IntegerVector         -->  std::vector<uint32_t>
 //   8. savvy library (VCF)         -->  htslib (VCF/BCF/VCF.GZ)
+//   9. Rcpp BGEN                   -->  standalone BGEN with zstd/zlib
 
 #include <armadillo>
 #include "genotype_reader.hpp"
@@ -34,6 +35,10 @@
 #include <htslib/hts.h>
 #include <htslib/vcf.h>
 
+// zstd and zlib headers for BGEN decompression
+#include <zstd.h>
+#include <zlib.h>
+
 // Global checkpoint flag for debugging
 bool g_writeCheckpoints = false;
 std::string g_checkpointDir = "";
@@ -43,6 +48,9 @@ PLINK::PlinkClass* ptr_gPLINKobj = nullptr;
 
 // Global pointer to VCF object (mirrors SAIGE's ptr_gVCFobj in Main.cpp)
 VCF::VcfClass* ptr_gVCFobj = nullptr;
+
+// Global pointer to BGEN object (mirrors SAIGE's ptr_gBGENobj in Main.cpp)
+BGEN::BgenClass* ptr_gBGENobj = nullptr;
 
 // Static counter for checkpoint tracking
 static uint64_t s_checkpointMarkerCount = 0;
@@ -931,6 +939,517 @@ void VcfClass::closegenofile()
 
 
 // ============================================================
+// BGEN namespace: BGEN v1.2 reader (manual binary parsing)
+// Ported from SAIGE/src/BGEN.cpp with all Rcpp dependencies removed
+// ============================================================
+namespace BGEN {
+
+// ============================================================
+// Constructor
+// ============================================================
+BgenClass::BgenClass(const std::string& t_bgenFileName,
+                     const std::vector<std::string>& t_SampleInBgen,
+                     std::vector<std::string>& t_SampleInModel,
+                     const std::string& t_AlleleOrder)
+    : m_fin(nullptr), m_zBufLens(0), m_bufLens(0),
+      CompressedSNPBlocks(0), m_N0(0), m_N(0), m_M0(0)
+{
+    setBgenObj(t_bgenFileName, t_SampleInBgen);
+    setPosSampleInBgen(t_SampleInModel);
+    m_AlleleOrder = t_AlleleOrder;
+    allele0.resize(65536);
+    allele1.resize(65536);
+}
+
+// ============================================================
+// Destructor
+// ============================================================
+BgenClass::~BgenClass()
+{
+    closegenofile();
+}
+
+// ============================================================
+// setBgenObj: read BGEN header, validate format
+// Ported from SAIGE/src/BGEN.cpp::setBgenObj
+// ============================================================
+void BgenClass::setBgenObj(const std::string& t_bgenFileName,
+                            const std::vector<std::string>& t_SampleInBgen)
+{
+    m_bgenFileName = t_bgenFileName;
+    m_SampleInBgen = t_SampleInBgen;
+
+    m_fin = fopen(t_bgenFileName.c_str(), "rb");
+    if (!m_fin) {
+        throw std::runtime_error("Cannot open BGEN file: " + t_bgenFileName);
+    }
+
+    // Read BGEN v1.2 header
+    uint32_t offset;
+    fread(&offset, 4, 1, m_fin);
+
+    uint32_t L_H;
+    fread(&L_H, 4, 1, m_fin);
+
+    fread(&m_M0, 4, 1, m_fin);
+    std::cout << "snpBlocks (Mbgen): " << m_M0 << std::endl;
+    if (m_M0 == 0) {
+        throw std::runtime_error("No snpBlocks in BGEN file.");
+    }
+
+    fread(&m_N0, 4, 1, m_fin);
+    std::cout << "samples (Nbgen): " << m_N0 << std::endl;
+
+    unsigned int m_Nsample = t_SampleInBgen.size();
+    if (m_N0 != m_Nsample) {
+        throw std::runtime_error(
+            "Number of samples in BGEN header (" + std::to_string(m_N0) +
+            ") does not match sample file (" + std::to_string(m_Nsample) + ")");
+    }
+
+    char magic[5];
+    fread(magic, 1, 4, m_fin);
+    magic[4] = '\0';
+
+    // Skip free data area
+    fseek(m_fin, L_H - 20, SEEK_CUR);
+
+    uint32_t flags;
+    fread(&flags, 4, 1, m_fin);
+    CompressedSNPBlocks = flags & 3;
+    std::cout << "CompressedSNPBlocks: " << CompressedSNPBlocks << std::endl;
+
+    if (CompressedSNPBlocks == COMPRESSION_ZLIB) {
+        std::cout << "Warning: your bgen file uses zlib compression, which is slow." << std::endl;
+    } else if (CompressedSNPBlocks != COMPRESSION_ZSTD) {
+        throw std::runtime_error("Bgenreader only supports zlib or zstd compression.");
+    }
+
+    uint32_t Layout = (flags >> 2) & 0xf;
+    std::cout << "Layout: " << Layout << std::endl;
+    if (Layout != 1 && Layout != 2) {
+        throw std::runtime_error("Bgenreader only supports Layout 1 or 2.");
+    }
+
+    // Seek past the header to the data area
+    fseek(m_fin, offset + 4, SEEK_SET);
+}
+
+// ============================================================
+// setPosSampleInBgen: find positions of model samples in BGEN
+// Replaces Rcpp::match() with std::unordered_map lookup
+// ============================================================
+void BgenClass::setPosSampleInBgen(std::vector<std::string>& t_SampleInModel)
+{
+    std::cout << "Setting position of samples in Bgen files...." << std::endl;
+
+    // If no sample IDs provided, use all BGEN samples in order
+    if (t_SampleInModel.empty()) {
+        m_N = m_N0;
+        std::cout << "  No sampleIDs in null model; using all " << m_N0
+                  << " samples from BGEN file." << std::endl;
+        m_posSampleInModel.resize(m_N0);
+        for (uint32_t i = 0; i < m_N0; i++) {
+            m_posSampleInModel[i] = i;
+        }
+        std::cout << "Number of samples in analysis: " << m_N << std::endl;
+        return;
+    }
+
+    m_N = t_SampleInModel.size();
+
+    // Build map of BGEN sample -> index (0-based)
+    std::unordered_map<std::string, uint32_t> bgenSampleMap;
+    for (uint32_t i = 0; i < m_N0; i++) {
+        bgenSampleMap[m_SampleInBgen[i]] = i;
+    }
+
+    // Verify all model samples exist in BGEN
+    for (uint32_t i = 0; i < m_N; i++) {
+        if (bgenSampleMap.find(t_SampleInModel[i]) == bgenSampleMap.end()) {
+            throw std::runtime_error(
+                "At least one subject requested is not in BGEN file. "
+                "Sample not found: " + t_SampleInModel[i]);
+        }
+    }
+
+    // Build map of model sample -> model index (0-based)
+    std::unordered_map<std::string, int32_t> modelSampleMap;
+    for (uint32_t i = 0; i < m_N; i++) {
+        modelSampleMap[t_SampleInModel[i]] = (int32_t)i;
+    }
+
+    // For each BGEN sample, what is its position in the model?
+    // m_posSampleInModel[bgen_idx] = model_idx, or -1 if not in model
+    m_posSampleInModel.resize(m_N0);
+    for (uint32_t i = 0; i < m_N0; i++) {
+        auto it = modelSampleMap.find(m_SampleInBgen[i]);
+        if (it != modelSampleMap.end()) {
+            m_posSampleInModel[i] = it->second;
+        } else {
+            m_posSampleInModel[i] = -1;
+        }
+    }
+
+    std::cout << "Number of samples in analysis: " << m_N << std::endl;
+}
+
+// ============================================================
+// Parse2: decompress and parse genotype probabilities
+// Direct port from SAIGE/src/BGEN.cpp::Parse2
+// ============================================================
+void BgenClass::Parse2(unsigned char* buf, uint32_t bufLen,
+                        const unsigned char* zBuf, uint32_t zBufLen,
+                        std::string& snpName,
+                        arma::vec& dosages,
+                        double& AC, double& AF,
+                        std::vector<uint>& indexforMissing,
+                        double& info,
+                        std::vector<uint>& indexNonZero,
+                        bool isImputation)
+{
+    // Decompress
+    if (CompressedSNPBlocks == COMPRESSION_ZLIB) {
+        z_stream strm = {};
+        strm.next_in = const_cast<Bytef*>(zBuf);
+        strm.avail_in = zBufLen;
+        strm.next_out = buf;
+        strm.avail_out = bufLen;
+
+        if (inflateInit(&strm) != Z_OK) {
+            std::cerr << "inflateInit failed" << std::endl;
+            return;
+        }
+
+        int ret = inflate(&strm, Z_FINISH);
+        if (ret != Z_STREAM_END) {
+            std::cerr << "inflate failed with code " << ret << std::endl;
+        }
+
+        inflateEnd(&strm);
+    }
+    if (CompressedSNPBlocks == COMPRESSION_ZSTD) {
+        ZSTD_DCtx* dctx = ZSTD_createDCtx();
+        size_t actual_decompressed_size = ZSTD_decompressDCtx(dctx, buf, bufLen, zBuf, zBufLen);
+        if (ZSTD_isError(actual_decompressed_size)) {
+            std::cerr << "Decompression failed: " << ZSTD_getErrorName(actual_decompressed_size) << std::endl;
+            ZSTD_freeDCtx(dctx);
+            return;
+        }
+        ZSTD_freeDCtx(dctx);
+    }
+
+    unsigned char* bufAt = buf;
+    uint32_t N = bufAt[0] | (bufAt[1] << 8) | (bufAt[2] << 16) | (bufAt[3] << 24);
+    bufAt += 4;
+
+    if (N != m_N0) {
+        std::cerr << "ERROR: " << snpName << " has N = " << N
+                  << " (mismatch with header block)" << std::endl;
+        throw std::runtime_error("BGEN sample count mismatch in variant " + snpName);
+    }
+
+    uint32_t K = bufAt[0] | (bufAt[1] << 8);
+    bufAt += 2;
+    if (K != 2U) {
+        std::cerr << "ERROR: " << snpName << " has K = " << K
+                  << " (non-bi-allelic)" << std::endl;
+        throw std::runtime_error("Non-bi-allelic variant in BGEN: " + snpName);
+    }
+
+    uint32_t Pmin = *bufAt; bufAt++;
+    if (Pmin != 2U) {
+        std::cerr << "ERROR: " << snpName << " has minimum ploidy = " << Pmin
+                  << " (not 2)" << std::endl;
+        throw std::runtime_error("Unsupported minimum ploidy in BGEN: " + snpName);
+    }
+
+    uint32_t Pmax = *bufAt; bufAt++;
+    if (Pmax != 2U) {
+        std::cerr << "ERROR: " << snpName << " has maximum ploidy = " << Pmax
+                  << " (not 2)" << std::endl;
+        throw std::runtime_error("Unsupported maximum ploidy in BGEN: " + snpName);
+    }
+
+    // Read per-sample ploidy/missingness bytes
+    const unsigned char* ploidyMissBytes = bufAt;
+    for (uint32_t i = 0; i < N; i++) {
+        uint32_t ploidyMiss = *bufAt; bufAt++;
+        if (ploidyMiss != 2U && ploidyMiss != 130U) {
+            std::cerr << "ERROR: " << snpName << " has ploidy/missingness byte = "
+                      << ploidyMiss << " (not 2 or 130)" << std::endl;
+            throw std::runtime_error("Unsupported ploidy/missingness in BGEN: " + snpName);
+        }
+    }
+
+    uint32_t Phased = *bufAt; bufAt++;
+    if (Phased != 0U) {
+        std::cerr << "ERROR: " << snpName << " has Phased = " << Phased
+                  << " (not 0)" << std::endl;
+        throw std::runtime_error("Phased data not supported in BGEN reader: " + snpName);
+    }
+
+    uint32_t B = *bufAt; bufAt++;
+    if (B != 8U) {
+        std::cerr << "ERROR: " << snpName << " has B = " << B
+                  << " (not 8)" << std::endl;
+        throw std::runtime_error("Unsupported bit depth in BGEN: " + snpName);
+    }
+
+    // Build lookup table for 8-bit probabilities
+    double lut[256];
+    for (int i = 0; i <= 255; i++) {
+        lut[i] = i / 255.0;
+    }
+
+    // Parse genotype probabilities
+    double sum_eij = 0, sum_fij_minus_eij2 = 0, sum_eij_sub = 0;
+    double p11, p10, dosage, eij, fij;
+    double dosage_new;
+
+    dosages.set_size(m_N);
+    dosages.fill(arma::datum::nan);
+
+    std::size_t missing_cnt = 0;
+
+    for (uint32_t i = 0; i < N; i++) {
+        if (ploidyMissBytes[i] != 130U) {
+            // Not missing
+            p11 = lut[*bufAt]; bufAt++;
+            p10 = lut[*bufAt]; bufAt++;
+
+            if (m_posSampleInModel[i] >= 0) {
+                dosage = 2 * p11 + p10;
+
+                // SAIGE default is ref-first: dosage_new = 2 - dosage
+                dosage_new = 2 - dosage;
+
+                eij = dosage;
+                fij = 4 * p11 + p10;
+                sum_eij += eij;
+                sum_fij_minus_eij2 += fij - eij * eij;
+
+                dosages[m_posSampleInModel[i]] = dosage_new;
+                if (dosage_new > 0) {
+                    indexNonZero.push_back(m_posSampleInModel[i]);
+                }
+                sum_eij_sub += eij;
+            }
+        } else {
+            // Missing (ploidy = 130)
+            bufAt += 2;
+            if (m_posSampleInModel[i] >= 0) {
+                indexforMissing.push_back(m_posSampleInModel[i]);
+                ++missing_cnt;
+                dosages[m_posSampleInModel[i]] = -1;
+            }
+        }
+    }
+
+    // Compute AC and AF
+    AC = 2 * ((double)(m_N - missing_cnt)) - sum_eij_sub;
+    if (m_N == missing_cnt) {
+        AF = 0;
+    } else {
+        AF = AC / 2 / ((double)(m_N - missing_cnt));
+    }
+
+    // Compute imputation info
+    double thetaHat = sum_eij / (2 * (m_N - missing_cnt));
+    if (isImputation) {
+        info = (thetaHat == 0 || thetaHat == 1) ? 1 :
+            1 - sum_fij_minus_eij2 / (2 * (m_N - missing_cnt) * thetaHat * (1 - thetaHat));
+    } else {
+        info = 1.0;
+    }
+}
+
+// ============================================================
+// getOneMarker: read one marker from BGEN
+// Direct port from SAIGE/src/BGEN.cpp::getOneMarker
+// t_gIndex / t_gIndex_prev are byte positions (BGEN uses byte seeking)
+// ============================================================
+void BgenClass::getOneMarker(uint64_t& t_gIndex_prev,
+                              uint64_t& t_gIndex,
+                              std::string& t_ref,
+                              std::string& t_alt,
+                              std::string& t_marker,
+                              uint32_t& t_pd,
+                              std::string& t_chr,
+                              double& t_altFreq,
+                              double& t_altCounts,
+                              double& t_missingRate,
+                              double& t_imputeInfo,
+                              bool& t_isOutputIndexForMissing,
+                              std::vector<uint>& t_indexForMissing,
+                              bool& t_isOnlyOutputNonZero,
+                              std::vector<uint>& t_indexForNonZero,
+                              bool& t_isBoolRead,
+                              arma::vec& dosages,
+                              bool t_isImputation)
+{
+    // Seek to correct position (BGEN uses byte offsets)
+    if (t_gIndex > 0) {
+        if (t_gIndex_prev > 0) {
+            uint64_t posSeek = t_gIndex - t_gIndex_prev;
+            if (posSeek > 0) {
+                fseek(m_fin, posSeek, SEEK_CUR);
+            }
+        } else {
+            fseek(m_fin, t_gIndex, SEEK_SET);
+        }
+    }
+
+    std::string SNPID, RSID, chromosome, first_allele, second_allele;
+    uint32_t position;
+    double AC, AF, info;
+
+    t_indexForMissing.clear();
+    t_indexForNonZero.clear();
+
+    char snpID[65536], rsID[65536], chrStr[65536];
+    uint16_t LS;
+    size_t numBoolRead = fread(&LS, 2, 1, m_fin);
+
+    if (numBoolRead > 0) {
+        t_isBoolRead = true;
+
+        fread(snpID, 1, LS, m_fin); snpID[LS] = '\0';
+
+        uint16_t LR;
+        fread(&LR, 2, 1, m_fin);
+        fread(rsID, 1, LR, m_fin); rsID[LR] = '\0';
+        RSID = std::string(rsID) == "." ? snpID : rsID;
+
+        uint16_t LC;
+        fread(&LC, 2, 1, m_fin);
+        fread(chrStr, 1, LC, m_fin); chrStr[LC] = '\0';
+        chromosome = std::string(chrStr);
+
+        uint32_t physpos;
+        fread(&physpos, 4, 1, m_fin);
+        position = physpos;
+
+        uint16_t K;
+        fread(&K, 2, 1, m_fin);
+
+        uint32_t LA;
+        fread(&LA, 4, 1, m_fin);
+        if (LA >= allele1.size()) {
+            allele1.resize(2 * LA);
+        }
+        fread(allele1.data(), 1, LA, m_fin); allele1[LA] = '\0';
+        first_allele = std::string(allele1.data());
+
+        uint32_t LB;
+        fread(&LB, 4, 1, m_fin);
+        if (LB >= allele0.size()) {
+            allele0.resize(2 * LB);
+        }
+        fread(allele0.data(), 1, LB, m_fin); allele0[LB] = '\0';
+        second_allele = std::string(allele0.data());
+
+        uint32_t C;
+        fread(&C, 4, 1, m_fin);
+        if (C > m_zBuf.size()) m_zBuf.resize(C - 4);
+
+        uint32_t D;
+        fread(&D, 4, 1, m_fin);
+        m_zBufLens = C - 4;
+        m_bufLens = D;
+        fread(&m_zBuf[0], 1, C - 4, m_fin);
+
+        AC = 0;
+        AF = 0;
+        info = 0;
+
+        if (m_bufLens > m_buf.size()) m_buf.resize(m_bufLens);
+
+        Parse2(&m_buf[0], m_bufLens, &m_zBuf[0], m_zBufLens,
+               RSID, dosages, AC, AF, t_indexForMissing, info,
+               t_indexForNonZero, t_isImputation);
+
+        // Default setting is "ref-first" (matching SAIGE 03-14-2021 update)
+        t_alt = second_allele;
+        t_ref = first_allele;
+        t_marker = RSID;
+        t_pd = position;
+        t_chr = chromosome;
+        t_altFreq = AF;
+        t_altCounts = AC;
+        t_imputeInfo = info;
+        t_missingRate = (double)t_indexForMissing.size() / (double)m_N;
+
+        if (m_AlleleOrder == "alt-first") {
+            t_alt = first_allele;
+            t_ref = second_allele;
+            t_altFreq = 1 - t_altFreq;
+            t_altCounts = t_altFreq * 2 * ((double)m_N - (double)t_indexForMissing.size());
+            for (unsigned int i = 0; i < dosages.n_elem; i++) {
+                if (dosages[i] >= 0) {  // don't flip missing values (-1)
+                    dosages[i] = 2 - dosages[i];
+                }
+            }
+        }
+
+        // Store marker info for index maps
+        m_chr.push_back(t_chr);
+        m_pd.push_back(t_pd);
+        m_ref.push_back(t_ref);
+        m_alt.push_back(t_alt);
+        m_MarkerInBgen.push_back(t_marker);
+
+    } else {
+        t_isBoolRead = false;
+    }
+}
+
+// ============================================================
+// getMarkerIDToIndex: build chr:pos:ref:alt -> index map
+// ============================================================
+std::unordered_map<std::string, uint32_t> BgenClass::getMarkerIDToIndex()
+{
+    std::unordered_map<std::string, uint32_t> idMap;
+    for (uint32_t i = 0; i < m_chr.size(); i++) {
+        std::string id1 = m_chr[i] + ":" + std::to_string(m_pd[i]) + ":"
+                         + m_ref[i] + ":" + m_alt[i];
+        idMap[id1] = i;
+        std::string id2 = m_chr[i] + ":" + std::to_string(m_pd[i]) + ":"
+                         + m_alt[i] + ":" + m_ref[i];
+        if (idMap.find(id2) == idMap.end()) {
+            idMap[id2] = i;
+        }
+    }
+    return idMap;
+}
+
+// ============================================================
+// getMarkerNameToIndex: build marker ID -> index map
+// ============================================================
+std::unordered_map<std::string, uint32_t> BgenClass::getMarkerNameToIndex()
+{
+    std::unordered_map<std::string, uint32_t> nameMap;
+    for (uint32_t i = 0; i < m_MarkerInBgen.size(); i++) {
+        nameMap[m_MarkerInBgen[i]] = i;
+    }
+    return nameMap;
+}
+
+// ============================================================
+// closegenofile: close the BGEN file handle
+// ============================================================
+void BgenClass::closegenofile()
+{
+    if (m_fin) {
+        fclose(m_fin);
+        m_fin = nullptr;
+    }
+}
+
+} // namespace BGEN
+
+
+// ============================================================
 // whichCPP: C++ version of which(). Note: start from 0, not 1
 // (Outside PLINK namespace, as declared in header)
 // ============================================================
@@ -998,10 +1517,37 @@ void setVCFobjInCPP(const std::string& t_vcfFileName,
 
 
 // ============================================================
+// setBGENobjInCPP: create and configure the global BGEN object
+// Mirrors SAIGE Main.cpp::setBGENobjInCPP
+// ============================================================
+void setBGENobjInCPP(const std::string& t_bgenFileName,
+                      const std::vector<std::string>& t_SampleInBgen,
+                      std::vector<std::string>& t_SampleInModel,
+                      const std::string& t_AlleleOrder)
+{
+    // Clean up any existing object
+    if (ptr_gBGENobj != nullptr) {
+        ptr_gBGENobj->closegenofile();
+        delete ptr_gBGENobj;
+        ptr_gBGENobj = nullptr;
+    }
+
+    std::cout << "t_SampleInBgen " << t_SampleInBgen.size() << std::endl;
+    ptr_gBGENobj = new BGEN::BgenClass(t_bgenFileName,
+                                        t_SampleInBgen,
+                                        t_SampleInModel,
+                                        t_AlleleOrder);
+
+    int n = ptr_gBGENobj->getN();
+    std::cout << "n:\t" << n << std::endl;
+}
+
+
+// ============================================================
 // Unified_getOneMarker: unified dispatcher for genotype reading
 //
-// Ported from SAIGE Main.cpp. Supports "plink" and "vcf".
-// Throws for "bgen", "pgen" (not yet implemented).
+// Ported from SAIGE Main.cpp. Supports "plink", "vcf", and "bgen".
+// Throws for "pgen" (not yet implemented).
 // ============================================================
 bool Unified_getOneMarker(std::string& t_genoType,
                           uint64_t& t_gIndex_prev,
@@ -1054,15 +1600,25 @@ bool Unified_getOneMarker(std::string& t_genoType,
             t_isOnlyOutputNonZero, t_indexForNonZero,
             t_GVec, t_isImputation);
     } else if (t_genoType == "bgen") {
-        throw std::runtime_error(
-            "Unified_getOneMarker: BGEN format not yet supported in standalone C++ port.");
+        if (ptr_gBGENobj == nullptr) {
+            throw std::runtime_error(
+                "Unified_getOneMarker: BGEN object not initialized. "
+                "Call setBGENobjInCPP first.");
+        }
+
+        ptr_gBGENobj->getOneMarker(t_gIndex_prev, t_gIndex,
+                                    t_ref, t_alt, t_marker, t_pd, t_chr,
+                                    t_altFreq, t_altCounts, t_missingRate, t_imputeInfo,
+                                    t_isOutputIndexForMissing, t_indexForMissing,
+                                    t_isOnlyOutputNonZero, t_indexForNonZero,
+                                    isBoolRead, t_GVec, t_isImputation);
     } else if (t_genoType == "pgen") {
         throw std::runtime_error(
             "Unified_getOneMarker: PGEN format not yet supported in standalone C++ port.");
     } else {
         throw std::runtime_error(
             "Unified_getOneMarker: Unknown genotype type '" + t_genoType + "'. "
-            "Supported types: plink, vcf");
+            "Supported types: plink, vcf, bgen");
     }
 
     return isBoolRead;
@@ -1084,6 +1640,11 @@ uint32_t Unified_getMarkerCount(std::string& t_genoType)
             throw std::runtime_error("Unified_getMarkerCount: VCF object not initialized.");
         }
         return ptr_gVCFobj->getM0();
+    } else if (t_genoType == "bgen") {
+        if (ptr_gBGENobj == nullptr) {
+            throw std::runtime_error("Unified_getMarkerCount: BGEN object not initialized.");
+        }
+        return ptr_gBGENobj->getM0();
     } else {
         throw std::runtime_error(
             "Unified_getMarkerCount: Unsupported type: " + t_genoType);
@@ -1109,6 +1670,12 @@ uint32_t Unified_getSampleSizeinGeno(std::string& t_genoType)
                 "Unified_getSampleSizeinGeno: VCF object not initialized.");
         }
         N0 = ptr_gVCFobj->getN0();
+    } else if (t_genoType == "bgen") {
+        if (ptr_gBGENobj == nullptr) {
+            throw std::runtime_error(
+                "Unified_getSampleSizeinGeno: BGEN object not initialized.");
+        }
+        N0 = ptr_gBGENobj->getN0();
     } else {
         throw std::runtime_error(
             "Unified_getSampleSizeinGeno: Unsupported type: " + t_genoType);
@@ -1135,6 +1702,12 @@ uint32_t Unified_getSampleSizeinAnalysis(std::string& t_genoType)
                 "Unified_getSampleSizeinAnalysis: VCF object not initialized.");
         }
         N = ptr_gVCFobj->getN();
+    } else if (t_genoType == "bgen") {
+        if (ptr_gBGENobj == nullptr) {
+            throw std::runtime_error(
+                "Unified_getSampleSizeinAnalysis: BGEN object not initialized.");
+        }
+        N = ptr_gBGENobj->getN();
     } else {
         throw std::runtime_error(
             "Unified_getSampleSizeinAnalysis: Unsupported type: " + t_genoType);
@@ -1158,6 +1731,11 @@ std::unordered_map<std::string, uint32_t> Unified_getMarkerIDToIndex(std::string
             throw std::runtime_error("Unified_getMarkerIDToIndex: VCF object not initialized.");
         }
         return ptr_gVCFobj->getMarkerIDToIndex();
+    } else if (t_genoType == "bgen") {
+        if (ptr_gBGENobj == nullptr) {
+            throw std::runtime_error("Unified_getMarkerIDToIndex: BGEN object not initialized.");
+        }
+        return ptr_gBGENobj->getMarkerIDToIndex();
     } else {
         throw std::runtime_error(
             "Unified_getMarkerIDToIndex: Unsupported type: " + t_genoType);
@@ -1177,6 +1755,10 @@ void closeGenoFile(std::string& t_genoType)
     } else if (t_genoType == "vcf") {
         if (ptr_gVCFobj != nullptr) {
             ptr_gVCFobj->closegenofile();
+        }
+    } else if (t_genoType == "bgen") {
+        if (ptr_gBGENobj != nullptr) {
+            ptr_gBGENobj->closegenofile();
         }
     } else {
         throw std::runtime_error(

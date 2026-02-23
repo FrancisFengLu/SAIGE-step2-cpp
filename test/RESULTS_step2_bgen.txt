@@ -1,0 +1,35 @@
+SAIGE Step 2 BGEN Validation Results
+=====================================
+Date: 2026-02-23
+
+Test: BGEN genotype reader vs PLINK baseline
+  - Both use the same null model (nullmodel_from_rda, quantitative trait)
+  - Both use the same variance ratios (example_quantitative.varianceRatio.txt)
+  - Both use AlleleOrder: alt-first
+  - PLINK input: nfam_100_nindep_0_step1_includeMoreRareVariants_poly (.bed/.bim/.fam)
+  - BGEN input:  test_genotypes.bgen (converted from same PLINK files)
+  - BGEN format: v1.2 Layout 2, zstd compression, 8-bit probabilities, unphased
+
+Data:
+  Samples:  1000
+  Markers:  128,868
+  Missing:  0
+
+PLINK output: test/output/cpp_compare_results.txt (128,869 lines incl. header)
+BGEN output:  test/output/cpp_bgen_results.txt   (128,869 lines incl. header)
+
+Comparison method: byte-for-byte diff + MD5 checksum
+
+Result: EXACT MATCH
+  - diff: no differences found
+  - MD5(PLINK output): 1e72c1e5e23afaa37bc2b4c827112ec9
+  - MD5(BGEN output):  1e72c1e5e23afaa37bc2b4c827112ec9
+  - All 128,868 markers tested successfully
+  - All columns match: CHR, POS, MarkerID, Allele1, Allele2, AC_Allele2,
+    AF_Allele2, MissingRate, BETA, SE, Tstat, var, p.value, N
+
+Performance:
+  BGEN reader: 1.50 seconds (128,868 markers, zstd decompression)
+
+Config used: code_copy/cpp_standalone/config_test_bgen.yaml
+Converter:   test/convert_plink_to_bgen.py

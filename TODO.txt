@@ -893,7 +893,7 @@ Each test config exercises different code paths. Ordered by priority.
 
 [ ] Test 12: Non-PLINK genotype formats (VCF, BGEN, PGEN)
     VCF:  DONE — htslib-based, validated EXACT match (128,868 markers)
-    BGEN: IN PROGRESS
+    BGEN: DONE — zstd/zlib, validated EXACT match (128,868 markers)
     PGEN: TODO
 
 ─── TESTING INFRASTRUCTURE ────────────────────────────────────────────────────
