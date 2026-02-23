@@ -845,12 +845,17 @@ Each test config exercises different code paths. Ordered by priority.
       - VR label format parsing
     Fixes: VR label parser, MAC category defaults, theta key fallback
 
-[ ] Test 6: scoreTestFast_noadjCov path
-    Requirements: noadjCov=true + sparseGRM=true
-    New code paths:
-      - saige_test.cpp: scoreTestFast_noadjCov()
-      - Simplified variance without covariate adjustment
-    Note: Niche use case, lower priority
+[x] Test 6: scoreTestFast_noadjCov path
+    Config:   config_compare_sparse_noadjcov.yaml
+    Data:     Same PLINK (128,868 markers), sparseGRM null model (LOCO=FALSE)
+    Model:    Same as Test 5 + new VR file with null_noXadj entry
+    Date:     Feb 22, 2026
+    Result:   ALL EXACT (644,340/644,340 values, 0 difference)
+    Code paths exercised:
+      - scoreTestFast_noadjCov (no covariate adjustment, 122,021 markers)
+      - varRatio_null_noXadj selection
+      - Re-evaluation for p < 0.05 markers
+    Fixes: Created VR file with null_noXadj, isnoadjCov YAML override
 
 [ ] Test 7: Conditional analysis
     Requirements: isCondition=true + conditioning variant indices

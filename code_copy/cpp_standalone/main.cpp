@@ -2768,6 +2768,14 @@ int main(int argc, char* argv[])
             std::cout << "]" << std::endl;
         }
 
+        // ---- Override isnoadjCov from YAML config ----
+        // The JSON null model may have isnoadjCov=false, but the YAML config
+        // can override it (e.g., for testing the scoreTestFast_noadjCov path).
+        if (config["isnoadjCov"]) {
+            nullModel.isnoadjCov = config["isnoadjCov"].as<bool>();
+            std::cout << "  isnoadjCov overridden from config: " << std::boolalpha << nullModel.isnoadjCov << std::endl;
+        }
+
         // ---- 5. Construct SAIGEClass from NullModelData ----
         std::cout << "===== Constructing SAIGEClass =====" << std::endl;
         setSAIGEobjInCPP(

@@ -1,0 +1,22 @@
+SAIGE Step 2: R vs C++ Comparison Results (Sparse GRM + noadjCov)
+Date: 2026-02-22 22:01:22.476612 
+R results: /Users/francis/Desktop/Zhou_lab/SAIGE_gene_pixi/Step_2_Feb_11/test/R/r_step2_sparse_noadjcov_results.txt 
+C++ results: /Users/francis/Desktop/Zhou_lab/SAIGE_gene_pixi/Step_2_Feb_11/test/output/cpp_compare_sparse_noadjcov_results.txt 
+Model: example_quantitative_sparseGRM.rda (LOCO=FALSE, isFastTest=TRUE, is_noadjCov=TRUE)
+========================================================================================================= 
+
+R markers:   128868
+C++ markers: 128868
+Overlapping: 128868
+
+Column     |   Total |   EXACT |   MATCH |   CLOSE |  DIFFER |   MaxRelDiff |   MaxAbsDiff |   MedRelDiff
+--------------------------------------------------------------------------------------------------------- 
+BETA       |  128868 |  128868 |       0 |       0 |       0 |    0.000e+00 |    0.000e+00 |    0.000e+00
+SE         |  128868 |  128868 |       0 |       0 |       0 |    0.000e+00 |    0.000e+00 |    0.000e+00
+Tstat      |  128868 |  128868 |       0 |       0 |       0 |    0.000e+00 |    0.000e+00 |    0.000e+00
+var        |  128868 |  128868 |       0 |       0 |       0 |    0.000e+00 |    0.000e+00 |    0.000e+00
+p.value    |  128868 |  128868 |       0 |       0 |       0 |    0.000e+00 |    0.000e+00 |    0.000e+00
+
+Total comparisons: 644340
+DIFFER: 0
+OVERALL: PASS

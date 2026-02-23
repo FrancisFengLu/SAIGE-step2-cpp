@@ -440,13 +440,39 @@ New files:
   test/data/nullmodel_from_rda_sparse/ (18 files)
   test/RESULTS_step2_sparse.txt
 
-### Validation Summary (5 TESTS COMPLETE)
+### Test 6: scoreTestFast_noadjCov — ALL EXACT
+
+Result: 644,340/644,340 values EXACT across all 5 columns (128,868 markers).
+122,021 markers used noadjCov path (confirmed by differing from Test 5).
+
+Key fixes:
+  - VR file needed null_noXadj entry — re-ran SAIGE Step 1 VR estimation
+    to compute null_noXadj value (1.23046133684624)
+  - Created new VR file: test/data/varianceRatio_sparse_noadjcov.txt
+    with all 3 types: sparse(1.0), null(1.2292), null_noXadj(1.2305)
+  - main.cpp: added isnoadjCov YAML override (JSON may have false,
+    config overrides to true)
+
+Code paths exercised:
+  - scoreTestFast_noadjCov (no covariate adjustment, fixed AF variance)
+  - varRatio_null_noXadj selection in assignVarianceRatio
+  - Re-evaluation with standard path for markers with p < 0.05
+
+New files:
+  test/R/run_r_step2_sparse_noadjcov.R
+  test/compare_step2_sparse_noadjcov.R
+  code_copy/cpp_standalone/config_compare_sparse_noadjcov.yaml
+  test/data/varianceRatio_sparse_noadjcov.txt
+  test/RESULTS_step2_sparse_noadjcov.txt
+
+### Validation Summary (6 TESTS COMPLETE)
 
   Test 1: Quant + Single-Variant  → ALL EXACT (128,868 markers)
   Test 2: Binary + Single-Variant → ALL EXACT (70 markers)
   Test 3: Quant + Region          → BURDEN/SKAT PASS, SKAT-O ~5%
   Test 4: Binary + Region         → BURDEN/SKAT PASS, SKAT-O ~8.5%
   Test 5: Sparse + Single-Variant → ALL EXACT (128,868 markers)
+  Test 6: Sparse + noadjCov       → ALL EXACT (128,868 markers)
 
 ================================================================================
 END OF SESSION NOTES
