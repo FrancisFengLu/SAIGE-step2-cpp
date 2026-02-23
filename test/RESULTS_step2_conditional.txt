@@ -1,0 +1,31 @@
+SAIGE Step 2 Conditional Analysis: R vs C++ Comparison Results
+=============================================================
+Date: 2026-02-22 23:00:30.668889
+R file:   /Users/francis/Desktop/Zhou_lab/SAIGE_gene_pixi/Step_2_Feb_11/test/R/r_step2_conditional_results.txt
+C++ file: /Users/francis/Desktop/Zhou_lab/SAIGE_gene_pixi/Step_2_Feb_11/test/output/cpp_compare_conditional_results.txt
+R rows:   128868
+C++ rows: 128868
+Conditioning markers: rs1e+05, rs8, rs9
+
+UNCONDITIONAL COLUMNS:
+  BETA        : PASS  (n=128868, exact=128868, max_rel=0.00e+00)
+  SE          : PASS  (n=128868, exact=128868, max_rel=0.00e+00)
+  Tstat       : PASS  (n=128868, exact=128868, max_rel=0.00e+00)
+  var         : PASS  (n=128868, exact=128868, max_rel=0.00e+00)
+  p.value     : PASS  (n=128868, exact=128868, max_rel=0.00e+00)
+
+CONDITIONAL COLUMNS (excl. conditioning markers):
+  BETA_c      : PASS  (n=128865, exact=128865, max_rel=0.00e+00, max_abs=0.00e+00)
+  SE_c        : PASS  (n=128865, exact=128865, max_rel=0.00e+00, max_abs=0.00e+00)
+  Tstat_c     : PASS  (n=128865, exact=128865, max_rel=0.00e+00, max_abs=0.00e+00)
+  var_c       : PASS  (n=128865, exact=128865, max_rel=0.00e+00, max_abs=0.00e+00)
+  p.value_c   : PASS  (n=128865, exact=128865, max_rel=0.00e+00, max_abs=0.00e+00)
+
+CONDITIONAL COLUMNS (all markers, incl. conditioning markers):
+  BETA_c      : FAIL  (n=128868, exact=128865, max_rel=5.00e-01, max_abs=1.56e-02)
+  SE_c        : FAIL  (n=128868, exact=128865, max_rel=3.68e-01, max_abs=1.23e+06)
+  Tstat_c     : FAIL  (n=128868, exact=128866, max_rel=6.67e-01, max_abs=1.42e-14)
+  var_c       : FAIL  (n=128868, exact=128865, max_rel=6.00e-01, max_abs=4.55e-13)
+  p.value_c   : PASS  (n=128868, exact=128868, max_rel=0.00e+00, max_abs=0.00e+00)
+
+OVERALL VERDICT: PASS

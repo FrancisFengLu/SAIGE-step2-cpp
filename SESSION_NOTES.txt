@@ -474,6 +474,36 @@ New files:
   Test 5: Sparse + Single-Variant → ALL EXACT (128,868 markers)
   Test 6: Sparse + noadjCov       → ALL EXACT (128,868 markers)
 
+### Test 7: Conditional Analysis — ALL EXACT
+
+Result: 644,325/644,325 non-conditioning values EXACT across all 10 columns
+(5 unconditional + 5 conditional: BETA_c, SE_c, Tstat_c, var_c, p.value_c).
+
+Conditioning markers: rs1e+05 (idx 1), rs8 (idx 6), rs9 (idx 7)
+Both R and C++ report p.value_c = 1.0 for markers conditioned on themselves.
+
+Code changes:
+  - genotype_reader.hpp: added getMarkerNameToIndex() lookup
+  - saige_test.hpp: m_condition_genoIndex moved to public
+  - main.cpp: added condition YAML parsing + assign_conditionMarkers_factors()
+    ported from SAIGE/src/Main.cpp
+
+New files:
+  test/R/run_r_step2_conditional.R
+  test/compare_step2_conditional.R
+  code_copy/cpp_standalone/config_compare_conditional.yaml
+  test/RESULTS_step2_conditional.txt
+
+### Validation Summary (7 TESTS COMPLETE)
+
+  Test 1: Quant + Single-Variant  → ALL EXACT (128,868 markers)
+  Test 2: Binary + Single-Variant → ALL EXACT (70 markers)
+  Test 3: Quant + Region          → BURDEN/SKAT PASS, SKAT-O ~5%
+  Test 4: Binary + Region         → BURDEN/SKAT PASS, SKAT-O ~8.5%
+  Test 5: Sparse + Single-Variant → ALL EXACT (128,868 markers)
+  Test 6: Sparse + noadjCov       → ALL EXACT (128,868 markers)
+  Test 7: Conditional Analysis    → ALL EXACT (128,865 markers + 3 cond)
+
 ================================================================================
 END OF SESSION NOTES
 ================================================================================

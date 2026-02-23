@@ -857,13 +857,17 @@ Each test config exercises different code paths. Ordered by priority.
       - Re-evaluation for p < 0.05 markers
     Fixes: Created VR file with null_noXadj, isnoadjCov YAML override
 
-[ ] Test 7: Conditional analysis
-    Requirements: isCondition=true + conditioning variant indices
-    New code paths:
-      - assignConditionFactors() — set up conditioning matrices
-      - getMarkerPval() conditional branch (lines 700-914 in saige_test.cpp)
-      - Conditional output columns (Beta_c, SE_c, Tstat_c, pval_c)
-    Blocker: Need config with condition_genoIndex specified
+[x] Test 7: Conditional analysis
+    Config:   config_compare_conditional.yaml
+    Data:     Same PLINK + quantitative LOCO model, condition on rs1e+05,rs8,rs9
+    Date:     Feb 22, 2026
+    Result:   ALL EXACT (644,325/644,325 non-conditioning values, 10 columns)
+    Code paths exercised:
+      - assign_conditionMarkers_factors() (ported from SAIGE Main.cpp)
+      - assignConditionFactors() — conditioning matrices setup
+      - getMarkerPval() conditional branch (BETA_c, SE_c, Tstat_c, var_c, p.value_c)
+      - Marker lookup by rsID in genotype reader
+    Code changes: condition YAML parsing, getMarkerNameToIndex(), public m_condition_genoIndex
 
 [ ] Test 8: Multiple variance ratio categories
     Requirements: varianceRatio.txt with multiple rows (different MAC bins)

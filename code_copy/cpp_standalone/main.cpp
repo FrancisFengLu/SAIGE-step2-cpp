@@ -27,6 +27,7 @@
 #include <cstdio>
 #include <fstream>
 #include <string>
+#include <sstream>
 #include <iostream>
 #include <cmath>
 #include <iomanip>
@@ -272,6 +273,163 @@ void setSAIGEobjInCPP(arma::mat & t_XVX,
         t_pCutoffforFirth,
         t_offset,
         t_resout);
+}
+
+
+// ============================================================
+// assign_conditionMarkers_factors
+// Ported from SAIGE/src/Main.cpp lines 2189-2366
+// Reads conditioning marker genotypes, computes their test stats,
+// and stores the results in SAIGEClass for conditional analysis.
+// ============================================================
+void assign_conditionMarkers_factors(
+    std::string t_genoType,
+    std::vector<uint32_t> & t_genoIndex,
+    unsigned int t_n,
+    arma::vec & t_weight_cond)
+{
+    ptr_gSAIGEobj->set_flagSparseGRM_cur(ptr_gSAIGEobj->m_flagSparseGRM);
+    bool isImpute = false;
+    unsigned int q = t_genoIndex.size();
+    arma::mat P1Mat(q, t_n);
+    arma::mat P2Mat(t_n, q);
+    arma::mat VarInvMat(q, q);
+    arma::vec TstatVec(q);
+    std::vector<std::string> pVec(q, "NA");
+    arma::vec MAFVec(q);
+    arma::vec gyVec(q);
+    arma::vec w0G2_cond_Vec(q);
+    arma::vec gsumVec(t_n, arma::fill::zeros);
+    boost::math::beta_distribution<> beta_dist(g_weights_beta[0], g_weights_beta[1]);
+    arma::vec GVec(t_n);
+    std::string pval, pval_noSPA;
+    double Beta, seBeta, Tstat, varT, gy, w0G2_cond;
+    bool isSPAConverge, is_gtilde, is_Firth, is_FirthConverge;
+    arma::vec P2Vec(t_n);
+
+    std::string pval_c, pval_noSPA_c;
+    double Beta_c, seBeta_c, Tstat_c, varT_c;
+    arma::rowvec G1tilde_P_G2tilde_Vec;
+    bool isCondition = false;  // Don't condition on self when reading conditioning markers
+
+    for (unsigned int i = 0; i < q; i++) {
+        double altFreq, altCounts, missingRate, imputeInfo;
+        std::vector<uint> indexForMissing;
+        std::vector<uint> indexZeroVec;
+        std::vector<uint> indexNonZeroVec;
+        std::string chr, ref, alt, marker;
+        uint32_t pd;
+        bool flip = false;
+
+        bool isOutputIndexForMissing = true;
+        bool isOnlyOutputNonZero = false;
+
+        uint64_t gIndex = (uint64_t)t_genoIndex[i];
+        uint64_t gIndex_prev = 0;
+        if (i > 0) {
+            gIndex_prev = (uint64_t)t_genoIndex[i-1];
+        }
+
+        bool isReadMarker = Unified_getOneMarker(t_genoType, gIndex_prev, gIndex, ref, alt, marker, pd, chr,
+                                                  altFreq, altCounts, missingRate, imputeInfo,
+                                                  isOutputIndexForMissing,
+                                                  indexForMissing,
+                                                  isOnlyOutputNonZero,
+                                                  indexNonZeroVec, GVec, isImpute);
+        if (!isReadMarker) {
+            throw std::runtime_error("Failed to read conditioning marker at index " +
+                                     std::to_string(t_genoIndex[i]));
+        }
+
+        std::string info = chr + ":" + std::to_string(pd) + "_" + ref + "/" + alt;
+
+        double MAF = std::min(altFreq, 1.0 - altFreq);
+        double MAC = MAF * 2 * t_n * (1.0 - missingRate);
+
+        bool hasVarRatio;
+        if ((ptr_gSAIGEobj->m_varRatio_null).n_elem == 1) {
+            ptr_gSAIGEobj->assignSingleVarianceRatio(ptr_gSAIGEobj->m_flagSparseGRM, false);
+        } else {
+            hasVarRatio = ptr_gSAIGEobj->assignVarianceRatio(MAC, ptr_gSAIGEobj->m_flagSparseGRM, false);
+        }
+
+        flip = imputeGenoAndFlip(GVec, altFreq, altCounts, indexForMissing,
+                                  g_impute_method, g_dosage_zerod_cutoff,
+                                  g_dosage_zerod_MAC_cutoff, MAC,
+                                  indexZeroVec, indexNonZeroVec);
+
+        arma::uvec indexZeroVec_arma, indexNonZeroVec_arma;
+        indexZeroVec_arma = arma::conv_to<arma::uvec>::from(indexZeroVec);
+        indexNonZeroVec_arma = arma::conv_to<arma::uvec>::from(indexNonZeroVec);
+
+        MAF = std::min(altFreq, 1.0 - altFreq);
+        MAC = std::min(altCounts, 2.0 * t_n - altCounts);
+
+        arma::vec gtildeVec;
+
+        if (MAC <= g_MACCutoffforER && ptr_gSAIGEobj->m_traitType == "binary") {
+            Unified_getMarkerPval(
+                GVec, false, indexNonZeroVec_arma, indexZeroVec_arma,
+                Beta, seBeta, pval, pval_noSPA, Tstat, gy, varT, altFreq,
+                isSPAConverge, gtildeVec, is_gtilde, true, P2Vec,
+                isCondition, Beta_c, seBeta_c, pval_c, pval_noSPA_c,
+                Tstat_c, varT_c, G1tilde_P_G2tilde_Vec,
+                is_Firth, is_FirthConverge, true, false,
+                ptr_gSAIGEobj->m_flagSparseGRM);
+        } else {
+            Unified_getMarkerPval(
+                GVec, false, indexNonZeroVec_arma, indexZeroVec_arma,
+                Beta, seBeta, pval, pval_noSPA, Tstat, gy, varT, altFreq,
+                isSPAConverge, gtildeVec, is_gtilde, true, P2Vec,
+                isCondition, Beta_c, seBeta_c, pval_c, pval_noSPA_c,
+                Tstat_c, varT_c, G1tilde_P_G2tilde_Vec,
+                is_Firth, is_FirthConverge, false, false,
+                ptr_gSAIGEobj->m_flagSparseGRM);
+        }
+
+        P1Mat.row(i) = sqrt(ptr_gSAIGEobj->m_varRatioVal) * gtildeVec.t();
+        P2Mat.col(i) = sqrt(ptr_gSAIGEobj->m_varRatioVal) * P2Vec;
+        MAFVec(i) = MAF;
+
+        if (MAF == 0.0) {
+            std::cerr << "ERROR: Conditioning marker " << info << " is monomorphic" << std::endl;
+        }
+
+        if (!t_weight_cond.is_zero()) {
+            w0G2_cond = t_weight_cond(i);
+        } else {
+            w0G2_cond = boost::math::pdf(beta_dist, MAF);
+        }
+        w0G2_cond_Vec(i) = w0G2_cond;
+        gyVec(i) = gy * w0G2_cond;
+        gsumVec = gsumVec + GVec * w0G2_cond;
+        TstatVec(i) = Tstat;
+        pVec.at(i) = pval;
+
+        std::cout << "    Condition marker " << i << ": " << info
+                  << " MAF=" << MAF << " MAC=" << MAC
+                  << " Beta=" << Beta << " Tstat=" << Tstat
+                  << " pval=" << pval << std::endl;
+    }
+
+    arma::mat VarMat = P1Mat * P2Mat;
+    VarInvMat = arma::pinv(VarMat);
+    double qsum = arma::accu(gyVec);
+    arma::vec gsumtildeVec;
+
+    ptr_gSAIGEobj->getadjG(gsumVec, gsumtildeVec);
+    ptr_gSAIGEobj->assignConditionFactors(
+        P2Mat,
+        VarInvMat,
+        VarMat,
+        TstatVec,
+        w0G2_cond_Vec,
+        MAFVec,
+        qsum,
+        gsumtildeVec,
+        pVec);
+
+    std::cout << "  Conditioning factors assigned successfully." << std::endl;
 }
 
 
@@ -2620,6 +2778,38 @@ int main(int argc, char* argv[])
         bool isLDMatrix = config["isLDMatrix"] ? config["isLDMatrix"].as<bool>() : false;
         double ldmat_maxMAF = config["ldmat_maxMAF"] ? config["ldmat_maxMAF"].as<double>() : 0.5;
 
+        // ---- Conditional analysis config ----
+        // condition: list of marker IDs to condition on (rsIDs or chr:pos:ref:alt format)
+        std::vector<std::string> conditionMarkerIDs;
+        if (config["condition"] && config["condition"].IsSequence()) {
+            for (size_t i = 0; i < config["condition"].size(); i++) {
+                conditionMarkerIDs.push_back(config["condition"][i].as<std::string>());
+            }
+        } else if (config["condition"] && config["condition"].IsScalar()) {
+            // Also support comma-separated string like R: "rs1,rs3,rs5"
+            std::string condStr = config["condition"].as<std::string>();
+            if (!condStr.empty()) {
+                std::stringstream ss(condStr);
+                std::string token;
+                while (std::getline(ss, token, ',')) {
+                    // Trim whitespace
+                    size_t start = token.find_first_not_of(" \t");
+                    size_t end = token.find_last_not_of(" \t");
+                    if (start != std::string::npos) {
+                        conditionMarkerIDs.push_back(token.substr(start, end - start + 1));
+                    }
+                }
+            }
+        }
+        // Condition weights (optional, like R's weights_for_condition)
+        arma::vec condition_weights;
+        if (config["weights_for_condition"] && config["weights_for_condition"].IsSequence()) {
+            condition_weights.set_size(config["weights_for_condition"].size());
+            for (size_t i = 0; i < config["weights_for_condition"].size(); i++) {
+                condition_weights(i) = config["weights_for_condition"][i].as<double>();
+            }
+        }
+
         // Build r_corr vector: if r_corr_val == 0, use SKAT-O optimal.adj rho grid
         // If r_corr_val == 1, use BURDEN (single rho = 1)
         arma::vec r_corr_vec;
@@ -2696,6 +2886,24 @@ int main(int argc, char* argv[])
             std::cout << "  --- LD Matrix generation ---" << std::endl;
             std::cout << "  isLDMatrix:        " << std::boolalpha << isLDMatrix << std::endl;
             std::cout << "  ldmat_maxMAF:      " << ldmat_maxMAF << std::endl;
+        }
+        if (!conditionMarkerIDs.empty()) {
+            std::cout << std::endl;
+            std::cout << "  --- Conditional analysis ---" << std::endl;
+            std::cout << "  condition markers: [";
+            for (size_t i = 0; i < conditionMarkerIDs.size(); i++) {
+                if (i > 0) std::cout << ", ";
+                std::cout << conditionMarkerIDs[i];
+            }
+            std::cout << "]" << std::endl;
+            if (condition_weights.n_elem > 0) {
+                std::cout << "  weights_for_condition: [";
+                for (size_t i = 0; i < condition_weights.n_elem; i++) {
+                    if (i > 0) std::cout << ", ";
+                    std::cout << condition_weights(i);
+                }
+                std::cout << "]" << std::endl;
+            }
         }
         std::cout << std::endl;
 
@@ -2776,6 +2984,19 @@ int main(int argc, char* argv[])
             std::cout << "  isnoadjCov overridden from config: " << std::boolalpha << nullModel.isnoadjCov << std::endl;
         }
 
+        // ---- Set isCondition from YAML condition markers ----
+        // Note: isCondition is set to true if condition markers are specified.
+        // The actual condition_genoIndex will be populated after PLINK setup
+        // (since we need the genotype file to look up marker indices).
+        if (!conditionMarkerIDs.empty()) {
+            nullModel.isCondition = true;
+            // Use a dummy condition_genoIndex for now; will be populated after PLINK setup.
+            // SAIGEClass just needs to know m_numMarker_cond.
+            nullModel.condition_genoIndex.resize(conditionMarkerIDs.size(), 0);
+            std::cout << "  Conditional analysis enabled with " << conditionMarkerIDs.size()
+                      << " conditioning markers." << std::endl;
+        }
+
         // ---- 5. Construct SAIGEClass from NullModelData ----
         std::cout << "===== Constructing SAIGEClass =====" << std::endl;
         setSAIGEobjInCPP(
@@ -2838,6 +3059,76 @@ int main(int argc, char* argv[])
         if ((int)numSamplesAnalysis != nullModel.n) {
             std::cerr << "WARNING: Sample size mismatch. Null model n=" << nullModel.n
                       << " but genotype file analysis n=" << numSamplesAnalysis << std::endl;
+        }
+
+        // ---- 6b. Set up conditional analysis (if condition markers specified) ----
+        if (!conditionMarkerIDs.empty()) {
+            std::cout << "===== Setting up conditional analysis =====" << std::endl;
+            std::cout << "  Looking up " << conditionMarkerIDs.size()
+                      << " conditioning marker(s) in genotype file..." << std::endl;
+
+            // Build lookup maps: rsID -> index and chr:pos:ref:alt -> index
+            std::unordered_map<std::string, uint32_t> markerNameMap = ptr_gPLINKobj->getMarkerNameToIndex();
+            std::unordered_map<std::string, uint32_t> markerIDMap = ptr_gPLINKobj->getMarkerIDToIndex();
+
+            std::vector<uint32_t> condGenoIndices;
+            for (size_t i = 0; i < conditionMarkerIDs.size(); i++) {
+                const std::string& markerID = conditionMarkerIDs[i];
+                uint32_t idx = 0;
+                bool found = false;
+
+                // Try rsID lookup first (m_MarkerInPlink, column 2 of .bim)
+                auto it1 = markerNameMap.find(markerID);
+                if (it1 != markerNameMap.end()) {
+                    idx = it1->second;
+                    found = true;
+                }
+
+                // Try chr:pos:ref:alt lookup if rsID not found
+                if (!found) {
+                    auto it2 = markerIDMap.find(markerID);
+                    if (it2 != markerIDMap.end()) {
+                        idx = it2->second;
+                        found = true;
+                    }
+                }
+
+                if (!found) {
+                    throw std::runtime_error(
+                        "Conditioning marker '" + markerID +
+                        "' not found in genotype file. "
+                        "Use rsID or chr:pos:ref:alt format.");
+                }
+
+                condGenoIndices.push_back(idx);
+                std::cout << "    " << markerID << " -> index " << idx << std::endl;
+            }
+
+            // Update SAIGEClass with actual condition indices
+            ptr_gSAIGEobj->m_condition_genoIndex = condGenoIndices;
+            ptr_gSAIGEobj->m_numMarker_cond = condGenoIndices.size();
+
+            // Set up condition weights
+            arma::vec cond_weights;
+            if (condition_weights.n_elem > 0) {
+                if (condition_weights.n_elem != condGenoIndices.size()) {
+                    throw std::runtime_error(
+                        "weights_for_condition length (" +
+                        std::to_string(condition_weights.n_elem) +
+                        ") does not match number of conditioning markers (" +
+                        std::to_string(condGenoIndices.size()) + ")");
+                }
+                cond_weights = condition_weights;
+            } else {
+                // Default: zero weights (will use Beta(MAF, 1, 25) in assign_conditionMarkers_factors)
+                cond_weights.zeros(condGenoIndices.size());
+            }
+
+            // Read conditioning marker genotypes and compute factors
+            std::cout << "  Reading conditioning marker genotypes..." << std::endl;
+            assign_conditionMarkers_factors(genoType, condGenoIndices,
+                                            numSamplesAnalysis, cond_weights);
+            std::cout << std::endl;
         }
 
         // ================================================================

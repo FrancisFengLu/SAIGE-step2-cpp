@@ -24,12 +24,11 @@ class SAIGEClass
       arma::vec m_tauvec;
       arma::vec  m_S_a;
       std::string m_impute_method;
-      std::vector<uint32_t> m_condition_genoIndex;
-
       // RNG engine replacing R's set.seed
       std::mt19937 m_rng_engine;
 
     public:
+      std::vector<uint32_t> m_condition_genoIndex;
            std::string m_traitType;
       arma::mat m_XXVX_inv;
       arma::mat m_XV;

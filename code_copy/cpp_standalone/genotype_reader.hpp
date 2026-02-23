@@ -171,6 +171,16 @@ public:
         return idMap;
     }
 
+    // Build a map from rsID (column 2 of .bim, m_MarkerInPlink) to marker index
+    // Used by conditional analysis to look up conditioning markers by name
+    std::unordered_map<std::string, uint32_t> getMarkerNameToIndex() {
+        std::unordered_map<std::string, uint32_t> nameMap;
+        for (uint32_t i = 0; i < m_M0; i++) {
+            nameMap[m_MarkerInPlink[i]] = i;
+        }
+        return nameMap;
+    }
+
     void closegenofile();
 };
 
