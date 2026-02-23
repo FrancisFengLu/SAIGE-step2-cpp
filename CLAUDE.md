@@ -309,6 +309,25 @@ quantile was 13x slower for only 0.5% improvement). All other columns match well
 
 **ALL EXACT** (350/350 values) including SPA, Firth correction, and ER resampling.
 
+### Sparse GRM Single-Variant Testing: VALIDATED (Feb 20, 2026)
+
+**EXACT MATCH**: 644,340/644,340 values identical across all 5 columns
+(BETA, SE, Tstat, var, p.value) for 128,868 markers.
+
+Model: `example_quantitative_sparseGRM.rda` (LOCO=FALSE, isFastTest=TRUE)
+Config: `config_compare_sparse.yaml`
+Comparison: `compare_step2_sparse.R` → `RESULTS_step2_sparse.txt`
+
+Key fix: R's `SPAGMMATtest` passes `cateVarRatioMinMACVecExclude = c(10.5, 20.5)` as
+a function default, regardless of the VR file. This controls which MAC threshold
+triggers the PCG (sparse GRM) path during re-evaluation for markers with p < 0.05.
+The null_model_loader now auto-applies R's defaults for single-VR label format files.
+
+Note: For markers with MAC <= 20 and p < 0.05, both R and C++ enter the PCG
+(scoreTest) path. The sparse sigma matrix stores only the lower triangle (from
+R's dsTMatrix), causing PCG convergence issues and negative variance for 49 markers.
+This is a known SAIGE behavior that we replicate faithfully.
+
 ## Key Variables
 
 | Variable | Type | Description |
@@ -335,3 +354,5 @@ quantile was 13x slower for only 0.5% improvement). All other columns match well
 7. **Armadillo binary format**: Always use `ARMA_MAT_BIN_FN008` header, even for vectors. `ARMA_COL_BIN_FN008` is not recognized by `vec::load(arma_binary)`.
 8. **Empty sampleIDs fallback**: When null model has no sampleIDs, the genotype reader uses all fam samples in order (identity mapping).
 9. **Pixi required**: System R does not have SAIGE. All R SAIGE operations must go through pixi.
+10. **cateVarRatioMinMACVecExclude defaults**: R's `SPAGMMATtest` passes `cateVarRatioMinMACVecExclude = c(10.5, 20.5)` as a function default, independent of VR file content. This controls which MAC threshold triggers the PCG path during re-evaluation (isFastTest). For single-VR label format files, the null_model_loader auto-applies R's defaults (2 categories: MAC 10.5-20.5 and MAC 20.5+).
+11. **Sparse GRM lower triangle only**: R's `dsTMatrix` stores only the lower triangle of the sparse sigma matrix. Both R SAIGE and our converter pass only these entries to `arma::sp_mat`, creating a non-symmetric matrix. This causes PCG convergence issues for markers entering the scoreTest path (MAC <= 20, p < 0.05). This is a known SAIGE behavior that we replicate.

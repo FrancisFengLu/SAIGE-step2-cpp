@@ -95,6 +95,13 @@ void loadVarianceRatios(const std::string & filepath,
 
     std::string line;
     bool headerSkipped = false;
+    bool labelFormat = false;   // true if 3-col "value type nMarkers" format
+    bool formatDetected = false;
+
+    // Temporary storage for label-based format
+    std::vector<double> label_sparse_vec;
+    std::vector<double> label_null_vec;
+    std::vector<double> label_noXadj_vec;
 
     while (std::getline(infile, line)) {
         // Skip empty lines
@@ -102,27 +109,23 @@ void loadVarianceRatios(const std::string & filepath,
 
         // Skip header line: detect by checking if first token is non-numeric
         if (!headerSkipped) {
-            // Try to parse the first token as a number
             std::istringstream testss(line);
             std::string firstToken;
             testss >> firstToken;
-            // If the first token starts with a letter, it's a header
             if (!firstToken.empty() && (std::isalpha(firstToken[0]) || firstToken[0] == '#')) {
                 headerSkipped = true;
                 continue;
             }
             headerSkipped = true;
-            // Fall through to parse this line as data
         }
 
         std::istringstream ss(line);
-        double col1, col2, col3, col4, col5;
-
-        // Column 1: varianceRatio (null)
+        double col1;
         if (!(ss >> col1)) continue;
 
-        // Column 2: varianceRatioSparse
-        if (!(ss >> col2)) {
+        // Read second token as string to detect format
+        std::string tok2;
+        if (!(ss >> tok2)) {
             // Only 1 column: use col1 for everything
             vr_null_vec.push_back(col1);
             vr_sparse_vec.push_back(col1);
@@ -132,39 +135,90 @@ void loadVarianceRatios(const std::string & filepath,
             continue;
         }
 
-        // Column 3: MAC_cate_min
-        if (!(ss >> col3)) {
-            // 2 columns only
-            vr_null_vec.push_back(col1);
-            vr_sparse_vec.push_back(col2);
-            mac_min_vec.push_back(0.0);
-            mac_max_vec.push_back(1e10);
-            vr_noXadj_vec.push_back(col1);
-            continue;
+        // Detect format: if tok2 is "sparse"/"null"/"null_noXadj", it's label format
+        if (!formatDetected) {
+            if (tok2 == "sparse" || tok2 == "null" || tok2 == "null_noXadj") {
+                labelFormat = true;
+            }
+            formatDetected = true;
         }
 
-        // Column 4: MAC_cate_max
-        if (!(ss >> col4)) {
-            // 3 columns
+        if (labelFormat) {
+            // 3-column format: value type nMarkers (SAIGE >= 1.0.6)
+            if (tok2 == "sparse") {
+                label_sparse_vec.push_back(col1);
+            } else if (tok2 == "null") {
+                label_null_vec.push_back(col1);
+            } else if (tok2 == "null_noXadj") {
+                label_noXadj_vec.push_back(col1);
+            }
+        } else {
+            // Numeric format: col1=VR_null col2=VR_sparse [col3=MAC_min] [col4=MAC_max] [col5=noXadj]
+            double col2 = std::stod(tok2);
+            double col3, col4, col5;
+
+            if (!(ss >> col3)) {
+                // 2 columns only
+                vr_null_vec.push_back(col1);
+                vr_sparse_vec.push_back(col2);
+                mac_min_vec.push_back(0.0);
+                mac_max_vec.push_back(1e10);
+                vr_noXadj_vec.push_back(col1);
+                continue;
+            }
+            if (!(ss >> col4)) {
+                vr_null_vec.push_back(col1);
+                vr_sparse_vec.push_back(col2);
+                mac_min_vec.push_back(col3);
+                mac_max_vec.push_back(1e10);
+                vr_noXadj_vec.push_back(col1);
+                continue;
+            }
+            if (!(ss >> col5)) {
+                col5 = col1;
+            }
             vr_null_vec.push_back(col1);
             vr_sparse_vec.push_back(col2);
             mac_min_vec.push_back(col3);
-            mac_max_vec.push_back(1e10);
-            vr_noXadj_vec.push_back(col1);
-            continue;
+            mac_max_vec.push_back(col4);
+            vr_noXadj_vec.push_back(col5);
         }
+    }
 
-        // Column 5: noXadj_varianceRatio (optional)
-        if (!(ss >> col5)) {
-            // 4 columns: no noXadj column
-            col5 = col1; // default to same as col1
+    // Convert label-based format to standard vectors
+    // R SAIGE SPAGMMATtest defaults: cateVarRatioMinMACVecExclude = c(10.5, 20.5)
+    //                                cateVarRatioMaxMACVecInclude = c(20.5)
+    // R always passes these defaults to C++ regardless of VR file content.
+    // With label format (single VR), we replicate R's behavior: use the same
+    // single VR value for both MAC categories.
+    if (labelFormat) {
+        size_t ncat = std::max({label_sparse_vec.size(), label_null_vec.size(), (size_t)1});
+        // For single-VR label format, use R's default 2 MAC categories
+        // Each category uses the same single VR value (R replicates it)
+        size_t n_mac_cats = (ncat == 1) ? 2 : ncat;
+        for (size_t i = 0; i < n_mac_cats; i++) {
+            size_t vi = std::min(i, ncat - 1);  // clamp to last VR if fewer VRs than categories
+            vr_sparse_vec.push_back(vi < label_sparse_vec.size() ? label_sparse_vec[vi] : -1.0);
+            vr_null_vec.push_back(vi < label_null_vec.size() ? label_null_vec[vi] : -1.0);
+            vr_noXadj_vec.push_back(vi < label_noXadj_vec.size() ? label_noXadj_vec[vi] : -1.0);
         }
-
-        vr_null_vec.push_back(col1);
-        vr_sparse_vec.push_back(col2);
-        mac_min_vec.push_back(col3);
-        mac_max_vec.push_back(col4);
-        vr_noXadj_vec.push_back(col5);
+        // Use R's default MAC category boundaries for single-VR label format
+        if (ncat == 1) {
+            mac_min_vec.push_back(10.5);
+            mac_min_vec.push_back(20.5);
+            mac_max_vec.push_back(20.5);
+            mac_max_vec.push_back(1e10);  // will be overridden with N later if needed
+        } else {
+            // Multi-category: use 0 and 1e10 as before
+            for (size_t i = 0; i < ncat; i++) {
+                mac_min_vec.push_back(0.0);
+                mac_max_vec.push_back(1e10);
+            }
+        }
+        std::cout << "    Label format detected: "
+                  << label_sparse_vec.size() << " sparse, "
+                  << label_null_vec.size() << " null, "
+                  << label_noXadj_vec.size() << " null_noXadj rows" << std::endl;
     }
 
     infile.close();
@@ -223,19 +277,25 @@ NullModelData loadNullModel(const std::string & model_dir,
     YAML::Node config = YAML::LoadFile(json_path);
 
     // --- tau (array of 2) ---
+    // Accept either "tau" (R converted model) or "theta" (C++ Step 1 output)
+    YAML::Node tau_node;
     if (config["tau"]) {
-        YAML::Node tau_node = config["tau"];
-        if (tau_node.IsSequence() && tau_node.size() >= 2) {
-            data.tau0 = tau_node[0].as<double>();
-            data.tau1 = tau_node[1].as<double>();
-        } else if (tau_node.IsScalar()) {
-            data.tau0 = tau_node.as<double>();
-            data.tau1 = 0.0;
-        } else {
-            throw std::runtime_error("Invalid tau format in nullmodel.json");
-        }
+        tau_node = config["tau"];
+    } else if (config["theta"]) {
+        tau_node = config["theta"];
+        std::cout << "  [note: using 'theta' key as tau (C++ Step 1 format)]" << std::endl;
     } else {
-        throw std::runtime_error("Missing 'tau' in nullmodel.json");
+        throw std::runtime_error("Missing 'tau' or 'theta' in nullmodel.json");
+    }
+
+    if (tau_node.IsSequence() && tau_node.size() >= 2) {
+        data.tau0 = tau_node[0].as<double>();
+        data.tau1 = tau_node[1].as<double>();
+    } else if (tau_node.IsScalar()) {
+        data.tau0 = tau_node.as<double>();
+        data.tau1 = 0.0;
+    } else {
+        throw std::runtime_error("Invalid tau/theta format in nullmodel.json");
     }
     std::cout << "  tau = [" << data.tau0 << ", " << data.tau1 << "]" << std::endl;
 

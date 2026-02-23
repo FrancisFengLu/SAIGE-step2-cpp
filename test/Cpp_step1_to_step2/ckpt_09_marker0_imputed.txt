@@ -1,0 +1,6 @@
+field	value
+altFreq	0.0305
+altCounts	61
+MAC	61
+MAF	0.0305
+flip	0

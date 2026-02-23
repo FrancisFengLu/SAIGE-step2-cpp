@@ -2735,6 +2735,39 @@ int main(int argc, char* argv[])
         g_is_Firth_beta = nullModel.is_Firth_beta;
         g_pCutoffforFirth = nullModel.pCutoffforFirth;
 
+        // ---- Override cateVarRatioMinMACVecExclude / cateVarRatioMaxMACVecInclude ----
+        // R SAIGE defaults: cateVarRatioMinMACVecExclude = c(10.5, 20.5)
+        //                   cateVarRatioMaxMACVecInclude = c(20.5, N)
+        // These control which MAC threshold triggers the PCG (sparse GRM) path
+        // during re-evaluation for markers with p < pval_cutoff_for_fastTest.
+        // If not specified in config, the values from the VR file are used.
+        if (config["cateVarRatioMinMACVecExclude"] && config["cateVarRatioMinMACVecExclude"].IsSequence()) {
+            size_t n = config["cateVarRatioMinMACVecExclude"].size();
+            nullModel.cateVarRatioMinMACVecExclude.set_size(n);
+            for (size_t i = 0; i < n; i++) {
+                nullModel.cateVarRatioMinMACVecExclude(i) = config["cateVarRatioMinMACVecExclude"][i].as<double>();
+            }
+            std::cout << "  cateVarRatioMinMACVecExclude overridden from config: [";
+            for (size_t i = 0; i < n; i++) {
+                if (i > 0) std::cout << ", ";
+                std::cout << nullModel.cateVarRatioMinMACVecExclude(i);
+            }
+            std::cout << "]" << std::endl;
+        }
+        if (config["cateVarRatioMaxMACVecInclude"] && config["cateVarRatioMaxMACVecInclude"].IsSequence()) {
+            size_t n = config["cateVarRatioMaxMACVecInclude"].size();
+            nullModel.cateVarRatioMaxMACVecInclude.set_size(n);
+            for (size_t i = 0; i < n; i++) {
+                nullModel.cateVarRatioMaxMACVecInclude(i) = config["cateVarRatioMaxMACVecInclude"][i].as<double>();
+            }
+            std::cout << "  cateVarRatioMaxMACVecInclude overridden from config: [";
+            for (size_t i = 0; i < n; i++) {
+                if (i > 0) std::cout << ", ";
+                std::cout << nullModel.cateVarRatioMaxMACVecInclude(i);
+            }
+            std::cout << "]" << std::endl;
+        }
+
         // ---- 5. Construct SAIGEClass from NullModelData ----
         std::cout << "===== Constructing SAIGEClass =====" << std::endl;
         setSAIGEobjInCPP(

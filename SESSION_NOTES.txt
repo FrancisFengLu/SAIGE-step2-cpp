@@ -412,15 +412,41 @@ New files:
   test/output/cpp_compare_binary_region_results.txt
   test/RESULTS_step2_binary_region.txt
 
-### Validation Summary (ALL 4 CORE TESTS COMPLETE)
+### Test 5: Sparse GRM + Single-Variant (scoreTestFast) — ALL EXACT
+
+Result: 644,340/644,340 values EXACT across all 5 columns (128,868 markers).
+Model: example_quantitative_sparseGRM.rda (LOCO=FALSE, isFastTest=TRUE)
+
+Code paths exercised:
+  - scoreTestFast (fast algebraic formula, all markers first pass)
+  - scoreTest with PCG (sparse GRM, MAC ≤ 20 + p < 0.05 re-evaluation)
+  - Sparse GRM loading (locationMat + valueVec from converter)
+  - VR label format parsing ("value type nMarkers")
+
+Key fixes:
+  - VR parser: support 3-column label format ("1 sparse 1")
+  - MAC category defaults: auto-apply R's c(10.5, 20.5) for single-VR label
+  - null_model_loader.cpp: "theta" key fallback for C++ Step 1 compatibility
+
+Note: 49 markers with MAC ≤ 20 produce negative variance from PCG (sparse
+sigma non-symmetric from R's dsTMatrix lower triangle). R outputs p=1;
+C++ replicates this exactly. Known SAIGE behavior.
+
+New files:
+  test/R/convert_rda_to_arma_sparse.R
+  test/R/run_r_step2_sparse.R
+  test/compare_step2_sparse.R
+  code_copy/cpp_standalone/config_compare_sparse.yaml
+  test/data/nullmodel_from_rda_sparse/ (18 files)
+  test/RESULTS_step2_sparse.txt
+
+### Validation Summary (5 TESTS COMPLETE)
 
   Test 1: Quant + Single-Variant  → ALL EXACT (128,868 markers)
   Test 2: Binary + Single-Variant → ALL EXACT (70 markers)
   Test 3: Quant + Region          → BURDEN/SKAT PASS, SKAT-O ~5%
   Test 4: Binary + Region         → BURDEN/SKAT PASS, SKAT-O ~8.5%
-
-Remaining: Tests 5-8 (medium priority, need special test data),
-Tests 11-12 (low priority, features not implemented).
+  Test 5: Sparse + Single-Variant → ALL EXACT (128,868 markers)
 
 ================================================================================
 END OF SESSION NOTES

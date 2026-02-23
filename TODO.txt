@@ -832,14 +832,18 @@ Each test config exercises different code paths. Ordered by priority.
 
 ─── MEDIUM PRIORITY ───────────────────────────────────────────────────────────
 
-[ ] Test 5: scoreTestFast path (requires sparseGRM)
-    Requirements: sparseGRM=true in null model
-    New code paths:
-      - saige_test.cpp: scoreTestFast()
-      - saige_test.cpp: getPCG1ofSigmaAndGtilde() (PCG solver)
-      - Sparse GRM loading in null_model_loader
-    Blocker: Need a null model fitted with sparseGRM, or create test data
-    Note: This is a different variance computation path (uses sparse sigma)
+[x] Test 5: scoreTestFast path (sparseGRM)
+    Config:   config_compare_sparse.yaml
+    Data:     Same PLINK (128,868 markers), sparseGRM null model (LOCO=FALSE)
+    Model:    Converted from example_quantitative_sparseGRM.rda
+    Date:     Feb 22, 2026
+    Result:   ALL EXACT (644,340/644,340 values, 0 difference)
+    Code paths exercised:
+      - scoreTestFast (fast algebraic formula)
+      - scoreTest with PCG (sparse GRM, MAC ≤ 20 re-evaluation)
+      - Sparse GRM loading (locationMat + valueVec)
+      - VR label format parsing
+    Fixes: VR label parser, MAC category defaults, theta key fallback
 
 [ ] Test 6: scoreTestFast_noadjCov path
     Requirements: noadjCov=true + sparseGRM=true

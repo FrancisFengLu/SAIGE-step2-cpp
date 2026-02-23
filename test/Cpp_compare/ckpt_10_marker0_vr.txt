@@ -1,4 +1,4 @@
 field	value
 varRatioVal	1.22420115246319
-isSingleVarianceRatio	1
+isSingleVarianceRatio	0
 isFastTest	1

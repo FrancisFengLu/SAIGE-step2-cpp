@@ -1,5 +1,5 @@
 SAIGE Step 2: R vs C++ Comparison Results
-Date: 2026-02-18 09:31:56.498343 
+Date: 2026-02-20 17:54:43.048256 
 R results: /Users/francis/Desktop/Zhou_lab/SAIGE_gene_pixi/Step_2_Feb_11/test/R/r_step2_results.txt 
 C++ results: /Users/francis/Desktop/Zhou_lab/SAIGE_gene_pixi/Step_2_Feb_11/test/output/cpp_compare_results.txt 
 ========================================================================================== 
