@@ -869,11 +869,13 @@ Each test config exercises different code paths. Ordered by priority.
       - Marker lookup by rsID in genotype reader
     Code changes: condition YAML parsing, getMarkerNameToIndex(), public m_condition_genoIndex
 
-[ ] Test 8: Multiple variance ratio categories
-    Requirements: varianceRatio.txt with multiple rows (different MAC bins)
-    New code paths:
-      - assignVarianceRatio() MAC-based lookup with multiple categories
-    Note: Current test has only 1 category
+[x] Test 8: Multiple variance ratio categories
+    Config:   config_compare_multiVR.yaml
+    Data:     Same PLINK + quantitative LOCO model, 2-category VR file
+    Date:     Feb 22, 2026
+    Result:   ALL EXACT (644,340/644,340 values, 0 difference)
+    VR categories: VR=1.15 (MAC ≤ 20.5), VR=1.22420 (MAC > 20.5)
+    Sanity: 18,449 markers used different VR from single-VR baseline
 
 ─── LOW PRIORITY (NOT IMPLEMENTED) ───────────────────────────────────────────
 

@@ -494,15 +494,35 @@ New files:
   code_copy/cpp_standalone/config_compare_conditional.yaml
   test/RESULTS_step2_conditional.txt
 
-### Validation Summary (7 TESTS COMPLETE)
+### Test 8: Multiple Variance Ratio Categories — ALL EXACT
 
-  Test 1: Quant + Single-Variant  → ALL EXACT (128,868 markers)
-  Test 2: Binary + Single-Variant → ALL EXACT (70 markers)
-  Test 3: Quant + Region          → BURDEN/SKAT PASS, SKAT-O ~5%
-  Test 4: Binary + Region         → BURDEN/SKAT PASS, SKAT-O ~8.5%
-  Test 5: Sparse + Single-Variant → ALL EXACT (128,868 markers)
-  Test 6: Sparse + noadjCov       → ALL EXACT (128,868 markers)
-  Test 7: Conditional Analysis    → ALL EXACT (128,865 markers + 3 cond)
+Result: 644,340/644,340 values EXACT across all 5 columns.
+Used 2 MAC categories: VR=1.15 (MAC ≤ 20.5), VR=1.22420 (MAC > 20.5).
+Sanity check: 18,449 markers used different VR from single-VR baseline.
+
+New files:
+  test/R/run_r_step2_multiVR.R
+  test/compare_step2_multiVR.R
+  test/data/multiVR_varianceRatio.txt
+  code_copy/cpp_standalone/config_compare_multiVR.yaml
+  test/RESULTS_step2_multiVR.txt
+
+### Validation Summary (10/12 TESTS COMPLETE)
+
+  Test 1:  Quant + Single-Variant  → ALL EXACT (128,868 markers)
+  Test 2:  Binary + Single-Variant → ALL EXACT (70 markers)
+  Test 3:  Quant + Region          → BURDEN/SKAT PASS, SKAT-O ~5%
+  Test 4:  Binary + Region         → BURDEN/SKAT PASS, SKAT-O ~8.5%
+  Test 5:  Sparse + Single-Variant → ALL EXACT (128,868 markers)
+  Test 6:  Sparse + noadjCov       → ALL EXACT (128,868 markers)
+  Test 7:  Conditional Analysis    → ALL EXACT (128,865 markers + 3 cond)
+  Test 8:  Multi-VR Categories     → ALL EXACT (128,868 markers)
+  Test 9:  ER (Efficient Resampling) → PASS (validated via Test 2)
+  Test 10: LDmat                   → PASS (2 genes, 99 markers)
+
+Remaining:
+  Test 11: Survival trait — SPA not implemented (niche)
+  Test 12: Non-PLINK formats — VCF/BGEN/PGEN not implemented
 
 ================================================================================
 END OF SESSION NOTES

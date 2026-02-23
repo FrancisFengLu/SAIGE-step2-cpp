@@ -1,0 +1,32 @@
+==========================================================================
+Test 8: Multi-Category Variance Ratio -- R vs C++ Comparison Results
+==========================================================================
+Date: 2026-02-22 23:17:56.865564 
+R results (multi-VR):    /Users/francis/Desktop/Zhou_lab/SAIGE_gene_pixi/Step_2_Feb_11/test/output/r_multiVR_results.txt 
+C++ results (multi-VR):  /Users/francis/Desktop/Zhou_lab/SAIGE_gene_pixi/Step_2_Feb_11/test/output/cpp_multiVR_results.txt 
+C++ baseline (single-VR): /Users/francis/Desktop/Zhou_lab/SAIGE_gene_pixi/Step_2_Feb_11/test/output/cpp_compare_results.txt 
+=========================================================================== 
+
+VR file: test/data/multiVR_varianceRatio.txt
+  Category 1: MAC in (10.5, 20.5] -> VR = 1.15
+  Category 2: MAC in (20.5, 1000] -> VR = 1.22420115246319
+  Fallback:   MAC <= 10.5         -> VR = 1.15
+
+MAC category counts:
+  MAC <= 10.5:         10396 markers
+  10.5 < MAC <= 20.5:  8053 markers
+  MAC > 20.5:          110419 markers
+
+Column     |   Total |   EXACT |   MATCH |   CLOSE |  DIFFER |   MaxRelDiff |   MaxAbsDiff
+------------------------------------------------------------------------------------------ 
+BETA       |  128868 |  128868 |       0 |       0 |       0 |    0.000e+00 |    0.000e+00
+SE         |  128868 |  128868 |       0 |       0 |       0 |    0.000e+00 |    0.000e+00
+Tstat      |  128868 |  128868 |       0 |       0 |       0 |    0.000e+00 |    0.000e+00
+var        |  128868 |  128868 |       0 |       0 |       0 |    0.000e+00 |    0.000e+00
+p.value    |  128868 |  128868 |       0 |       0 |       0 |    0.000e+00 |    0.000e+00
+
+Total comparisons: 644340
+DIFFER: 0
+
+OVERALL: PASS
+SANITY:  PASS (multi-VR differs from single-VR)
