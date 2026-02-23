@@ -224,15 +224,32 @@ Step 1 Output Directory:
 └── sparseGRM.mtx            # Optional: sparse GRM (MatrixMarket)
 ```
 
+## Supported Genotype Formats
+
+| Format | Library | Config Keys | Status |
+|--------|---------|-------------|--------|
+| PLINK (.bed/.bim/.fam) | Built-in | `plinkFile` | Validated |
+| VCF/BCF/VCF.GZ | htslib | `vcfFile`, `vcfField` (GT/DS) | Validated |
+| BGEN v1.2 | zstd + zlib | `bgenFile`, `bgenSampleFile` | Validated |
+| PGEN (.pgen/.pvar/.psam) | Built-in (mode 0x01/0x02) | `pgenFile`, `pvarFile`, `psamFile` | Validated |
+
+All formats produce identical output when reading the same genotype data.
+
+## Conditional Analysis
+
+Config: `condition: ["rs1", "rs2", ...]` (list of marker rsIDs or `chr:pos:ref:alt`)
+Output adds 5 conditional columns: BETA_c, SE_c, Tstat_c, var_c, p.value_c
+
 ## Build Dependencies
 
-Same as Step 1:
 - C++17 compiler (clang++ or g++)
 - Armadillo (linear algebra)
 - OpenBLAS + LAPACK
 - yaml-cpp (config parsing)
 - Boost (math distributions: normal, chi-squared, cauchy, beta)
 - SuperLU (sparse solver, for sparse GRM PCG in Step 2)
+- htslib (VCF/BCF reader)
+- zstd + zlib (BGEN decompression)
 
 ## Implementation Order
 
@@ -309,6 +326,14 @@ quantile was 13x slower for only 0.5% improvement). All other columns match well
 
 **ALL EXACT** (350/350 values) including SPA, Firth correction, and ER resampling.
 
+### Additional Tests: VALIDATED (Feb 22, 2026)
+
+- **Test 5 (Sparse GRM)**: ALL EXACT — scoreTestFast + PCG paths
+- **Test 6 (noadjCov)**: ALL EXACT — scoreTestFast_noadjCov path
+- **Test 7 (Conditional)**: ALL EXACT — conditioning on 3 markers
+- **Test 8 (Multi-VR)**: ALL EXACT — 2 MAC categories with different VR values
+- **Test 12 (VCF/BGEN/PGEN)**: ALL EXACT — all formats match PLINK output
+
 ### Sparse GRM Single-Variant Testing: VALIDATED (Feb 20, 2026)
 
 **EXACT MATCH**: 644,340/644,340 values identical across all 5 columns
@@ -356,3 +381,10 @@ This is a known SAIGE behavior that we replicate faithfully.
 9. **Pixi required**: System R does not have SAIGE. All R SAIGE operations must go through pixi.
 10. **cateVarRatioMinMACVecExclude defaults**: R's `SPAGMMATtest` passes `cateVarRatioMinMACVecExclude = c(10.5, 20.5)` as a function default, independent of VR file content. This controls which MAC threshold triggers the PCG path during re-evaluation (isFastTest). For single-VR label format files, the null_model_loader auto-applies R's defaults (2 categories: MAC 10.5-20.5 and MAC 20.5+).
 11. **Sparse GRM lower triangle only**: R's `dsTMatrix` stores only the lower triangle of the sparse sigma matrix. Both R SAIGE and our converter pass only these entries to `arma::sp_mat`, creating a non-symmetric matrix. This causes PCG convergence issues for markers entering the scoreTest path (MAC <= 20, p < 0.05). This is a known SAIGE behavior that we replicate.
+12. **VR label format**: SAIGE >= 1.0.6 uses 3-column format (`value type nMarkers`) where type is "sparse"/"null"/"null_noXadj". The loader auto-detects this vs legacy numeric format.
+13. **isnoadjCov YAML override**: The JSON null model may have `isnoadjCov=false`, but the YAML config can override it for testing the scoreTestFast_noadjCov path.
+
+## Remaining Unimplemented
+
+- **Survival trait SPA**: SPA dispatcher throws "not yet implemented" for survival. Very niche use case.
+- **Advanced PGEN modes**: Only modes 0x01/0x02 (hard-call) supported. LD-compressed and dosage PGEN modes (0x10/0x11) would require full pgenlib.
