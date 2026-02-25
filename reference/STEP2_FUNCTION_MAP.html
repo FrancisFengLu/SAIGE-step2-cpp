@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SAIGE Step 2: C++ Function Map &amp; Call Graph</title>
+<style>
+:root {
+  --color-blue: #3498db;
+  --color-green: #27ae60;
+  --color-red: #e74c3c;
+  --color-purple: #8e44ad;
+  --color-orange: #f39c12;
+  --color-teal: #16a085;
+  --color-dark: #2c3e50;
+  --color-gray: #7f8c8d;
+  --sidebar-width: 240px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  line-height: 1.7;
+  color: #333;
+  background: #ffffff;
+}
+
+#sidebar {
+  position: fixed;
+  top: 0; left: 0;
+  width: var(--sidebar-width);
+  height: 100vh;
+  background: #1a1a2e;
+  color: #c8c8e0;
+  overflow-y: auto;
+  z-index: 1000;
+  padding: 20px 0;
+  border-right: 3px solid #e94560;
+}
+
+#sidebar h2 {
+  color: #fff;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  padding: 0 18px 15px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  margin-bottom: 10px;
+}
+
+#sidebar nav a {
+  display: block;
+  color: #c8c8e0;
+  text-decoration: none;
+  padding: 7px 18px;
+  font-size: 12.5px;
+  transition: all 0.2s ease;
+  border-left: 3px solid transparent;
+}
+
+#sidebar nav a:hover {
+  background: rgba(255,255,255,0.05);
+  color: #fff;
+}
+
+#sidebar nav a.sub {
+  padding-left: 32px;
+  font-size: 11.5px;
+}
+
+#content {
+  margin-left: var(--sidebar-width);
+  padding: 30px 40px;
+  max-width: 1700px;
+}
+
+h1 {
+  font-size: 2em;
+  color: var(--color-dark);
+  border-bottom: 3px solid #e94560;
+  padding-bottom: 12px;
+  margin-bottom: 20px;
+}
+
+h2 {
+  font-size: 1.5em;
+  color: var(--color-dark);
+  margin-top: 40px;
+  margin-bottom: 15px;
+  padding-top: 12px;
+  border-top: 2px solid #e0e0e0;
+}
+
+h2:first-of-type { border-top: none; margin-top: 15px; }
+
+h3 { font-size: 1.15em; color: #444; margin: 18px 0 8px; }
+
+p { margin-bottom: 12px; font-size: 14px; }
+
+section { scroll-margin-top: 20px; }
+
+.note {
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-left: 4px solid #ffc107;
+  padding: 10px 14px;
+  border-radius: 0 6px 6px 0;
+  margin: 12px 0;
+  font-size: 13px;
+}
+
+.note strong { color: #856404; }
+
+.pipeline-container {
+  width: 100%;
+  overflow-x: auto;
+  margin: 15px 0 25px;
+}
+
+.pipeline-container svg {
+  display: block;
+  margin: 0 auto;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 10px 0 20px;
+  font-size: 13px;
+}
+
+th, td {
+  border: 1px solid #ddd;
+  padding: 6px 10px;
+  text-align: left;
+}
+
+th {
+  background: #f0f0f0;
+  font-weight: 600;
+}
+
+tr:nth-child(even) { background: #fafafa; }
+
+code {
+  background: #f4f4f4;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 12.5px;
+}
+
+.call-graph {
+  background: #f8f9fa;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 12px 16px;
+  font-family: 'Consolas', monospace;
+  font-size: 12.5px;
+  line-height: 1.8;
+  white-space: pre;
+  overflow-x: auto;
+  margin: 10px 0 16px;
+}
+
+.file-badge {
+  display: inline-block;
+  background: #e94560;
+  color: #fff;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-right: 6px;
+}
+
+.struct-box {
+  background: #eef;
+  border: 1px solid #99b;
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-family: 'Consolas', monospace;
+  font-size: 12.5px;
+  margin: 8px 0 14px;
+}
+
+@media (max-width: 1000px) {
+  #sidebar { display: none; }
+  #content { margin-left: 0; padding: 20px; }
+}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<div id="sidebar">
+  <h2>Function Map</h2>
+  <nav>
+    <a href="#sec-overview">Master Call Graph</a>
+    <a href="#sec-main">main.cpp</a>
+    <a class="sub" href="#sec-main-funcs">Functions</a>
+    <a class="sub" href="#sec-main-calls">Call Graph</a>
+    <a href="#sec-saige-test">saige_test.cpp</a>
+    <a class="sub" href="#sec-saige-funcs">Functions</a>
+    <a class="sub" href="#sec-saige-calls">Call Graph</a>
+    <a href="#sec-spa">spa.cpp</a>
+    <a href="#sec-spa-binary">spa_binary.cpp</a>
+    <a href="#sec-skat">skat.cpp</a>
+    <a href="#sec-cct">cct.cpp</a>
+    <a href="#sec-er">er_binary.cpp</a>
+    <a href="#sec-null">null_model_loader.cpp</a>
+    <a href="#sec-geno">genotype_reader.cpp</a>
+    <a href="#sec-group">group_file.cpp</a>
+    <a href="#sec-ldmat">ldmat.cpp</a>
+    <a href="#sec-util">UTIL.cpp</a>
+  </nav>
+</div>
+
+<!-- CONTENT -->
+<div id="content">
+
+<h1>SAIGE Step 2 &mdash; C++ Function Map &amp; Call Graph</h1>
+
+<p>
+Comprehensive function-level reference for the standalone C++ Step 2 codebase.
+Every public function is listed with its signature, line number, purpose, and cross-file call relationships.
+</p>
+
+<!-- ============================================================ -->
+<!-- MASTER CALL GRAPH -->
+<!-- ============================================================ -->
+<section id="sec-overview">
+<h2>Master Call Graph</h2>
+
+<p>Top-level control flow across all source files. Boxes represent files; arrows show primary call directions.</p>
+
+<div class="pipeline-container">
+<svg viewBox="0 0 1500 780" width="1480" height="770" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif">
+  <rect width="1500" height="780" fill="#fafbfc" rx="10"/>
+  <defs>
+    <marker id="arr" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#555"/></marker>
+    <marker id="arr-r" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#e74c3c"/></marker>
+    <marker id="arr-b" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#3498db"/></marker>
+    <marker id="arr-p" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#8e44ad"/></marker>
+    <marker id="arr-g" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#27ae60"/></marker>
+  </defs>
+
+  <!-- main.cpp -->
+  <rect x="580" y="20" width="340" height="70" rx="10" fill="#2c3e50"/>
+  <text x="750" y="50" text-anchor="middle" fill="#fff" font-size="16" font-weight="bold">main.cpp</text>
+  <text x="750" y="70" text-anchor="middle" fill="#aab" font-size="11">main() / mainMarkerInCPP / mainRegionInCPP</text>
+
+  <!-- null_model_loader.cpp -->
+  <rect x="40" y="150" width="250" height="55" rx="8" fill="#16a085"/>
+  <text x="165" y="175" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">null_model_loader.cpp</text>
+  <text x="165" y="192" text-anchor="middle" fill="#e0ffe0" font-size="10">loadNullModel / loadVarianceRatios</text>
+
+  <!-- genotype_reader.cpp -->
+  <rect x="330" y="150" width="260" height="55" rx="8" fill="#2980b9"/>
+  <text x="460" y="175" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">genotype_reader.cpp</text>
+  <text x="460" y="192" text-anchor="middle" fill="#d0e8ff" font-size="10">Unified_getOneMarker / PLINK / VCF / BGEN / PGEN</text>
+
+  <!-- group_file.cpp -->
+  <rect x="630" y="150" width="220" height="55" rx="8" fill="#f39c12"/>
+  <text x="740" y="175" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">group_file.cpp</text>
+  <text x="740" y="192" text-anchor="middle" fill="#fff8e0" font-size="10">checkGroupFile / readRegionChunk</text>
+
+  <!-- saige_test.cpp -->
+  <rect x="900" y="150" width="260" height="55" rx="8" fill="#e74c3c"/>
+  <text x="1030" y="175" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">saige_test.cpp</text>
+  <text x="1030" y="192" text-anchor="middle" fill="#ffe0e0" font-size="10">SAIGEClass: scoreTest / getMarkerPval / Firth</text>
+
+  <!-- spa.cpp -->
+  <rect x="900" y="290" width="180" height="55" rx="8" fill="#c0392b"/>
+  <text x="990" y="315" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">spa.cpp</text>
+  <text x="990" y="332" text-anchor="middle" fill="#ffc8c8" font-size="10">SPA / SPA_fast / SPA_pval</text>
+
+  <!-- spa_binary.cpp -->
+  <rect x="1120" y="290" width="220" height="55" rx="8" fill="#922b21"/>
+  <text x="1230" y="315" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">spa_binary.cpp</text>
+  <text x="1230" y="332" text-anchor="middle" fill="#ffc8c8" font-size="10">getroot_K1 / Get_Saddle_Prob / CGF</text>
+
+  <!-- skat.cpp -->
+  <rect x="40" y="290" width="260" height="55" rx="8" fill="#8e44ad"/>
+  <text x="170" y="315" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">skat.cpp</text>
+  <text x="170" y="332" text-anchor="middle" fill="#e8d0ff" font-size="10">get_SKAT_pvalue / davies / liu / SKAT-O</text>
+
+  <!-- cct.cpp -->
+  <rect x="340" y="290" width="170" height="55" rx="8" fill="#6c3483"/>
+  <text x="425" y="315" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">cct.cpp</text>
+  <text x="425" y="332" text-anchor="middle" fill="#e0d0ff" font-size="10">CCT_cpp</text>
+
+  <!-- er_binary.cpp -->
+  <rect x="550" y="290" width="240" height="55" rx="8" fill="#d35400"/>
+  <text x="670" y="315" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">er_binary.cpp</text>
+  <text x="670" y="332" text-anchor="middle" fill="#ffe8d0" font-size="10">SKATExactBin_Work / HyperGeo / ComputeExact</text>
+
+  <!-- ldmat.cpp -->
+  <rect x="40" y="420" width="200" height="55" rx="8" fill="#7f8c8d"/>
+  <text x="140" y="445" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">ldmat.cpp</text>
+  <text x="140" y="462" text-anchor="middle" fill="#e0e0e0" font-size="10">LDmatRegionInCPP</text>
+
+  <!-- UTIL.cpp -->
+  <rect x="300" y="420" width="200" height="55" rx="8" fill="#5d6d7e"/>
+  <text x="400" y="445" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">UTIL.cpp</text>
+  <text x="400" y="462" text-anchor="middle" fill="#e0e0e0" font-size="10">imputeGenoAndFlip / add_logp / sum_arma1</text>
+
+  <!-- ARROWS: main -> dependencies -->
+  <line x1="650" y1="90" x2="165" y2="148" stroke="#16a085" stroke-width="2" marker-end="url(#arr-g)"/>
+  <line x1="700" y1="90" x2="460" y2="148" stroke="#2980b9" stroke-width="2" marker-end="url(#arr-b)"/>
+  <line x1="750" y1="90" x2="740" y2="148" stroke="#f39c12" stroke-width="2" marker-end="url(#arr)"/>
+  <line x1="830" y1="90" x2="1000" y2="148" stroke="#e74c3c" stroke-width="2" marker-end="url(#arr-r)"/>
+
+  <!-- main -> skat, cct, er (region path) -->
+  <line x1="650" y1="90" x2="170" y2="288" stroke="#8e44ad" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#arr-p)"/>
+  <line x1="680" y1="90" x2="425" y2="288" stroke="#6c3483" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#arr-p)"/>
+  <line x1="720" y1="90" x2="670" y2="288" stroke="#d35400" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#arr)"/>
+
+  <!-- saige_test -> spa -->
+  <line x1="1000" y1="207" x2="990" y2="288" stroke="#c0392b" stroke-width="2" marker-end="url(#arr-r)"/>
+
+  <!-- saige_test -> er_binary -->
+  <line x1="950" y1="207" x2="720" y2="288" stroke="#d35400" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- spa -> spa_binary -->
+  <line x1="1082" y1="317" x2="1118" y2="317" stroke="#922b21" stroke-width="2" marker-end="url(#arr-r)"/>
+
+  <!-- main -> ldmat -->
+  <line x1="630" y1="90" x2="160" y2="418" stroke="#7f8c8d" stroke-width="1.2" stroke-dasharray="4,4" marker-end="url(#arr)"/>
+
+  <!-- ldmat -> genotype_reader -->
+  <line x1="160" y1="420" x2="400" y2="207" stroke="#7f8c8d" stroke-width="1.2" stroke-dasharray="4,4" marker-end="url(#arr)"/>
+
+  <!-- All use UTIL -->
+  <line x1="400" y1="420" x2="400" y2="380" stroke="#5d6d7e" stroke-width="1" stroke-dasharray="3,3"/>
+  <text x="430" y="400" fill="#5d6d7e" font-size="10" font-style="italic">used by all files</text>
+
+  <!-- Legend -->
+  <rect x="40" y="540" width="520" height="90" rx="8" fill="#f0f0f0" stroke="#ccc"/>
+  <text x="60" y="565" font-size="13" font-weight="bold" fill="#333">Legend</text>
+  <line x1="60" y1="580" x2="100" y2="580" stroke="#555" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="110" y="585" font-size="11" fill="#555">Direct call</text>
+  <line x1="210" y1="580" x2="260" y2="580" stroke="#8e44ad" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#arr-p)"/>
+  <text x="270" y="585" font-size="11" fill="#555">Region-test path (from main)</text>
+  <rect x="60" y="600" width="14" height="14" rx="3" fill="#e74c3c"/>
+  <text x="82" y="612" font-size="11" fill="#555">Binary trait SPA chain</text>
+  <rect x="210" y="600" width="14" height="14" rx="3" fill="#8e44ad"/>
+  <text x="232" y="612" font-size="11" fill="#555">SKAT/BURDEN gene tests</text>
+  <rect x="380" y="600" width="14" height="14" rx="3" fill="#16a085"/>
+  <text x="402" y="612" font-size="11" fill="#555">Initialization</text>
+
+  <!-- File counts -->
+  <rect x="620" y="540" width="400" height="90" rx="8" fill="#f0f0f0" stroke="#ccc"/>
+  <text x="640" y="565" font-size="13" font-weight="bold" fill="#333">Codebase Summary</text>
+  <text x="640" y="585" font-size="11" fill="#555">12 source files  |  ~90 public functions  |  ~6500 LOC</text>
+  <text x="640" y="605" font-size="11" fill="#555">Dependencies: Armadillo, Boost, yaml-cpp, htslib, zstd, SuperLU</text>
+  <text x="640" y="620" font-size="11" fill="#555">4 genotype formats: PLINK, VCF/BCF, BGEN v1.2, PGEN</text>
+
+  <!-- Flow labels -->
+  <text x="750" y="720" text-anchor="middle" font-size="14" fill="#2c3e50" font-weight="bold">
+    main() -> loadNullModel -> open genotype -> [mainMarkerInCPP | mainRegionInCPP] -> output
+  </text>
+  <text x="750" y="745" text-anchor="middle" font-size="12" fill="#666">
+    Single-variant: scoreTest -> SPA -> Firth  |  Region: marker loop -> BURDEN/SKAT/SKAT-O -> CCT
+  </text>
+</svg>
+</div>
+</section>
+
+
+<!-- ============================================================ -->
+<!-- main.cpp -->
+<!-- ============================================================ -->
+<section id="sec-main">
+<h2><span class="file-badge">1</span> main.cpp</h2>
+<p>CLI entry point and top-level orchestration. Parses YAML config, loads null model, opens genotype files,
+runs single-variant (<code>mainMarkerInCPP</code>) or region-based (<code>mainRegionInCPP</code>) testing,
+and writes output files. Also contains global variable setup, conditional analysis, output I/O,
+SPA Phi adjustment helpers, and the Cauchy combination wrapper.</p>
+
+<h3 id="sec-main-funcs">Functions</h3>
+<table>
+<tr><th>Line</th><th>Signature</th><th>Description</th></tr>
+<tr><td>110</td><td><code>void setAssocTest_GlobalVarsInCPP(...)</code></td><td>Set global analysis parameters (imputation, MAF, MAC cutoffs, weights, output prefix)</td></tr>
+<tr><td>141</td><td><code>void setMarker_GlobalVarsInCPP(bool, int)</code></td><td>Set marker-level globals (output detail flag, chunk size)</td></tr>
+<tr><td>154</td><td><code>void Unified_getMarkerPval(...)</code></td><td>Unified wrapper calling <code>SAIGEClass::getMarkerPval</code></td></tr>
+<tr><td>208</td><td><code>void setSAIGEobjInCPP(...)</code></td><td>Construct <code>SAIGEClass</code> object from null model data</td></tr>
+<tr><td>285</td><td><code>void assign_conditionMarkers_factors(...)</code></td><td>Read conditioning marker genotypes and compute conditional factors</td></tr>
+<tr><td>440</td><td><code>bool openOutfile_single(...)</code></td><td>Open single-variant output file and write header</td></tr>
+<tr><td>497</td><td><code>void writeOutfile_single(...)</code></td><td>Write single-variant test results to output file</td></tr>
+<tr><td>637</td><td><code>void mainMarkerInCPP(...)</code></td><td>Single-variant marker testing loop (QC, impute, VR, score test, SPA, Firth, ER, fast re-eval)</td></tr>
+<tr><td>1106</td><td><code>void setRegion_GlobalVarsInCPP(...)</code></td><td>Set region-level globals (maxMAF, maxMarkers, collapse cutoff)</td></tr>
+<tr><td>1124</td><td><code>bool openOutfile(string, bool)</code></td><td>Open region BURDEN output file</td></tr>
+<tr><td>1155</td><td><code>bool openOutfile_SKATO(string, bool)</code></td><td>Open region SKAT-O output file (adds Pvalue/Pvalue_SKAT columns)</td></tr>
+<tr><td>1186</td><td><code>bool openOutfile_singleinGroup(...)</code></td><td>Open single-variant-in-group output file</td></tr>
+<tr><td>1238</td><td><code>void writeOutfile_BURDEN(...)</code></td><td>Write BURDEN/gene-level results + CCT row</td></tr>
+<tr><td>1303</td><td><code>int writeOutfile_singleInGroup(...)</code></td><td>Write per-variant results within a gene group</td></tr>
+<tr><td>1406</td><td><code>static double convert_str_to_log(string)</code></td><td>Convert p-value string to log(p)</td></tr>
+<tr><td>1441</td><td><code>static PhiAdjResult SPA_ER_kernel_related_Phiadj_fast_new(...)</code></td><td>Adjust Phi matrix using SPA p-values (scale factor correction)</td></tr>
+<tr><td>1544</td><td><code>static PhiAdjResult get_newPhi_scaleFactor_traitType(...)</code></td><td>Compute SPA-adjusted Phi for binary traits (calls SPA_pval)</td></tr>
+<tr><td>1612</td><td><code>static double get_CCT_pvalue(vector&lt;double&gt;)</code></td><td>Cauchy combination of p-values (filters NAs, calls CCT_cpp)</td></tr>
+<tr><td>1637</td><td><code>void mainRegionInCPP(...)</code></td><td>Region/gene-based testing: marker loop, URV collapse, VarMat, SPA Phi adj, SKAT/BURDEN/SKAT-O, CCT</td></tr>
+<tr><td>2621</td><td><code>int main(int argc, char* argv[])</code></td><td>CLI entry: parse YAML, load model, open geno, dispatch single/region tests</td></tr>
+</table>
+
+<h3>Key Data Structures (Globals)</h3>
+<div class="struct-box">static SAIGE::SAIGEClass* ptr_gSAIGEobj;   // Core test object
+double g_MACCutoffforER;                    // MAC threshold for ER path
+arma::vec g_weights_beta;                   // Beta(a,b) weight parameters
+arma::vec g_region_maxMAF_cutoff;           // Per-mask MAF thresholds
+std::ofstream OutFile, OutFile_single, OutFile_singleInGroup;
+
+struct PhiAdjResult { arma::mat Phi_adj; arma::vec scaleFactor; };</div>
+
+<h3 id="sec-main-calls">Call Graph</h3>
+<div class="call-graph">main()
+  -> loadNullModel()                          [null_model_loader.cpp]
+  -> setPLINKobjInCPP / setVCFobjInCPP / ...  [genotype_reader.cpp]
+  -> setSAIGEobjInCPP()
+  -> assign_conditionMarkers_factors()
+       -> Unified_getOneMarker()              [genotype_reader.cpp]
+       -> imputeGenoAndFlip()                 [UTIL.cpp]
+       -> Unified_getMarkerPval()
+            -> SAIGEClass::getMarkerPval()    [saige_test.cpp]
+       -> SAIGEClass::assignConditionFactors()
+  -> openOutfile_single() / openOutfile_SKATO()
+  -> mainMarkerInCPP()                        [single-variant path]
+       -> Unified_getOneMarker()              [genotype_reader.cpp]
+       -> imputeGenoAndFlip()                 [UTIL.cpp]
+       -> SAIGEClass::assignVarianceRatio()   [saige_test.cpp]
+       -> Unified_getMarkerPval()
+            -> SAIGEClass::getMarkerPval()    [saige_test.cpp]
+       -> writeOutfile_single()
+  -> checkGroupFile()                         [group_file.cpp]
+  -> readRegionChunk()                        [group_file.cpp]
+  -> mainRegionInCPP()                        [region path]
+       -> Unified_getOneMarker()              [genotype_reader.cpp]
+       -> imputeGenoAndFlip()                 [UTIL.cpp]
+       -> Unified_getMarkerPval()
+       -> get_newPhi_scaleFactor_traitType()
+            -> SPA_pval()                     [spa.cpp]
+            -> SPA_ER_kernel_related_Phiadj_fast_new()
+       -> get_SKAT_pvalue()                   [skat.cpp]
+       -> get_CCT_pvalue()
+            -> CCT_cpp()                      [cct.cpp]
+       -> writeOutfile_BURDEN()
+       -> writeOutfile_singleInGroup()
+  -> LDmatRegionInCPP()                       [ldmat.cpp, optional]</div>
+</section>
+
+
+<!-- ============================================================ -->
+<!-- saige_test.cpp -->
+<!-- ============================================================ -->
+<section id="sec-saige-test">
+<h2><span class="file-badge">2</span> saige_test.cpp / saige_test.hpp</h2>
+<p>Core association testing class <code>SAIGEClass</code>. Implements score tests (full, fast, noadjCov),
+SPA dispatch within <code>getMarkerPval</code>, variance ratio assignment, conditional analysis,
+Firth penalized logistic regression, PCG solver for sparse GRM, and case/control index management.</p>
+
+<h3 id="sec-saige-funcs">Functions (SAIGEClass methods)</h3>
+<table>
+<tr><th>Line</th><th>Signature</th><th>Description</th></tr>
+<tr><td>23</td><td><code>SAIGEClass(...constructor...)</code></td><td>Initialize all member variables, build sparse sigma, set case/ctrl indices</td></tr>
+<tr><td>121</td><td><code>void set_seed(uint seed)</code></td><td>Seed the internal RNG engine (replaces R set.seed)</td></tr>
+<tr><td>125</td><td><code>void scoreTest(GVec, ...)</code></td><td>Full score test: G'*res / (VR * G'*P*G). Uses PCG if sparse GRM.</td></tr>
+<tr><td>205</td><td><code>void scoreTestFast(GVec, indexNonZero, ...)</code></td><td>Fast score test: sparse index optimization for low-MAC markers</td></tr>
+<tr><td>289</td><td><code>void scoreTestFast_noadjCov(GVec, indexNonZero, ...)</code></td><td>Fast score test without covariate adjustment</td></tr>
+<tr><td>360</td><td><code>void getadjG(GVec, g)</code></td><td>Covariate-adjusted genotype: g = G - X*(X'VX)^-1 * X'V*G</td></tr>
+<tr><td>366</td><td><code>void getadjGFast(GVec, g, iIndex)</code></td><td>Sparse-optimized covariate adjustment (only nonzero indices)</td></tr>
+<tr><td>377</td><td><code>void get_mu(t_mu)</code></td><td>Extract fitted values vector</td></tr>
+<tr><td>381</td><td><code>void getindices(case_idx, ctrl_idx)</code></td><td>Extract case/control index vectors</td></tr>
+<tr><td>391</td><td><code>void getMarkerPval(GVec, ...)</code></td><td>Master p-value function: scoreTest -> SPA -> Firth -> ER -> condition</td></tr>
+<tr><td>832</td><td><code>bool assignVarianceRatio(MAC, sparse)</code></td><td>Select VR by MAC category (2-arg overload)</td></tr>
+<tr><td>866</td><td><code>bool assignVarianceRatio(MAC, sparse, noXadj)</code></td><td>Select VR by MAC category (3-arg overload, noXadj support)</td></tr>
+<tr><td>907</td><td><code>void assignSingleVarianceRatio(sparse)</code></td><td>Set VR to first element (single-category, 1-arg)</td></tr>
+<tr><td>918</td><td><code>void assignSingleVarianceRatio(sparse, noXadj)</code></td><td>Set VR to first element (2-arg, noXadj support)</td></tr>
+<tr><td>934</td><td><code>void assignSingleVarianceRatio_withinput(val)</code></td><td>Directly set VR value</td></tr>
+<tr><td>942</td><td><code>void assignConditionFactors(...)</code></td><td>Store conditioning marker matrices (P2Mat, VarInvMat, Tstat, etc.)</td></tr>
+<tr><td>964</td><td><code>void assignConditionFactors_scalefactor(vec)</code></td><td>Compute and store scaled weighted condition factors</td></tr>
+<tr><td>975</td><td><code>void extract_XV_XXVX_inv(XV, XXVX_inv)</code></td><td>Extract projection matrices</td></tr>
+<tr><td>982</td><td><code>void fast_logistf_fit_simple(x, y, offset, ...)</code></td><td>Firth penalized logistic regression (iterative QR)</td></tr>
+<tr><td>1070</td><td><code>void set_flagSparseGRM_cur(bool)</code></td><td>Set current sparse GRM flag</td></tr>
+<tr><td>1075</td><td><code>void set_isnoadjCov_cur(bool)</code></td><td>Set current noadjCov flag</td></tr>
+<tr><td>1079</td><td><code>vec getPCG1ofSigmaAndGtilde(bVec, maxiter, tol)</code></td><td>PCG solver: Sigma^-1 * b using sparse GRM</td></tr>
+</table>
+
+<h3>Key Member Variables (from hpp)</h3>
+<div class="struct-box">arma::mat m_XVX, m_XXVX_inv, m_XV, m_XVX_inv_XV, m_X;
+arma::vec m_res, m_mu, m_mu2, m_y, m_S_a, m_tauvec, m_offset;
+double m_varRatioVal, m_SPA_Cutoff, m_pCutoffforFirth;
+arma::vec m_varRatio_sparse, m_varRatio_null, m_varRatio_null_noXadj;
+arma::vec m_cateVarRatioMinMACVecExclude, m_cateVarRatioMaxMACVecInclude;
+arma::sp_mat m_spSigmaMat;    // Sparse GRM sigma matrix
+bool m_flagSparseGRM, m_isFastTest, m_isnoadjCov, m_isCondition;
+std::string m_traitType;       // "binary", "quantitative", "survival"</div>
+
+<h3 id="sec-saige-calls">Call Graph</h3>
+<div class="call-graph">getMarkerPval()
+  |-- [noadjCov path]:   scoreTestFast_noadjCov()
+  |-- [sparseGRM path]:  scoreTest()
+  |       -> getadjGFast() -> getPCG1ofSigmaAndGtilde()
+  |-- [fast path]:       scoreTestFast()
+  |
+  |-- [SPA branch if |Z| > SPA_cutoff && non-quantitative]:
+  |     -> getadjGFast()  (if gtilde not computed)
+  |     -> SPA_fast()                          [spa.cpp]
+  |     -> SPA()                               [spa.cpp]
+  |
+  |-- [ER branch if MAC <= MACCutoffforER && binary]:
+  |     -> ER::SKATExactBin_Work()             [er_binary.cpp]
+  |
+  |-- [Firth branch if pval <= pCutoffforFirth && binary]:
+  |     -> getadjGFast()
+  |     -> fast_logistf_fit_simple()
+  |
+  |-- [Conditional analysis if isCondition]:
+        -> getadjGFast()
+        -> SPA_fast() / SPA()                  [spa.cpp]</div>
+</section>
+
+
+<!-- ============================================================ -->
+<!-- spa.cpp -->
+<!-- ============================================================ -->
+<section id="sec-spa">
+<h2><span class="file-badge">3</span> spa.cpp</h2>
+<p>SPA dispatcher: routes to binary (or future survival) saddlepoint approximation functions.
+Computes two-sided SPA p-values by finding roots for both q and qinv, then combining saddle probabilities.</p>
+
+<h3>Functions</h3>
+<table>
+<tr><th>Line</th><th>Signature</th><th>Description</th></tr>
+<tr><td>20</td><td><code>void SPA(mu, g, q, qinv, pval_noadj, tol, logp, traitType, &amp;pval, &amp;isConverge)</code></td><td>Full SPA: getroot + saddle prob for both tails, combine</td></tr>
+<tr><td>81</td><td><code>void SPA_fast(mu, g, q, qinv, pval_noadj, logp, gNA, gNB, muNA, muNB, NAmu, NAsigma, tol, traitType, &amp;pval, &amp;isConverge)</code></td><td>Fast SPA with normal approximation for high-frequency genotypes</td></tr>
+<tr><td>144</td><td><code>double SPA_pval(mu, g, q, qinv, pval_noadj, tol, logp, traitType, &amp;isConverge)</code></td><td>Returns SPA p-value directly (used by region Phi adjustment)</td></tr>
+</table>
+
+<h3>Call Graph</h3>
+<div class="call-graph">SPA()
+  -> getroot_K1_Binom()             [spa_binary.cpp]
+  -> Get_Saddle_Prob_Binom()        [spa_binary.cpp]
+  -> add_logp()                     [UTIL.cpp]
+
+SPA_fast()
+  -> getroot_K1_fast_Binom()        [spa_binary.cpp]
+  -> Get_Saddle_Prob_fast_Binom()   [spa_binary.cpp]
+  -> add_logp()                     [UTIL.cpp]
+
+SPA_pval()  -- same as SPA() but returns double</div>
+</section>
+
+
+<!-- ============================================================ -->
+<!-- spa_binary.cpp -->
+<!-- ============================================================ -->
+<section id="sec-spa-binary">
+<h2><span class="file-badge">4</span> spa_binary.cpp</h2>
+<p>Saddlepoint approximation for binary traits. Implements the cumulant generating function (CGF)
+K(t), its first and second derivatives K'(t) and K''(t), Newton-Raphson root finding for K'(t)=q,
+and the Lugannani-Rice saddle probability formula. Both full and fast (normal-approximated) versions.</p>
+
+<h3>Functions</h3>
+<table>
+<tr><th>Line</th><th>Signature</th><th>Description</th></tr>
+<tr><td>20</td><td><code>double Korg_Binom(t, mu, g)</code></td><td>CGF: K(t) = sum(log(1-mu+mu*exp(g*t)))</td></tr>
+<tr><td>28</td><td><code>double K1_adj_Binom(t, mu, g, q)</code></td><td>K'(t) - q (first derivative minus target)</td></tr>
+<tr><td>42</td><td><code>double K2_Binom(t, mu, g)</code></td><td>K''(t) (second derivative)</td></tr>
+<tr><td>61</td><td><code>RootResult getroot_K1_Binom(init, mu, g, q, tol, maxiter=1000)</code></td><td>Newton-Raphson root: find t where K'(t)=q</td></tr>
+<tr><td>124</td><td><code>SaddleResult Get_Saddle_Prob_Binom(zeta, mu, g, q, logp)</code></td><td>Lugannani-Rice formula: w, v, Z-test -> pnorm</td></tr>
+<tr><td>181</td><td><code>SPAResult SPA_binary(mu, g, q, qinv, pval_noadj, tol, logp)</code></td><td>Complete binary SPA (root + saddle for both tails)</td></tr>
+<tr><td>226</td><td><code>double Korg_fast_Binom(t, mu, g, gNA, gNB, muNA, muNB, NAmu, NAsigma)</code></td><td>Fast CGF: sparse genotypes + normal approx for rest</td></tr>
+<tr><td>234</td><td><code>double K1_adj_fast_Binom(...)</code></td><td>Fast K'(t)-q with normal approximation</td></tr>
+<tr><td>251</td><td><code>double K2_fast_Binom(...)</code></td><td>Fast K''(t) with normal approximation</td></tr>
+<tr><td>269</td><td><code>RootResult getroot_K1_fast_Binom(init, ...)</code></td><td>Fast Newton-Raphson root finding</td></tr>
+<tr><td>332</td><td><code>SaddleResult Get_Saddle_Prob_fast_Binom(zeta, ...)</code></td><td>Fast Lugannani-Rice saddle probability</td></tr>
+<tr><td>388</td><td><code>SPAResult SPA_binary_fast(mu, g, q, qinv, ...)</code></td><td>Complete fast binary SPA</td></tr>
+</table>
+
+<h3>Return Structs (from spa_binary.hpp)</h3>
+<div class="struct-box">struct RootResult   { double root; int niter; bool Isconverge; };
+struct SaddleResult { double pval; bool isSaddle; };
+struct SPAResult    { double pval; bool Isconverge; };</div>
+
+<h3>Call Graph</h3>
+<div class="call-graph">getroot_K1_Binom()
+  -> K1_adj_Binom()  (Newton iteration)
+  -> K2_Binom()      (second derivative for step)
+
+Get_Saddle_Prob_Binom()
+  -> Korg_Binom()    (CGF at root)
+  -> K2_Binom()      (variance at root)
+  -> boost::math::cdf(normal)
+
+[Fast variants follow same pattern with _fast_ suffix]</div>
+</section>
+
+
+<!-- ============================================================ -->
+<!-- skat.cpp -->
+<!-- ============================================================ -->
+<section id="sec-skat">
+<h2><span class="file-badge">5</span> skat.cpp</h2>
+<p>SKAT, BURDEN, and SKAT-O gene-level tests. Implements Davies characteristic function inversion
+for exact mixture-of-chi-squared p-values, Liu moment-matching as fallback, and the SKAT-O
+optimal rho search with Gauss-Kronrod adaptive quadrature. Main entry is <code>get_SKAT_pvalue</code>.</p>
+
+<h3>Functions</h3>
+<table>
+<tr><th>Line</th><th>Signature</th><th>Description</th></tr>
+<tr><td>62</td><td><code>static double integrand(u, lam, n, q)</code></td><td>Davies integrand: sin(theta)/(u*rho)</td></tr>
+<tr><td>82</td><td><code>static double integrand_at_zero(lam, n, q)</code></td><td>Limit of integrand at u=0</td></tr>
+<tr><td>89</td><td><code>static double gauss5(lam, n, q, a, b)</code></td><td>5-point Gauss-Legendre quadrature on [a,b]</td></tr>
+<tr><td>126</td><td><code>static DaviesResult compute(lam, n, q, acc)</code></td><td>Full Davies integration with convergence checks</td></tr>
+<tr><td>236</td><td><code>double davies_pvalue(q, lambda)</code></td><td>Public API: Davies p-value with Liu fallback</td></tr>
+<tr><td>292</td><td><code>double liu_pvalue(q, lambda)</code></td><td>Liu moment-matching approximation</td></tr>
+<tr><td>363</td><td><code>static LiuParams liu_params(lambda)</code></td><td>Liu parameters for SKAT-O (muQ, sigmaQ, l, delta)</td></tr>
+<tr><td>410</td><td><code>static vec compute_phi_rho_eigenvalues(Phi, rho, m)</code></td><td>Eigenvalues of R_rho^{1/2} * Phi * R_rho^{1/2}</td></tr>
+<tr><td>501</td><td><code>static void qk15(f, a, b, &amp;kronrod, &amp;gauss, &amp;err)</code></td><td>15-point Gauss-Kronrod quadrature on single interval</td></tr>
+<tr><td>550</td><td><code>static double adaptive_integrate(f, a, b, ...)</code></td><td>Recursive adaptive quadrature (replicates R integrate())</td></tr>
+<tr><td>580</td><td><code>static QuadResult integrate(f, a, b, rel_tol, abs_tol)</code></td><td>Main adaptive integration entry point</td></tr>
+<tr><td>616</td><td><code>double SKATO_optimal_pvalue(Score, Phi, ...)</code></td><td>SKAT-O: optimize over rho in [0,1], integrate survival function</td></tr>
+<tr><td>804</td><td><code>SKATResult get_SKAT_pvalue(Score, Phi, ...)</code></td><td>Main entry: compute BURDEN, SKAT, SKAT-O p-values</td></tr>
+</table>
+
+<h3>Return Structs</h3>
+<div class="struct-box">struct DaviesResult { double pvalue; double error; int ifault; };
+struct LiuParams   { double pvalue, muQ, sigmaQ, l, delta; };
+struct QuadResult  { double value, error; int neval; bool converged; };
+struct SKATResult  { double p_BURDEN, p_SKAT, p_SKATO;
+                     double beta_BURDEN, se_BURDEN; };</div>
+
+<h3>Call Graph</h3>
+<div class="call-graph">get_SKAT_pvalue()
+  |-- BURDEN: T = (w'S)^2 / (w'Phi*w) -> pchisq
+  |-- SKAT:   Q = S'*S -> davies_pvalue(Q, eigenvalues(Phi))
+  |     -> davies_impl::compute() -> gauss5()
+  |     -> liu_pvalue() [fallback]
+  |-- SKAT-O: SKATO_optimal_pvalue()
+        -> compute_phi_rho_eigenvalues()
+        -> davies_pvalue() for each rho
+        -> liu_params() for Liu-based quantile
+        -> gauss_kronrod::integrate() for optimal p-value</div>
+</section>
+
+
+<!-- ============================================================ -->
+<!-- cct.cpp -->
+<!-- ============================================================ -->
+<section id="sec-cct">
+<h2><span class="file-badge">6</span> cct.cpp</h2>
+<p>Cauchy Combination Test for combining p-values across annotation masks.
+Converts p-values to Cauchy-distributed statistics via <code>tan((0.5-p)*pi)</code>,
+sums them, and converts back via the Cauchy CDF.</p>
+
+<h3>Functions</h3>
+<table>
+<tr><th>Line</th><th>Signature</th><th>Description</th></tr>
+<tr><td>14</td><td><code>double CCT_cpp(arma::vec&amp; pval)</code></td><td>Cauchy combination of p-values. Handles NAs, zeros, ones, and extreme values. Returns combined p-value.</td></tr>
+</table>
+
+<h3>Call Graph</h3>
+<div class="call-graph">CCT_cpp()
+  -> boost::math::cdf(complement(cauchy(0,1), cctstat))</div>
+</section>
+
+
+<!-- ============================================================ -->
+<!-- er_binary.cpp -->
+<!-- ============================================================ -->
+<section id="sec-er">
+<h2><span class="file-badge">7</span> er_binary.cpp</h2>
+<p>Efficient Resampling (ER) for rare binary variants. Combines exact enumeration and resampling
+to compute p-values for ultra-rare variants (MAC &le; 10). Contains the HyperGeo probability
+calculator, ComputeExact test statistic enumerator, and the top-level <code>SKATExactBin_Work</code> interface.</p>
+
+<h3>Functions</h3>
+<table>
+<tr><th>Line</th><th>Signature</th><th>Description</th></tr>
+<tr><td>33</td><td><code>void* SL_calloc(num, size)</code></td><td>Safe calloc wrapper</td></tr>
+<tr><td>42</td><td><code>void SL_free(ptr)</code></td><td>Safe free wrapper</td></tr>
+<tr><td>54</td><td><code>double SL_runif_double()</code></td><td>Uniform random [0,1] via rand()</td></tr>
+<tr><td>60</td><td><code>int SL_runif_INT(max)</code></td><td>Uniform random integer [0,max)</td></tr>
+<tr><td>66</td><td><code>void SL_setseed(seed)</code></td><td>Set RNG seed via srand()</td></tr>
+<tr><td>74</td><td><code>void SL_Sample(k, n, y, x)</code></td><td>Random sample of k from n</td></tr>
+<tr><td>86</td><td><code>void SL_GetSample(n, k, y, x)</code></td><td>Random sample (alias)</td></tr>
+<tr><td>98</td><td><code>void SL_GetPermu(n, y, x)</code></td><td>Random permutation</td></tr>
+<tr><td>110</td><td><code>void SL_Binary_Boot1(n, ncase, pcase, ...)</code></td><td>Binary bootstrap: sample cases by probability</td></tr>
+<tr><td>167</td><td><code>HyperGeo::Run(k, ngroup, ncase, group, weight)</code></td><td>Build probability table via recursive hypergeometric</td></tr>
+<tr><td>218</td><td><code>HyperGeo::Recursive(lprob, idx, ncase_used)</code></td><td>Recursive probability computation</td></tr>
+<tr><td>264</td><td><code>HyperGeo::lCombinations(n, k)</code></td><td>Log-combinations: log(C(n,k))</td></tr>
+<tr><td>280</td><td><code>ComputeExact::CalTestStat(k, array, ...)</code></td><td>Compute SKAT test statistic for a permutation</td></tr>
+<tr><td>326</td><td><code>ComputeExact::CalFisherProb(k, array)</code></td><td>Compute Fisher probability for a permutation</td></tr>
+<tr><td>351</td><td><code>ComputeExact::SKAT_Exact_Recurse(k, array, ...)</code></td><td>Exact recursive enumeration of all permutations</td></tr>
+<tr><td>381</td><td><code>ComputeExact::SKAT_Resampling(k, array)</code></td><td>Resampling-based enumeration (when exact is too large)</td></tr>
+<tr><td>428</td><td><code>ComputeExact::Init(...)</code></td><td>Initialize with Z0, Z1 matrices and parameters</td></tr>
+<tr><td>512</td><td><code>ComputeExact::Run(test_type)</code></td><td>Execute enumeration/resampling and compute p-values</td></tr>
+<tr><td>617</td><td><code>void SKAT_Exact(...)</code></td><td>Top-level exact test: Init -> Run -> GetPvalues</td></tr>
+<tr><td>634</td><td><code>void GetProb_new(k, ngroup, ncase, group, weight, prob)</code></td><td>Probability via HyperGeo</td></tr>
+<tr><td>640</td><td><code>void SKATExactBin_ComputeProb_Group(...)</code></td><td>Compute group probabilities for exact test</td></tr>
+<tr><td>717</td><td><code>void SKATExactBin_ComputProb_New(...)</code></td><td>Determine exact vs resampling for each k</td></tr>
+<tr><td>770</td><td><code>double SKATExactBin_Work(Z, res, pi1, ncase, idx, idxComp, res_out, ...)</code></td><td>Main ER entry: build Z0/Z1, compute probs, run exact test, return p-value</td></tr>
+</table>
+
+<h3>Call Graph</h3>
+<div class="call-graph">SKATExactBin_Work()
+  -> SKATExactBin_ComputProb_New()
+       -> SKATExactBin_ComputeProb_Group()
+            -> GetProb_new() -> HyperGeo::Run() -> Recursive()
+       -> Get_Total_K()
+  -> Get_Res_Arrays()
+  -> SKAT_Exact()
+       -> ComputeExact::Init() -> SaveParam()
+       -> ComputeExact::Run()
+            -> SKAT_Exact_Recurse() / SKAT_Resampling()
+                 -> CalTestStat() / CalFisherProb()
+       -> ComputeExact::GetPvalues()</div>
+</section>
+
+
+<!-- ============================================================ -->
+<!-- null_model_loader.cpp -->
+<!-- ============================================================ -->
+<section id="sec-null">
+<h2><span class="file-badge">8</span> null_model_loader.cpp</h2>
+<p>Loads Step 1 null model output: JSON manifest (via yaml-cpp), Armadillo binary .arma files
+(mu, res, y, V, X, XVX, etc.), variance ratios (auto-detecting label vs numeric format),
+and optional sparse GRM. Produces a <code>NullModelData</code> struct for initialization.</p>
+
+<h3>Functions</h3>
+<table>
+<tr><th>Line</th><th>Signature</th><th>Description</th></tr>
+<tr><td>20</td><td><code>arma::vec loadArmaVec(filepath)</code></td><td>Load arma::vec from ARMA_MAT_BIN_FN008 file</td></tr>
+<tr><td>29</td><td><code>arma::mat loadArmaMat(filepath)</code></td><td>Load arma::mat from ARMA_MAT_BIN_FN008 file</td></tr>
+<tr><td>40</td><td><code>static bool tryLoadArmaVec(filepath, out)</code></td><td>Try to load vec; return false if file missing</td></tr>
+<tr><td>52</td><td><code>static bool tryLoadArmaMat(filepath, out)</code></td><td>Try to load mat; return false if file missing</td></tr>
+<tr><td>64</td><td><code>static bool tryLoadArmaUmat(filepath, out)</code></td><td>Try to load umat; return false if file missing</td></tr>
+<tr><td>76</td><td><code>void loadVarianceRatios(filepath, &amp;null, &amp;sparse, &amp;noXadj, &amp;minMAC, &amp;maxMAC)</code></td><td>Parse variance ratio file (auto-detect label/numeric format, apply R defaults)</td></tr>
+<tr><td>258</td><td><code>NullModelData loadNullModel(model_dir, vr_file)</code></td><td>Full model loader: JSON + .arma files + VR + sparse GRM</td></tr>
+</table>
+
+<h3>Key Data Structure</h3>
+<div class="struct-box">struct NullModelData {
+  double tau0, tau1;
+  std::string traitType;  // "binary" or "quantitative"
+  arma::vec mu, res, y, tauvec, mu2, S_a, offset, resout;
+  arma::mat X, XVX, XVX_inv, XXVX_inv, XV, XVX_inv_XV, Sigma_iXXSigma_iX;
+  arma::vec varRatio_null, varRatio_sparse, varRatio_null_noXadj;
+  arma::vec cateVarRatioMinMACVecExclude, cateVarRatioMaxMACVecInclude;
+  arma::umat locationMat; arma::vec valueVec; int dimNum;  // sparse GRM
+  std::vector&lt;std::string&gt; sampleIDs;
+  bool isFastTest, isnoadjCov, flagSparseGRM;
+  double SPA_Cutoff, pval_cutoff_for_fastTest;
+};</div>
+</section>
+
+
+<!-- ============================================================ -->
+<!-- genotype_reader.cpp -->
+<!-- ============================================================ -->
+<section id="sec-geno">
+<h2><span class="file-badge">9</span> genotype_reader.cpp</h2>
+<p>Unified genotype reading for PLINK (.bed/.bim/.fam), VCF/BCF (via htslib), BGEN v1.2 (zstd/zlib),
+and PGEN (modes 0x01/0x02). Each format has its own class with <code>setPlinkobj/getOneMarker</code> pattern.
+The unified interface (<code>Unified_getOneMarker</code>) dispatches by format string.</p>
+
+<h3>Functions (Top-level unified interface)</h3>
+<table>
+<tr><th>Line</th><th>Signature</th><th>Description</th></tr>
+<tr><td>1943</td><td><code>vector&lt;uint&gt; whichCPP(strVec, str)</code></td><td>Find indices where strVec matches str</td></tr>
+<tr><td>1959</td><td><code>void setPLINKobjInCPP(bim, fam, bed, order)</code></td><td>Create global PLINK reader object</td></tr>
+<tr><td>1988</td><td><code>void setVCFobjInCPP(vcfFile, vcfField, sampleIDs)</code></td><td>Create global VCF reader object</td></tr>
+<tr><td>2010</td><td><code>void setBGENobjInCPP(bgenFile, sampleFile, alleleOrder, sampleIDs)</code></td><td>Create global BGEN reader object</td></tr>
+<tr><td>2037</td><td><code>void setPGENobjInCPP(pgenFile, pvarFile, psamFile, alleleOrder, sampleIDs)</code></td><td>Create global PGEN reader object</td></tr>
+<tr><td>2061</td><td><code>bool Unified_getOneMarker(genoType, gIndex_prev, gIndex, ...)</code></td><td>Read one marker from any format (dispatch by genoType string)</td></tr>
+<tr><td>2258</td><td><code>unordered_map Unified_getMarkerIDToIndex(genoType)</code></td><td>Get marker ID to index mapping for group file lookup</td></tr>
+<tr><td>2290</td><td><code>void closeGenoFile(genoType)</code></td><td>Close genotype file handle</td></tr>
+</table>
+
+<h3>PLINK Class Methods</h3>
+<table>
+<tr><th>Line</th><th>Signature</th><th>Description</th></tr>
+<tr><td>88</td><td><code>PlinkClass(bim, fam, bed, order)</code></td><td>Constructor: open files</td></tr>
+<tr><td>100</td><td><code>setPlinkobj(bim, fam, bed)</code></td><td>Parse .bim, .fam, open .bed</td></tr>
+<tr><td>132</td><td><code>readBimFile()</code></td><td>Parse .bim variant info</td></tr>
+<tr><td>178</td><td><code>readFamFile()</code></td><td>Parse .fam sample info</td></tr>
+<tr><td>215</td><td><code>setPosSampleInPlink(sampleIDs)</code></td><td>Map model samples to PLINK file indices</td></tr>
+<tr><td>278</td><td><code>getOneMarker(gIndex_prev, gIndex, ...)</code></td><td>Read and decode one marker from .bed</td></tr>
+</table>
+
+<h3>VCF / BGEN / PGEN Classes</h3>
+<p>Follow same pattern: constructor, set*obj, setPosSample, getOneMarker, getMarkerIDToIndex, closegenofile.
+VCF uses htslib; BGEN uses zstd/zlib decompression; PGEN reads hard-call modes 0x01/0x02.</p>
+</section>
+
+
+<!-- ============================================================ -->
+<!-- group_file.cpp -->
+<!-- ============================================================ -->
+<section id="sec-group">
+<h2><span class="file-badge">10</span> group_file.cpp</h2>
+<p>Group file parser for region/gene-based testing. Reads the SAIGE group file format
+(var/anno/weight lines per gene), validates structure, builds annotation indicator matrices,
+and filters variants not found in the genotype file.</p>
+
+<h3>Functions</h3>
+<table>
+<tr><th>Line</th><th>Signature</th><th>Description</th></tr>
+<tr><td>72</td><td><code>GroupFileInfo checkGroupFile(groupFile)</code></td><td>Validate group file: detect weight line, count regions, check var/anno/weight consistency</td></tr>
+<tr><td>239</td><td><code>vector&lt;RegionData&gt; readRegionChunk(gf, nregions, nline, annoVec, markerMap)</code></td><td>Read N gene blocks, look up variants, build annoIndicatorMat, filter unmatched</td></tr>
+</table>
+
+<h3>Key Data Structures</h3>
+<div class="struct-box">struct GroupFileInfo {
+  int nRegions;
+  bool is_weight_included;
+  int nline_per_gene;  // 2 (var+anno) or 3 (var+anno+weight)
+};
+
+struct RegionData {
+  std::string regionName;
+  std::vector&lt;std::string&gt; variantIDs, annotations, annoVec;
+  std::vector&lt;double&gt; weights;
+  std::vector&lt;std::string&gt; genoIndex, genoIndex_prev;
+  arma::imat annoIndicatorMat;  // (nVariants x nAnnoGroups)
+};</div>
+</section>
+
+
+<!-- ============================================================ -->
+<!-- ldmat.cpp -->
+<!-- ============================================================ -->
+<section id="sec-ldmat">
+<h2><span class="file-badge">11</span> ldmat.cpp</h2>
+<p>LD matrix computation for rare-variant meta-analysis. Reads markers in a region, builds sparse
+genotype matrices in chunks, computes G^T * G via sparse matrix multiplication, and writes
+the lower-triangular LD matrix in COO format.</p>
+
+<h3>Functions</h3>
+<table>
+<tr><th>Line</th><th>Signature</th><th>Description</th></tr>
+<tr><td>61</td><td><code>void setGlobalVarsInCPP_LDmat(...)</code></td><td>Set LDmat-specific global parameters</td></tr>
+<tr><td>98</td><td><code>void LDmatRegionInCPP(genoType, genoIndex_prev, genoIndex, annoMat, outputFile, n, isImputation, annoVec, regionName)</code></td><td>Compute LD matrix for one region (chunked sparse multiply)</td></tr>
+<tr><td>426</td><td><code>void writeOutfile_single_LDmat(...)</code></td><td>Write marker info for LD region</td></tr>
+<tr><td>468</td><td><code>bool openOutfile_single_LDmat(isappend)</code></td><td>Open marker info output file</td></tr>
+<tr><td>489</td><td><code>bool openOutfile_LDmat(isappend)</code></td><td>Open LD matrix output file</td></tr>
+<tr><td>507</td><td><code>bool openOutfile_index_LDmat(isappend)</code></td><td>Open index output file</td></tr>
+<tr><td>525</td><td><code>void closeOutfile_single_LDmat()</code></td><td>Close marker info file</td></tr>
+<tr><td>534</td><td><code>void closeOutfile_LDmat()</code></td><td>Close LD matrix file</td></tr>
+<tr><td>543</td><td><code>void closeOutfile_index_LDmat()</code></td><td>Close index file</td></tr>
+</table>
+
+<h3>Call Graph</h3>
+<div class="call-graph">LDmatRegionInCPP()
+  -> Unified_getOneMarker()         [genotype_reader.cpp]
+  -> imputeGenoAndFlip()            [UTIL.cpp]
+  -> arma::sp_imat P1Mat * P2Mat.t()  (sparse LD computation)
+  -> writeOutfile_single_LDmat()</div>
+</section>
+
+
+<!-- ============================================================ -->
+<!-- UTIL.cpp -->
+<!-- ============================================================ -->
+<section id="sec-util">
+<h2><span class="file-badge">12</span> UTIL.cpp</h2>
+<p>Math utilities shared across all files. Genotype imputation, allele flipping, weight computation,
+timing, and numerical helpers (log-sum-exp for p-values, safe summation).</p>
+
+<h3>Functions</h3>
+<table>
+<tr><th>Line</th><th>Signature</th><th>Description</th></tr>
+<tr><td>17</td><td><code>arma::vec nb(unsigned int n)</code></td><td>Generate sequence 0..n-1</td></tr>
+<tr><td>30</td><td><code>double getWeights(kernel, freq, beta1, beta2)</code></td><td>Compute Beta(MAF, a, b) weight for a variant</td></tr>
+<tr><td>51</td><td><code>void imputeGeno(GVec, freq, missing_indices, method)</code></td><td>Impute missing genotypes (mean/minor/drop)</td></tr>
+<tr><td>76</td><td><code>bool imputeGenoAndFlip(GVec, &amp;freq, &amp;counts, missing, method, cutoff, MAC_cutoff, MAC, &amp;zeroIdx, &amp;nonzeroIdx)</code></td><td>Impute + flip to minor allele + track zero/nonzero indices + dosage zeroing</td></tr>
+<tr><td>149</td><td><code>double getInnerProd(x1Mat, x2Mat)</code></td><td>Inner product of two matrices</td></tr>
+<tr><td>155</td><td><code>arma::vec getTime()</code></td><td>Get current wall-clock time</td></tr>
+<tr><td>165</td><td><code>void printTime(t1, t2, message)</code></td><td>Print elapsed time between two time points</td></tr>
+<tr><td>180</td><td><code>double getinvStd(freq)</code></td><td>Inverse standard deviation: 1/sqrt(2*f*(1-f))</td></tr>
+<tr><td>189</td><td><code>double sum_arma1(X)</code></td><td>Safe summation of arma::vec (used by K2_Binom)</td></tr>
+<tr><td>199</td><td><code>double add_logp(p1, p2)</code></td><td>Log-space addition: log(exp(p1) + exp(p2)) with underflow protection</td></tr>
+</table>
+
+<h3>Call Graph</h3>
+<div class="call-graph">imputeGenoAndFlip()    -- called by main.cpp, ldmat.cpp
+  -> imputeGeno()
+
+add_logp()             -- called by spa.cpp (SPA / SPA_fast / SPA_pval)
+sum_arma1()            -- called by spa_binary.cpp (K2_Binom, K2_fast_Binom)
+getWeights()           -- called by main.cpp (region test weight computation)</div>
+</section>
+
+
+</div><!-- #content -->
+</body>
+</html>

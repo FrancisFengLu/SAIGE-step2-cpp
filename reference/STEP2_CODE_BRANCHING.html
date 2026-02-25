@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SAIGE Step 2 — Code Branching Reference</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-cpp.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+       background: #f5f5f5; line-height: 1.6; display: flex; }
+
+/* Sidebar */
+#sidebar { position: fixed; top: 0; left: 0; width: 240px; height: 100vh;
+           background: #1a1a2e; color: #c8c8e0; overflow-y: auto;
+           padding: 16px 0; z-index: 100; font-size: 12.5px;
+           border-right: 3px solid #e94560; }
+#sidebar .nav-title { font-size: 13px; font-weight: bold; color: #fff;
+                       padding: 0 16px 12px; border-bottom: 1px solid rgba(255,255,255,0.1);
+                       margin-bottom: 10px; letter-spacing: 1px; text-transform: uppercase; }
+#sidebar h3 { font-size: 10px; color: #e94560; text-transform: uppercase;
+               letter-spacing: 2px; padding: 10px 16px 4px; }
+#sidebar a { color: #c8c8e0; text-decoration: none; display: block;
+              padding: 4px 16px; border-left: 2px solid transparent; }
+#sidebar a:hover { background: rgba(255,255,255,0.05); color: #fff;
+                   border-left-color: #e94560; }
+#sidebar a.sub { padding-left: 28px; font-size: 11.5px; color: #9090b0; }
+#sidebar a.sub:hover { color: #fff; }
+
+/* Main */
+.main { margin-left: 240px; padding: 24px 36px; max-width: 1200px; }
+h1 { color: #1a1a2e; border-bottom: 3px solid #e94560; padding-bottom: 10px;
+      margin-bottom: 6px; font-size: 1.6em; }
+.subtitle { color: #7f8c8d; margin-bottom: 20px; font-size: 0.88em; }
+
+/* Call graph at top */
+.callgraph-box { background: #1e1e2e; border-radius: 8px; padding: 18px 22px;
+                  margin: 16px 0 28px; font-family: 'Courier New', monospace;
+                  font-size: 12.5px; line-height: 1.6; overflow-x: auto;
+                  border: 1px solid #333; white-space: pre; }
+.callgraph-box .fn  { color: #79c0ff; font-weight: bold; }
+.callgraph-box .arr { color: #f97583; }
+.callgraph-box .cm  { color: #8b949e; }
+.callgraph-box .kw  { color: #ffa657; }
+.callgraph-box .str { color: #a5d6ff; }
+
+/* Function sections */
+.fn-section { margin: 0 0 12px 0; border: 1px solid #ddd; border-radius: 6px;
+               background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.fn-section summary { cursor: pointer; padding: 10px 16px; font-weight: bold;
+                        font-size: 0.95em; background: #f8f9fa; border-radius: 6px;
+                        user-select: none; list-style: none; display: flex;
+                        align-items: center; gap: 8px; }
+.fn-section summary::-webkit-details-marker { display: none; }
+.fn-section summary::before { content: '▶'; font-size: 0.7em; color: #999; transition: transform 0.2s; }
+.fn-section[open] summary::before { transform: rotate(90deg); }
+.fn-section[open] summary { background: #eaf4ff; border-radius: 6px 6px 0 0; border-bottom: 1px solid #ddd; }
+.fn-section summary:hover { background: #eaf4ff; }
+.fn-section .fn-body { padding: 14px 18px; }
+
+.file-badge { font-size: 0.75em; background: #e8f5e9; border: 1px solid #66bb6a;
+               border-radius: 3px; padding: 1px 6px; color: #2e7d32; font-weight: bold;
+               font-family: monospace; }
+.fn-sig { font-family: 'Courier New', monospace; font-size: 0.88em; color: #555;
+           background: #f5f5f5; padding: 2px 8px; border-radius: 3px; }
+
+/* Mini SVG flowcharts */
+.flowchart { margin: 12px 0; overflow-x: auto; }
+svg.fc { font-family: 'Courier New', monospace; display: block; }
+
+/* Condition cards */
+.cond-grid { display: grid; gap: 10px; margin: 10px 0; }
+.cond-grid.cols2 { grid-template-columns: 1fr 1fr; }
+.cond-grid.cols1 { grid-template-columns: 1fr; }
+.cond-card { border-radius: 5px; border: 1px solid #ddd; overflow: hidden; font-size: 0.88em; }
+.cond-card .cond-header { padding: 5px 10px; font-family: monospace; font-size: 0.9em;
+                            background: #2d2d2d; color: #f8f8f2; }
+.cond-card .cond-true  { padding: 6px 10px; background: #e8f8f5; border-top: 2px solid #1abc9c; }
+.cond-card .cond-false { padding: 6px 10px; background: #fdf2f8; border-top: 2px solid #e74c3c; }
+.cond-card .cond-label { font-weight: bold; font-size: 0.78em; text-transform: uppercase;
+                           margin-bottom: 2px; }
+.cond-card .cond-label.t { color: #1abc9c; }
+.cond-card .cond-label.f { color: #e74c3c; }
+
+/* Section headers inside fn-body */
+.section-h { font-size: 0.82em; text-transform: uppercase; letter-spacing: 1px;
+               color: #888; border-bottom: 1px solid #eee; padding-bottom: 3px;
+               margin: 12px 0 6px; }
+
+/* Legend */
+.legend { display: flex; gap: 16px; flex-wrap: wrap; margin: 12px 0; font-size: 0.83em; }
+.legend span { display: flex; align-items: center; gap: 5px; }
+.swatch { width: 14px; height: 14px; border-radius: 3px; display: inline-block; flex-shrink: 0; }
+
+code[class*="language-"], pre[class*="language-"] { font-size: 12px !important; margin: 6px 0 !important; border-radius: 4px !important; }
+pre[class*="language-"] { padding: 8px 12px !important; }
+
+/* File group headers */
+.file-group-h { color: #1a1a2e; font-size: 1.1em; border-left: 4px solid #e94560;
+                  padding-left: 10px; margin: 28px 0 10px; }
+</style>
+</head>
+<body>
+
+<!-- ====== SIDEBAR ====== -->
+<nav id="sidebar">
+<div class="nav-title">Branching Reference</div>
+
+<h3>Overview</h3>
+<a href="#top">Call Graphs</a>
+<a class="sub" href="#callgraph1">  1: Single-Variant Path</a>
+<a class="sub" href="#callgraph2">  2: Region/Gene Path</a>
+<a href="#legend">Legend</a>
+
+<h3>main.cpp</h3>
+<a href="#fn-mainMarkerInCPP">mainMarkerInCPP</a>
+<a class="sub" href="#fn-mainMarkerInCPP">  QC filters</a>
+<a class="sub" href="#fn-mainMarkerInCPP">  isFastTest re-eval</a>
+<a class="sub" href="#fn-mainMarkerInCPP">  MAC/ER dispatch</a>
+<a href="#fn-mainRegionInCPP">mainRegionInCPP</a>
+<a class="sub" href="#fn-mainRegionInCPP">  annotation loop</a>
+<a class="sub" href="#fn-mainRegionInCPP">  MAC collapse</a>
+<a class="sub" href="#fn-mainRegionInCPP">  test dispatch</a>
+<a href="#fn-assign_cond">assign_conditionMarkers</a>
+<a href="#fn-openOutfile">openOutfile_single</a>
+
+<h3>saige_test.cpp</h3>
+<a href="#fn-getMarkerPval">getMarkerPval</a>
+<a class="sub" href="#fn-getMarkerPval">  score path select</a>
+<a class="sub" href="#fn-getMarkerPval">  SPA dispatch</a>
+<a class="sub" href="#fn-getMarkerPval">  Firth fallback</a>
+<a class="sub" href="#fn-getMarkerPval">  conditional SPA</a>
+<a href="#fn-scoreTest">scoreTest</a>
+<a href="#fn-scoreTestFast">scoreTestFast</a>
+<a href="#fn-scoreTestFastNA">scoreTestFast_noadjCov</a>
+<a href="#fn-assignVR">assignVarianceRatio</a>
+
+<h3>skat.cpp</h3>
+<a href="#fn-get_SKAT_pvalue">get_SKAT_pvalue</a>
+<a href="#fn-davies_pvalue">davies_pvalue</a>
+<a href="#fn-liu_pvalue">liu_pvalue</a>
+<a href="#fn-SKATO">SKATO_optimal_pvalue</a>
+
+<h3>cct.cpp</h3>
+<a href="#fn-CCT">CCT_cpp</a>
+</nav>
+
+<!-- ====== MAIN ====== -->
+<div class="main">
+<h1 id="top">SAIGE Step 2 — Code Branching Reference</h1>
+<p class="subtitle">Every if/else decision in the core C++ port, with exact conditions from source. Click any section to expand.</p>
+
+<!-- CALL GRAPHS -->
+<h3 id="callgraph1">Call Graph 1: Single-Variant Path (no groupFile)</h3>
+<div class="callgraph-box" style="white-space:pre; font-family:Menlo,Consolas,monospace; font-size:12px; line-height:1.6; background:#1a1a2e; color:#eee; padding:20px; border-radius:8px; overflow-x:auto;">
+<span class="fn">main()</span>
+├── <span class="fn">setSAIGEobjInCPP()</span> <span class="cm">[main.cpp:208]</span>
+│   ├── <span class="fn">loadNullModel()</span> <span class="cm">[null_model_loader.cpp:258]</span>
+│   ├── <span class="fn">SAIGEClass()</span> <span class="cm">[saige_test.cpp:23]</span>
+│   └── <span style="color:#e67e22;font-weight:bold">IF</span> condition markers → <span class="fn">assign_conditionMarkers_factors()</span> <span class="cm">[main.cpp:285]</span>
+├── <span style="color:#e67e22;font-weight:bold">IF</span> groupFile == "" <span class="cm">[main.cpp:3383]</span>
+└── <span class="fn">mainMarkerInCPP()</span> <span class="cm">[main.cpp:637]</span>
+    └── <span style="color:#e67e22;font-weight:bold">FOR</span> each marker:
+        ├── read genotype, QC filter
+        │   └── <span style="color:#e67e22;font-weight:bold">IF</span> <span style="color:#e74c3c">missingRate>cutoff || MAC&lt;min</span> → SKIP <span class="cm">[main.cpp:779]</span>
+        ├── <span class="fn">assignVarianceRatio(MAC)</span> <span class="cm">[saige_test.cpp:832]</span>
+        │   ├── <span style="color:#e67e22;font-weight:bold">IF</span> single VR → use single value <span class="cm">[:843]</span>
+        │   └── <span style="color:#e67e22;font-weight:bold">ELSE</span> → find MAC bin
+        │       ├── <span style="color:#e67e22;font-weight:bold">IF</span> sparse → VR_sparse[i] <span class="cm">[:869]</span>
+        │       ├── <span style="color:#e67e22;font-weight:bold">IF</span> noadjCov → VR_noadjCov[i] <span class="cm">[:875]</span>
+        │       └── <span style="color:#e67e22;font-weight:bold">ELSE</span> → VR_null[i] <span class="cm">[:873]</span>
+        ├── <span style="color:#e67e22;font-weight:bold">IF</span> <span style="color:#e74c3c">isFastTest</span> → sparse=false <span class="cm">[main.cpp:837]</span>
+        ├── <span class="fn">getMarkerPval()</span> <span class="cm">[saige_test.cpp:391]</span>
+        │   ├── <span style="color:#e67e22;font-weight:bold">IF</span> <span style="color:#e74c3c">!sparse AND noadjCov</span> → <span class="fn">scoreTestFast_noadjCov()</span> <span class="cm">[:289]</span>
+        │   ├── <span style="color:#e67e22;font-weight:bold">ELIF</span> <span style="color:#e74c3c">sparse</span> → <span class="fn">scoreTest()</span> <span class="cm">[:125]</span> (PCG solver)
+        │   └── <span style="color:#e67e22;font-weight:bold">ELSE</span> → <span class="fn">scoreTestFast()</span> <span class="cm">[:205]</span>
+        │   ├── compute Z = S/√Var, p = 2Φ(−|Z|)
+        │   ├── <span style="color:#e67e22;font-weight:bold">IF</span> <span style="color:#e74c3c">binary AND MAC≤ER_cutoff</span> <span class="cm">[main.cpp:871]</span>
+        │   │   └── <span class="fn">SKATExactBin_Work()</span> <span class="cm">[er_binary.cpp:770]</span>
+        │   ├── <span style="color:#e67e22;font-weight:bold">IF</span> <span style="color:#e74c3c">binary AND |Z|>SPA_cutoff</span> <span class="cm">[saige_test.cpp:480]</span>
+        │   │   ├── <span style="color:#e67e22;font-weight:bold">IF</span> nonzero_frac≥0.5 → <span class="fn">SPA_fast()</span> <span class="cm">[spa.cpp:81]</span>
+        │   │   └── <span style="color:#e67e22;font-weight:bold">ELSE</span> → <span class="fn">SPA()</span> <span class="cm">[spa.cpp:20]</span>
+        │   │       ├── <span class="fn">getroot_K1_Binom()</span> <span class="cm">[spa_binary.cpp:61]</span>
+        │   │       │   └── Newton-Raphson: K'(ζ)=q
+        │   │       │       ├── <span style="color:#e67e22;font-weight:bold">IF</span> |Δζ|&lt;tol → converged
+        │   │       │       └── <span style="color:#e67e22;font-weight:bold">ELSE</span> maxiter=1000 → fall back normal
+        │   │       └── <span class="fn">Get_Saddle_Prob_Binom()</span> <span class="cm">[spa_binary.cpp:124]</span>
+        │   │   └── <span style="color:#e67e22;font-weight:bold">IF</span> !converged → fall back to normal p
+        │   ├── <span style="color:#e67e22;font-weight:bold">IF</span> <span style="color:#e74c3c">binary AND p≤pCutoffForFirth</span> <span class="cm">[saige_test.cpp:594]</span>
+        │   │   └── <span class="fn">fast_logistf_fit_simple()</span> <span class="cm">[saige_test.cpp:982]</span>
+        │   └── <span style="color:#e67e22;font-weight:bold">IF</span> condition markers → compute BETA_c, SE_c, p_c <span class="cm">[:669]</span>
+        ├── <span style="color:#e67e22;font-weight:bold">IF</span> <span style="color:#e74c3c">isFastTest AND p&lt;0.05</span> <span class="cm">[main.cpp:922]</span>
+        │   └── Re-evaluate: loop back to score test (sparse based on MAC)
+        └── write output line
+</div>
+
+<h3 id="callgraph2">Call Graph 2: Region/Gene Path (has groupFile)</h3>
+<div class="callgraph-box" style="white-space:pre; font-family:Menlo,Consolas,monospace; font-size:12px; line-height:1.6; background:#1a1a2e; color:#eee; padding:20px; border-radius:8px; overflow-x:auto;">
+<span class="fn">main()</span>
+├── <span class="fn">setSAIGEobjInCPP()</span> <span class="cm">[main.cpp:208]</span> (same as above)
+├── <span style="color:#e67e22;font-weight:bold">IF</span> groupFile != "" <span class="cm">[main.cpp:3242]</span>
+└── <span class="fn">mainRegionInCPP()</span> <span class="cm">[main.cpp:1637]</span>
+    └── <span style="color:#e67e22;font-weight:bold">FOR</span> each gene in groupFile:
+        ├── read all markers for this region
+        └── <span style="color:#e67e22;font-weight:bold">FOR</span> each annotation mask:
+            └── <span style="color:#e67e22;font-weight:bold">FOR</span> each MAF cutoff:
+                ├── <span style="color:#e67e22;font-weight:bold">FOR</span> each variant:
+                │   ├── <span style="color:#e67e22;font-weight:bold">IF</span> <span style="color:#e74c3c">MAC > minMAC_cutoff (10)</span> → regular <span class="cm">[main.cpp:1857]</span>
+                │   │   ├── <span class="fn">getMarkerPval()</span> → individual score test
+                │   │   └── add to P1Mat, P2Mat <span class="cm">[:1905]</span>
+                │   └── <span style="color:#e67e22;font-weight:bold">ELSE</span> → ultra-rare (URV)
+                │       └── collapse via max() per annotation×MAF <span class="cm">[:1965]</span>
+                ├── VarMat = P1Mat × P2Mat <span class="cm">[main.cpp:2204]</span>
+                ├── weights: w = Beta(MAF; 1, 25)
+                ├── Phi = VarMat ⊙ (w·wᵀ) <span class="cm">[:2438]</span>
+                ├── <span style="color:#e67e22;font-weight:bold">IF</span> <span style="color:#e74c3c">binary trait</span> <span class="cm">[main.cpp:2499]</span>
+                │   └── SPA Φ adjustment: <span class="fn">get_newPhi_scaleFactor()</span> <span class="cm">[main.cpp:1544]</span>
+                │       └── scale Phi by p_SPA / p_normal ratio per variant
+                ├── <span class="fn">get_SKAT_pvalue(Score, Phi)</span> <span class="cm">[skat.cpp:804]</span>
+                │   ├── <b style="color:#2ecc71">BURDEN</b> (ρ=1): T=(w'S)²/(w'Φw), p=pchisq(T,df=1)
+                │   ├── <b style="color:#3498db">SKAT</b> (ρ=0): Q=S'WS
+                │   │   ├── <span class="fn">davies_pvalue(Q, eigenvalues)</span> <span class="cm">[skat.cpp:236]</span>
+                │   │   │   ├── <span style="color:#e67e22;font-weight:bold">IF</span> <span style="color:#e74c3c">ifault==0 AND p∈[0,1]</span> → use Davies <span class="cm">[:269]</span>
+                │   │   │   └── <span style="color:#e67e22;font-weight:bold">ELSE</span> → <span class="fn">liu_pvalue()</span> <span class="cm">[skat.cpp:292]</span> (moment-matching)
+                │   │   └── eigenvalue decomposition of Phi
+                │   └── <b style="color:#9b59b6">SKAT-O</b>: <span class="fn">SKATO_optimal_pvalue()</span> <span class="cm">[skat.cpp:616]</span>
+                │       ├── <span style="color:#e67e22;font-weight:bold">FOR</span> ρ ∈ {0, 0.01, ..., 1}:
+                │       │   └── Q(ρ) = (1−ρ)·Q_SKAT + ρ·Q_BURDEN
+                │       ├── τ_ρ thresholds via <span style="color:#e74c3c">Liu quantile</span> (NOT Davies — 13x speed) <span class="cm">[:653]</span>
+                │       └── integrate over χ²(1) density <span class="cm">[:764]</span>
+                └── <span class="fn">CCT_cpp()</span> across masks <span class="cm">[cct.cpp:14]</span>
+                    ├── <span style="color:#e67e22;font-weight:bold">IF</span> any p=0 → return 0 <span class="cm">[:31]</span>
+                    ├── <span style="color:#e67e22;font-weight:bold">IF</span> any p=1 → Bonferroni: min(1, p_min·k) <span class="cm">[:37]</span>
+                    ├── <span style="color:#e67e22;font-weight:bold">IF</span> all p≥1e-16 → T = Σ wₖ·tan((½−pₖ)π) <span class="cm">[:48]</span>
+                    ├── <span style="color:#e67e22;font-weight:bold">ELSE</span> → mixed: small p→w/(p·π), large→tan <span class="cm">[:54]</span>
+                    ├── <span style="color:#e67e22;font-weight:bold">IF</span> T>1e15 → tail approx 1/(T·π) <span class="cm">[:66]</span>
+                    └── <span style="color:#e67e22;font-weight:bold">ELSE</span> → 1 − Cauchy_CDF(T) <span class="cm">[:70]</span>
+</div>
+
+<!-- LEGEND -->
+<div id="legend" class="legend">
+  <span><span class="swatch" style="background:#1abc9c;"></span> TRUE branch</span>
+  <span><span class="swatch" style="background:#e74c3c;"></span> FALSE branch</span>
+  <span><span class="swatch" style="background:#f39c12;"></span> binary-trait only</span>
+  <span><span class="swatch" style="background:#3498db;"></span> sparse GRM path</span>
+  <span><span class="swatch" style="background:#8e44ad;"></span> fast/approx path</span>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     main.cpp
+     ════════════════════════════════════════════════ -->
+<h2 class="file-group-h">main.cpp</h2>
+
+<!-- mainMarkerInCPP -->
+<details class="fn-section" id="fn-mainMarkerInCPP">
+<summary>
+  <span class="file-badge">main.cpp</span>
+  <span class="fn-sig">mainMarkerInCPP(genoType, traitType, genoIndex_prev, genoIndex, ...)</span>
+</summary>
+<div class="fn-body">
+
+<div class="section-h">1. Variance ratio initialisation</div>
+<div class="cond-grid cols2">
+  <div class="cond-card">
+    <div class="cond-header">if (m_varRatio_null.n_elem == 1)</div>
+    <div class="cond-true"><div class="cond-label t">TRUE</div>assignSingleVarianceRatio(sparse, noadjCov)<br>isSingleVarianceRatio = true</div>
+    <div class="cond-false"><div class="cond-label f">FALSE</div>isSingleVarianceRatio = false<br>(multi-category VR, assign per marker)</div>
+  </div>
+</div>
+
+<div class="section-h">2. Per-marker QC (inside marker loop)</div>
+<div class="cond-grid cols1">
+  <div class="cond-card">
+    <div class="cond-header">if (missingRate &gt; cutoff || MAF &lt; minMAF || MAC &lt; minMAC || imputeInfo &lt; minINFO)</div>
+    <div class="cond-true"><div class="cond-label t">TRUE — skip</div>continue (marker not tested)</div>
+    <div class="cond-false"><div class="cond-label f">FALSE — proceed</div>imputeGenoAndFlip() → recalculate MAC/MAF → second QC check</div>
+  </div>
+  <div class="cond-card">
+    <div class="cond-header">if (MAF &lt; minMAF || MAC &lt; minMAC) [after imputation]</div>
+    <div class="cond-true"><div class="cond-label t">TRUE — skip</div>continue</div>
+    <div class="cond-false"><div class="cond-label f">FALSE — test marker</div>proceed to score test</div>
+  </div>
+</div>
+
+<div class="section-h">3. Fast test flag → GRM path selection</div>
+<div class="cond-grid cols2">
+  <div class="cond-card">
+    <div class="cond-header">if (m_isFastTest)</div>
+    <div class="cond-true"><div class="cond-label t">TRUE</div>set_flagSparseGRM_cur(false)<br>(always use fast scoreTestFast for initial pass)</div>
+    <div class="cond-false"><div class="cond-label f">FALSE</div>set_flagSparseGRM_cur(m_flagSparseGRM)<br>(use configured GRM path)</div>
+  </div>
+</div>
+
+<div class="section-h">4. Efficient resampling (ER) dispatch — binary only</div>
+<div class="cond-grid cols2">
+  <div class="cond-card">
+    <div class="cond-header">if (MAC &lt;= g_MACCutoffforER &amp;&amp; traitType == "binary")</div>
+    <div class="cond-true"><div class="cond-label t">TRUE — ER path</div>Unified_getMarkerPval(..., t_isER=true)</div>
+    <div class="cond-false"><div class="cond-label f">FALSE — standard SPA</div>Unified_getMarkerPval(..., t_isER=false)</div>
+  </div>
+</div>
+
+<div class="section-h">5. Fast test re-evaluation (isFastTest second pass)</div>
+<div class="cond-grid cols1">
+  <div class="cond-card">
+    <div class="cond-header">if ((traitType=="binary" &amp;&amp; MAC &gt; MACCutoffforER) || traitType!="binary")</div>
+    <div class="cond-true"><div class="cond-label t">TRUE — eligible for re-eval</div>
+      then: if (m_isFastTest &amp;&amp; pval_num &lt; pval_cutoff_for_fastTest)<br>
+      &nbsp;&nbsp;if (MAC &gt; cateVarRatioMinMACVecExclude.back())<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;set_flagSparseGRM_cur(false)<br>
+      &nbsp;&nbsp;else<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;set_flagSparseGRM_cur(m_flagSparseGRM)  ← PCG path<br>
+      &nbsp;&nbsp;re-run Unified_getMarkerPval with updated flags
+    </div>
+    <div class="cond-false"><div class="cond-label f">FALSE</div>no re-evaluation (ER binary markers skip this block)</div>
+  </div>
+</div>
+
+<div class="section-h">6. Flip sign for alt/ref coding</div>
+<pre><code class="language-cpp">BetaVec.at(i)  = Beta  * (1 - 2 * flip);
+TstatVec.at(i) = Tstat * (1 - 2 * flip);
+// flip = true when altFreq > 0.5 after imputation</code></pre>
+
+</div>
+</details>
+
+
+<!-- mainRegionInCPP -->
+<details class="fn-section" id="fn-mainRegionInCPP">
+<summary>
+  <span class="file-badge">main.cpp</span>
+  <span class="fn-sig">mainRegionInCPP(genoType, traitType, groupFile, ...)</span>
+</summary>
+<div class="fn-body">
+
+<div class="section-h">1. Group/annotation/MAF nested loops</div>
+<pre><code class="language-cpp">for each region in groupFile:
+  for each annotation mask (e.g. "lof", "missense:lof"):
+    for each MAF threshold (e.g. 0.0001, 0.001, 0.01):
+      select variants → run SKAT/Burden/SKAT-O</code></pre>
+
+<div class="section-h">2. Ultra-rare collapse (MAC filter)</div>
+<div class="cond-grid cols2">
+  <div class="cond-card">
+    <div class="cond-header">if (MAC &lt; g_region_minMAC_cutoff)</div>
+    <div class="cond-true"><div class="cond-label t">TRUE — ultra-rare</div>Collapse into single "UR" pseudo-variant<br>method: g_method_to_CollapseUltraRare</div>
+    <div class="cond-false"><div class="cond-label f">FALSE — rare</div>Keep as individual variant in the test</div>
+  </div>
+  <div class="cond-card">
+    <div class="cond-header">if (totalGroupMAC &lt; g_min_gourpmac_for_burdenonly)</div>
+    <div class="cond-true"><div class="cond-label t">TRUE</div>Output "NA" for this group (not enough MAC)</div>
+    <div class="cond-false"><div class="cond-label f">FALSE</div>Run SKAT/Burden/SKAT-O tests</div>
+  </div>
+</div>
+
+<div class="section-h">3. Test type dispatch (regionTestType)</div>
+<div class="cond-grid cols1">
+  <div class="cond-card">
+    <div class="cond-header">if (regionTestType == "BURDEN") / "SKAT" / "SKATO"</div>
+    <div class="cond-true"><div class="cond-label t">BURDEN only</div>openOutfile() → writeOutfile_BURDEN()<br>Pvalue_Burden column, no Pvalue / Pvalue_SKAT columns</div>
+    <div class="cond-false"><div class="cond-label f">SKATO or SKAT</div>openOutfile_SKATO() → writes Pvalue, Pvalue_Burden, Pvalue_SKAT<br>Calls get_SKAT_pvalue() with regionTestType</div>
+  </div>
+</div>
+
+<div class="section-h">4. Binary trait SPA Phi adjustment</div>
+<div class="cond-grid cols2">
+  <div class="cond-card">
+    <div class="cond-header">if (traitType == "binary")</div>
+    <div class="cond-true"><div class="cond-label t">TRUE</div>Adjust Phi matrix using SPA corrections<br>per-variant gtilde and P2Vec from getMarkerPval</div>
+    <div class="cond-false"><div class="cond-label f">FALSE (quantitative/survival)</div>Use Phi = P1Mat * P2Mat directly</div>
+  </div>
+</div>
+
+<div class="section-h">5. Cauchy combination (CCT) across annotation masks</div>
+<pre><code class="language-cpp">// After all annotation x MAF combinations for a region:
+arma::vec pvals_for_cct = ...;  // collect Burden p-values
+double cctpval = CCT_cpp(pvals_for_cct);
+// Written as the "Cauchy" row in output</code></pre>
+
+<div class="section-h">6. Output file: Condition columns</div>
+<div class="cond-grid cols2">
+  <div class="cond-card">
+    <div class="cond-header">if (ptr_gSAIGEobj-&gt;m_isCondition)</div>
+    <div class="cond-true"><div class="cond-label t">TRUE</div>Write Pvalue_Burden_c, Beta_Burden_c, seBeta_Burden_c columns</div>
+    <div class="cond-false"><div class="cond-label f">FALSE</div>Standard output only</div>
+  </div>
+</div>
+
+</div>
+</details>
+
+
+<!-- assign_conditionMarkers -->
+<details class="fn-section" id="fn-assign_cond">
+<summary>
+  <span class="file-badge">main.cpp</span>
+  <span class="fn-sig">assign_conditionMarkers_factors(genoType, genoIndex, n, weight_cond)</span>
+</summary>
+<div class="fn-body">
+
+<div class="section-h">MAC/ER dispatch for conditioning markers</div>
+<div class="cond-grid cols2">
+  <div class="cond-card">
+    <div class="cond-header">if (MAC &lt;= g_MACCutoffforER &amp;&amp; traitType == "binary")</div>
+    <div class="cond-true"><div class="cond-label t">TRUE</div>Unified_getMarkerPval(..., t_isER=true)</div>
+    <div class="cond-false"><div class="cond-label f">FALSE</div>Unified_getMarkerPval(..., t_isER=false)</div>
+  </div>
+  <div class="cond-card">
+    <div class="cond-header">if (!t_weight_cond.is_zero())</div>
+    <div class="cond-true"><div class="cond-label t">TRUE</div>w0G2_cond = t_weight_cond(i)  (user-supplied weight)</div>
+    <div class="cond-false"><div class="cond-label f">FALSE</div>w0G2_cond = Beta(MAF, 1, 25)  (default Beta weight)</div>
+  </div>
+</div>
+
+<div class="section-h">Variance ratio for conditioning markers</div>
+<div class="cond-grid cols2">
+  <div class="cond-card">
+    <div class="cond-header">if (m_varRatio_null.n_elem == 1)</div>
+    <div class="cond-true"><div class="cond-label t">TRUE</div>assignSingleVarianceRatio()</div>
+    <div class="cond-false"><div class="cond-label f">FALSE</div>assignVarianceRatio(MAC, ...)</div>
+  </div>
+</div>
+
+</div>
+</details>
+
+
+<!-- openOutfile_single -->
+<details class="fn-section" id="fn-openOutfile">
+<summary>
+  <span class="file-badge">main.cpp</span>
+  <span class="fn-sig">openOutfile_single(traitType, isImputation, isappend, isMoreOutput)</span>
+</summary>
+<div class="fn-body">
+
+<div class="cond-grid cols2">
+  <div class="cond-card">
+    <div class="cond-header">if (!isappend)</div>
+    <div class="cond-true"><div class="cond-label t">TRUE — new file</div>Open and write full header line</div>
+    <div class="cond-false"><div class="cond-label f">FALSE — append mode</div>Open with std::ofstream::app (no header)</div>
+  </div>
+  <div class="cond-card">
+    <div class="cond-header">if (t_isImputation)</div>
+    <div class="cond-true"><div class="cond-label t">TRUE</div>Header includes "imputationInfo" column</div>
+    <div class="cond-false"><div class="cond-label f">FALSE</div>Header includes "MissingRate" column</div>
+  </div>
+  <div class="cond-card">
+    <div class="cond-header">if (traitType == "binary" || "survival")</div>
+    <div class="cond-true"><div class="cond-label t">TRUE</div>Add p.value.NA, Is.SPA columns<br>binary: AF_case, AF_ctrl, N_case, N_ctrl</div>
+    <div class="cond-false"><div class="cond-label f">FALSE (quantitative)</div>Add N column only</div>
+  </div>
+  <div class="cond-card">
+    <div class="cond-header">if (m_isCondition)</div>
+    <div class="cond-true"><div class="cond-label t">TRUE</div>Add BETA_c, SE_c, Tstat_c, var_c, p.value_c columns</div>
+    <div class="cond-false"><div class="cond-label f">FALSE</div>No conditional columns</div>
+  </div>
+  <div class="cond-card">
+    <div class="cond-header">if (t_isMoreOutput &amp;&amp; binary)</div>
+    <div class="cond-true"><div class="cond-label t">TRUE</div>Add N_case_hom, N_case_het, N_ctrl_hom, N_ctrl_het</div>
+    <div class="cond-false"><div class="cond-label f">FALSE</div>Standard case/ctrl counts only</div>
+  </div>
+</div>
+
+</div>
+</details>
+
+
+<!-- ════════════════════════════════════════════════
+     saige_test.cpp
+     ════════════════════════════════════════════════ -->
+<h2 class="file-group-h">saige_test.cpp</h2>
+
+<!-- getMarkerPval -->
+<details class="fn-section" id="fn-getMarkerPval">
+<summary>
+  <span class="file-badge">saige_test.cpp</span>
+  <span class="fn-sig">SAIGEClass::getMarkerPval(GVec, iIndex, iIndexComVec, ...)</span>
+</summary>
+<div class="fn-body">
+
+<div class="section-h">1. Score test path selection</div>
+<div class="cond-grid cols1">
+  <div class="cond-card">
+    <div class="cond-header">if (!m_flagSparseGRM_cur &amp;&amp; t_isnoadjCov)</div>
+    <div class="cond-true"><div class="cond-label t">TRUE — no-adj-covariate fast path</div>scoreTestFast_noadjCov(GVec, iIndex, ...)<br>is_gtilde = false, isScoreFast = true</div>
+    <div class="cond-false"><div class="cond-label f">else if (m_flagSparseGRM_cur)</div>scoreTest() with PCG solve<br>is_gtilde = true, isScoreFast = false</div>
+  </div>
+  <div class="cond-card">
+    <div class="cond-header">else (dense GRM / full adj-cov path)</div>
+    <div class="cond-true"><div class="cond-label t">TRUE</div>scoreTestFast(GVec, iIndex, ...)<br>is_gtilde = false, isScoreFast = true</div>
+    <div class="cond-false"><div class="cond-label f"></div></div>
+  </div>
+</div>
+
+<div class="section-h">2. ER (exact resampling) gate</div>
+<div class="cond-grid cols2">
+  <div class="cond-card">
+    <div class="cond-header">if ((StdStat &gt; SPA_Cutoff || isnan(StdStat)) &amp;&amp; traitType != "quantitative" &amp;&amp; t_isER)</div>
+    <div class="cond-true"><div class="cond-label t">TRUE</div>t_isER = true → jump to ER block below</div>
+    <div class="cond-false"><div class="cond-label f">FALSE</div>t_isER = false → proceed to SPA path</div>
+  </div>
+</div>
+
+<div class="section-h">3. SPA dispatch (when !t_isER)</div>
+<div class="cond-grid cols1">
+  <div class="cond-card">
+    <div class="cond-header">if (!isnan(StdStat) &amp;&amp; StdStat &gt; m_SPA_Cutoff &amp;&amp; traitType != "quantitative")</div>
+    <div class="cond-true"><div class="cond-label t">TRUE — SPA correction needed</div>
+      compute: q = Tstat/sqrt(var1/var2) + m1 (binary)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;q = Tstat/sqrt(var1/var2) (survival)<br>
+      if (p_iIndexComVecSize &gt;= 0.5 &amp;&amp; !m_flagSparseGRM_cur):<br>
+      &nbsp;&nbsp;SPA_fast(mu, gtilde, q, qinv, ...) ← uses zero/nonzero split<br>
+      else:<br>
+      &nbsp;&nbsp;SPA(mu, gtilde, q, qinv, ...)      ← full saddle solve
+    </div>
+    <div class="cond-false"><div class="cond-label f">FALSE</div>t_pval = t_pval_noSPA (score test p-value unchanged)</div>
+  </div>
+</div>
+
+<div class="section-h">4. SPA convergence &amp; p-value formatting</div>
+<div class="cond-grid cols2">
+  <div class="cond-card">
+    <div class="cond-header">if (t_isSPAConverge)</div>
+    <div class="cond-true"><div class="cond-label t">TRUE</div>t_pval = formatted SPA p-value<br>Update seBeta via qnorm of SPA p</div>
+    <div class="cond-false"><div class="cond-label f">FALSE</div>t_pval = t_pval_noSPA (fall back to score test)</div>
+  </div>
+  <div class="cond-card">
+    <div class="cond-header">if (traitType == "binary" &amp;&amp; m_is_Firth_beta &amp;&amp; pval &lt;= pCutoffforFirth)</div>
+    <div class="cond-true"><div class="cond-label t">TRUE — Firth correction</div>t_isFirth = true<br>Compute t_qval_Firth = |qnorm(pval/2)|</div>
+    <div class="cond-false"><div class="cond-label f">FALSE</div>No Firth, keep current Beta/SE</div>
+  </div>
+</div>
+
+<div class="section-h">5. ER block (t_isER == true)</div>
+<pre><code class="language-cpp">// Exact resampling for ultra-rare binary variants
+arma::mat Z_er(GVec.n_elem, 1);  Z_er.col(0) = GVec;
+double pval_ER = ER::SKATExactBin_Work(Z_er, m_res, m_mu,
+                    m_n_case, iIndex, iIndexComVec, resout_er,
+                    2e+6, 1e+4, 1e-6, 1);
+// SE back-computed from ER p-value
+t_qval_ER = |qnorm(pval_ER/2)|;  t_seBeta = |Beta|/t_qval_ER;</code></pre>
+
+<div class="section-h">6. Firth adjustment (after SPA/ER)</div>
+<div class="cond-grid cols2">
+  <div class="cond-card">
+    <div class="cond-header">if (t_isFirth)</div>
+    <div class="cond-true"><div class="cond-label t">TRUE</div>fast_logistf_fit_simple(x=[ones, gtilde], y, offset, ...)<br>Updates Beta; SE = |Beta| / |t_qval_Firth|</div>
+    <div class="cond-false"><div class="cond-label f">FALSE</div>No Firth; keep current Beta/SE</div>
+  </div>
+</div>
+
+<div class="section-h">7. Conditional analysis</div>
+<div class="cond-grid cols2">
+  <div class="cond-card">
+    <div class="cond-header">if (t_isCondition)</div>
+    <div class="cond-true"><div class="cond-label t">TRUE</div>
+      Compute G1tilde_P_G2tilde = sqrt(VR) * gtilde' * P2Mat_cond<br>
+      Tstat_c = Tstat - G1tilde * VarInv * Tstat_cond<br>
+      varT_c  = var1  - G1tilde * VarInv * G1tilde'<br>
+      if (stat_c &gt; SPA_Cutoff^2 &amp;&amp; traitType != "quantitative"):<br>
+      &nbsp;&nbsp;run SPA on conditional statistic → t_pval_c
+    </div>
+    <div class="cond-false"><div class="cond-label f">FALSE</div>Conditional outputs left as NaN/"NA"</div>
+  </div>
+</div>
+
+<div class="section-h">8. Region mode: populate P2Vec and gy</div>
+<div class="cond-grid cols2">
+  <div class="cond-card">
+    <div class="cond-header">if (is_region &amp;&amp; isScoreFast)</div>
+    <div class="cond-true"><div class="cond-label t">TRUE</div>
+      gy = dot(gtilde, y)<br>
+      if (!m_flagSparseGRM_cur): P2Vec = gtilde % mu2 * tau[0]<br>
+      else: P2Vec = getPCG1ofSigmaAndGtilde(gtilde, 100, 0.02)
+    </div>
+    <div class="cond-false"><div class="cond-label f">FALSE</div>P2Vec already computed in scoreTest()</div>
+  </div>
+</div>
+
+</div>
+</details>
+
+
+<!-- scoreTest -->
+<details class="fn-section" id="fn-scoreTest">
+<summary>
+  <span class="file-badge">saige_test.cpp</span>
+  <span class="fn-sig">SAIGEClass::scoreTest(GVec, ..., t_P2Vec, gy, is_region, iIndex)</span>
+  — sparse GRM / PCG path
+</summary>
+<div class="fn-body">
+
+<div class="cond-grid cols2">
+  <div class="cond-card">
+    <div class="cond-header">if (is_region &amp;&amp; traitType == "binary")</div>
+    <div class="cond-true"><div class="cond-label t">TRUE</div>gy = dot(gtilde, y)</div>
+    <div class="cond-false"><div class="cond-label f">FALSE</div>gy not set here</div>
+  </div>
+  <div class="cond-card">
+    <div class="cond-header">if (!m_flagSparseGRM_cur)</div>
+    <div class="cond-true"><div class="cond-label t">TRUE — dense</div>P2Vec = gtilde % mu2 * tau[0]<br>var2 = dot(P2Vec, gtilde)</div>
+    <div class="cond-false"><div class="cond-label f">FALSE — sparse GRM</div>P2Vec = getPCG1ofSigmaAndGtilde(gtilde, 100, 0.02)<br>var2 = dot(P2Vec, gtilde)<br>if (m_isVarPsadj): subtract Sigma_iXX correction</div>
+  </div>
+  <div class="cond-card">
+    <div class="cond-header">if (var1 &lt;= numeric_limits::min())</div>
+    <div class="cond-true"><div class="cond-label t">TRUE</div>pval = 1</div>
+    <div class="cond-false"><div class="cond-label f">FALSE</div>stat = S^2/var1; pval via boost chi2(1)</div>
+  </div>
+  <div class="cond-card">
+    <div class="cond-header">if (!isnan(stat) &amp;&amp; isfinite(stat))</div>
+    <div class="cond-true"><div class="cond-label t">TRUE</div>pval = pchisq(stat, 1, lower=false)</div>
+    <div class="cond-false"><div class="cond-label f">FALSE</div>pval = 1, stat = 0</div>
+  </div>
+  <div class="cond-card">
+    <div class="cond-header">if (t_pval != 0)</div>
+    <div class="cond-true"><div class="cond-label t">TRUE</div>sprintf "%.6E"; islogp = false</div>
+    <div class="cond-false"><div class="cond-label f">FALSE — underflow</div>logp path: "%.1fE%d" format; islogp = true</div>
+  </div>
+</div>
+
+</div>
+</details>
+
+
+<!-- scoreTestFast -->
+<details class="fn-section" id="fn-scoreTestFast">
+<summary>
+  <span class="file-badge">saige_test.cpp</span>
+  <span class="fn-sig">SAIGEClass::scoreTestFast(GVec, indexForNonZero, ...)</span>
+  — standard fast path
+</summary>
+<div class="fn-body">
+
+<div class="cond-grid cols2">
+  <div class="cond-card">
+    <div class="cond-header">if (traitType == "binary" || "survival")</div>
+    <div class="cond-true"><div class="cond-label t">TRUE</div>
+      mu21 = mu2[iIndex]<br>
+      var2 = ZtXVXZ - dot(B^2, mu21) + dot(gtilde^2, mu21)
+    </div>
+    <div class="cond-false"><div class="cond-label f">FALSE (quantitative)</div>
+      var2 = ZtXVXZ*tau[0] + dot(g1,g1) - 2*dot(g1,B)
+    </div>
+  </div>
+</div>
+<p style="font-size:0.88em; margin-top:8px;">
+  Score: S = dot(res[iIndex], gtilde[iIndex]) - dot(S_a - res[iIndex]'*X[iIndex], Z)<br>
+  Same chi2 / logp formatting as scoreTest().
+</p>
+
+</div>
+</details>
+
+
+<!-- scoreTestFast_noadjCov -->
+<details class="fn-section" id="fn-scoreTestFastNA">
+<summary>
+  <span class="file-badge">saige_test.cpp</span>
+  <span class="fn-sig">SAIGEClass::scoreTestFast_noadjCov(GVec, indexForNonZero, ...)</span>
+  — no covariate adjustment
+</summary>
+<div class="fn-body">
+
+<p style="font-size:0.88em; margin-bottom:8px;">Used when <code>isnoadjCov=true</code> and no sparse GRM. Simplified formulas:</p>
+<pre><code class="language-cpp">var2 = (dot(mu21, g1^2) - dot(mu21, 2*2*altFreq*g1)
+        + accu(mu2)*pow(2*altFreq,2)) * tau[0];
+S    = dot(g1, res1) - accu(res) * (2*altFreq);
+S    = S / tau[0];
+// No branch on traitType for var2 — uses mu2 regardless</code></pre>
+
+<p style="font-size:0.88em;">Same chi2 / logp p-value formatting. No internal branches on traitType.</p>
+
+</div>
+</details>
+
+
+<!-- assignVarianceRatio -->
+<details class="fn-section" id="fn-assignVR">
+<summary>
+  <span class="file-badge">saige_test.cpp</span>
+  <span class="fn-sig">SAIGEClass::assignVarianceRatio(MAC, issparseforVR, isnoXadj)</span>
+</summary>
+<div class="fn-body">
+
+<div class="cond-grid cols2">
+  <div class="cond-card">
+    <div class="cond-header">if (issparseforVR)</div>
+    <div class="cond-true"><div class="cond-label t">TRUE</div>m_varRatio = m_varRatio_sparse</div>
+    <div class="cond-false"><div class="cond-label f">FALSE</div>if (isnoXadj): m_varRatio_null_noXadj<br>else: m_varRatio_null</div>
+  </div>
+  <div class="cond-card">
+    <div class="cond-header">Category matching (for loop)</div>
+    <div class="cond-true"><div class="cond-label t">MAC in [minExclude(i), maxInclude(i)]</div>m_varRatioVal = m_varRatio(i); hasVarRatio = true</div>
+    <div class="cond-false"><div class="cond-label f">No category matched</div>
+      if MAC &lt;= minExclude(0): use m_varRatio(0)<br>
+      if MAC &gt; maxInclude.back(): use m_varRatio.back()
+    </div>
+  </div>
+</div>
+
+<div class="section-h">assignSingleVarianceRatio (single-VR shortcut)</div>
+<div class="cond-grid cols2">
+  <div class="cond-card">
+    <div class="cond-header">if (issparseforVR)</div>
+    <div class="cond-true"><div class="cond-label t">TRUE</div>m_varRatioVal = m_varRatio_sparse(0)</div>
+    <div class="cond-false"><div class="cond-label f">FALSE</div>if (isnoXadj): m_varRatio_null_noXadj(0)<br>else: m_varRatio_null(0)</div>
+  </div>
+</div>
+
+</div>
+</details>
+
+
+<!-- ════════════════════════════════════════════════
+     skat.cpp
+     ════════════════════════════════════════════════ -->
+<h2 class="file-group-h">skat.cpp</h2>
+
+<!-- get_SKAT_pvalue -->
+<details class="fn-section" id="fn-get_SKAT_pvalue">
+<summary>
+  <span class="file-badge">skat.cpp</span>
+  <span class="fn-sig">get_SKAT_pvalue(Score, Phi, r_corr, regionTestType)</span>
+</summary>
+<div class="fn-body">
+
+<div class="section-h">1. Always computed</div>
+<pre><code class="language-cpp">// SKAT (rho=0): Q_SKAT = Score'*Score
+//   pvalue_SKAT via davies_pvalue(Q_SKAT, eigvals(Phi))
+// Burden (rho=1): Q_Burden = (sum(Score))^2 / sum(Phi)
+//   pvalue_Burden via chi2(1)
+// BETA_Burden = sum(Score) / trace(Phi)
+// SE_Burden   = |BETA| / |qnorm(p_burden/2)|</code></pre>
+
+<div class="section-h">2. Test type dispatch</div>
+<div class="cond-grid cols1">
+  <div class="cond-card">
+    <div class="cond-header">if (regionTestType == "BURDEN")</div>
+    <div class="cond-true"><div class="cond-label t">TRUE</div>pvalue_SKATO = pvalue_Burden</div>
+    <div class="cond-false"><div class="cond-label f">else if (regionTestType == "SKAT")</div>pvalue_SKATO = pvalue_SKAT</div>
+  </div>
+  <div class="cond-card">
+    <div class="cond-header">else (SKATO)</div>
+    <div class="cond-true"><div class="cond-label t">SKAT-O</div>
+      rho_vec = r_corr if provided, else {0, 0.01, 0.04, ..., 0.81, 1.0}<br>
+      for each rho:<br>
+      &nbsp;&nbsp;Q(rho) = (1-rho)*SKAT + rho*Burden<br>
+      &nbsp;&nbsp;if rho==0: pval = pvalue_SKAT<br>
+      &nbsp;&nbsp;if rho==1: pval = pvalue_Burden<br>
+      &nbsp;&nbsp;else: davies_pvalue(Q_rho, eigvals(Phi_rho))<br>
+      pvalue_SKATO = SKATO_optimal_pvalue(Score, Phi, rho_vec, pval_each, q_each)
+    </div>
+    <div class="cond-false"><div class="cond-label f"></div></div>
+  </div>
+</div>
+
+<div class="section-h">3. Per-rho eigenvalue computation</div>
+<div class="cond-grid cols2">
+  <div class="cond-card">
+    <div class="cond-header">if (|rho| &lt; 1e-10) — SKAT</div>
+    <div class="cond-true"><div class="cond-label t">TRUE</div>eigvals = eigvals(Phi) directly</div>
+    <div class="cond-false"><div class="cond-label f">else if (|rho-1| &lt; 1e-10) — Burden</div>single eigval = sum(Phi)</div>
+  </div>
+  <div class="cond-card">
+    <div class="cond-header">else — general rho</div>
+    <div class="cond-true"><div class="cond-label t">TRUE</div>sqrtR = sqrt(1-rho)*(I-P_proj) + sqrt(1-rho+m*rho)*P_proj<br>Phi_rho = sqrtR * Phi * sqrtR<br>eigvals = eigvals(Phi_rho)</div>
+    <div class="cond-false"><div class="cond-label f"></div></div>
+  </div>
+</div>
+
+</div>
+</details>
+
+
+<!-- davies_pvalue -->
+<details class="fn-section" id="fn-davies_pvalue">
+<summary>
+  <span class="file-badge">skat.cpp</span>
+  <span class="fn-sig">davies_pvalue(q, lambda)</span>
+  — characteristic function inversion
+</summary>
+<div class="fn-body">
+
+<div class="cond-grid cols2">
+  <div class="cond-card">
+    <div class="cond-header">if (n == 0)</div>
+    <div class="cond-true"><div class="cond-label t">TRUE</div>return (q&gt;0) ? 0.0 : 1.0</div>
+    <div class="cond-false"><div class="cond-label f">FALSE</div>proceed</div>
+  </div>
+  <div class="cond-card">
+    <div class="cond-header">if (n == 1) — single eigenvalue</div>
+    <div class="cond-true"><div class="cond-label t">TRUE</div>simple chi2(1) scaled: pchisq(q/lambda[0], 1, lower=false)</div>
+    <div class="cond-false"><div class="cond-label f">FALSE — general case</div>Davies characteristic function inversion<br>(5-point Gauss-Legendre per interval)</div>
+  </div>
+  <div class="cond-card">
+    <div class="cond-header">if (ifault == 0 &amp;&amp; isfinite &amp;&amp; p in [0,1])</div>
+    <div class="cond-true"><div class="cond-label t">TRUE — success</div>return davies pvalue</div>
+    <div class="cond-false"><div class="cond-label f">FALSE — failed</div>return liu_pvalue(q, lambda)  (fall back)</div>
+  </div>
+</div>
+
+<div class="section-h">Integration convergence (inside davies_impl::compute)</div>
+<pre><code class="language-cpp">for (step = 0; step &lt; 500000; step++) {
+    contrib = gauss5(lam, n, q, a, b);
+    if (|contrib| &lt; acc*1e-4 &amp;&amp; step &gt; 20):
+        consecutive_small++;
+        if (consecutive_small &gt;= 10) break;
+    // Also break when envelope * h &lt; acc*1e-6
+}</code></pre>
+
+</div>
+</details>
+
+
+<!-- liu_pvalue -->
+<details class="fn-section" id="fn-liu_pvalue">
+<summary>
+  <span class="file-badge">skat.cpp</span>
+  <span class="fn-sig">liu_pvalue(q, lambda)</span>
+  — moment-matching fallback
+</summary>
+<div class="fn-body">
+
+<div class="cond-grid cols2">
+  <div class="cond-card">
+    <div class="cond-header">if (s1^2 &gt; s2) — skewness check</div>
+    <div class="cond-true"><div class="cond-label t">TRUE — noncentral chi2</div>
+      a = 1/(s1 - sqrt(s1^2-s2))<br>
+      delta = s1*a^3 - a^2 (noncentrality)<br>
+      l = a^2 - 2*delta (df)<br>
+      pvalue via boost::non_central_chi_squared(l, delta)
+    </div>
+    <div class="cond-false"><div class="cond-label f">FALSE — central chi2</div>
+      delta = 0<br>
+      l = 1/s1^2<br>
+      pvalue via boost::chi_squared(l)
+    </div>
+  </div>
+</div>
+<p style="font-size: 0.88em; margin-top: 8px;">
+  Cumulants: c_k = sum(lambda^k), muQ = c1, sigmaQ = sqrt(2*c2)<br>
+  s1 = c3/c2^1.5, s2 = c4/c2^2
+</p>
+
+</div>
+</details>
+
+
+<!-- SKATO_optimal_pvalue -->
+<details class="fn-section" id="fn-SKATO">
+<summary>
+  <span class="file-badge">skat.cpp</span>
+  <span class="fn-sig">SKATO_optimal_pvalue(Score, Phi, rho_vec, pval_each, q_each)</span>
+</summary>
+<div class="fn-body">
+
+<div class="cond-grid cols2">
+  <div class="cond-card">
+    <div class="cond-header">if (m &lt;= 1) — single variant</div>
+    <div class="cond-true"><div class="cond-label t">TRUE</div>return min_pval directly (SKAT-O degenerates)</div>
+    <div class="cond-false"><div class="cond-label f">FALSE</div>proceed to integration</div>
+  </div>
+  <div class="cond-card">
+    <div class="cond-header">tau_rho(k): Liu quantile for min_pval</div>
+    <div class="cond-true"><div class="cond-label t">delta &gt; 1e-6</div>q_norm via non_central_chi_squared quantile</div>
+    <div class="cond-false"><div class="cond-label f">delta &lt;= 1e-6</div>q_norm via chi_squared quantile</div>
+  </div>
+</div>
+
+<div class="section-h">Integration integrand per x</div>
+<pre><code class="language-cpp">// For each rho:
+remaining = tau_rho(k) - lam_max(k) * x;
+if (remaining &lt;= 0):
+    max_p_exceed = 1.0; break;  // leading eigval alone exceeds threshold
+if (lam_remain.empty()):
+    continue;
+p_exceed = liu_pvalue(remaining, lam_remain);
+max_p_exceed = max(max_p_exceed, p_exceed);
+// integrand = dchisq(x,1) * max_p_exceed
+// Integrate [0, 40] with GK15 adaptive quadrature</code></pre>
+
+<div class="section-h">Final bounds</div>
+<pre><code class="language-cpp">p_skato = max(p_skato, min_pval);          // lower bound
+p_skato = min(p_skato, min_pval * n_rho);  // Bonferroni upper bound
+p_skato = clamp(p_skato, 0.0, 1.0);</code></pre>
+
+</div>
+</details>
+
+
+<!-- ════════════════════════════════════════════════
+     cct.cpp
+     ════════════════════════════════════════════════ -->
+<h2 class="file-group-h">cct.cpp</h2>
+
+<details class="fn-section" id="fn-CCT">
+<summary>
+  <span class="file-badge">cct.cpp</span>
+  <span class="fn-sig">CCT_cpp(pval)</span>
+  — Cauchy Combination Test
+</summary>
+<div class="fn-body">
+
+<div class="cond-grid cols2">
+  <div class="cond-card">
+    <div class="cond-header">if (pval.has_nan())</div>
+    <div class="cond-true"><div class="cond-label t">TRUE</div>Print warning (no return yet — proceeds with NaN)</div>
+    <div class="cond-false"><div class="cond-label f">FALSE</div>proceed</div>
+  </div>
+  <div class="cond-card">
+    <div class="cond-header">if (!all pval in [0,1])</div>
+    <div class="cond-true"><div class="cond-label t">TRUE</div>exit(EXIT_FAILURE)</div>
+    <div class="cond-false"><div class="cond-label f">FALSE</div>proceed</div>
+  </div>
+  <div class="cond-card">
+    <div class="cond-header">if (!arma::all(pval))  — any p == 0</div>
+    <div class="cond-true"><div class="cond-label t">TRUE</div>cauchyp = 0  (any zero p-value makes CCT = 0)</div>
+    <div class="cond-false"><div class="cond-label f">FALSE</div>proceed to next check</div>
+  </div>
+  <div class="cond-card">
+    <div class="cond-header">if (any p == 1)</div>
+    <div class="cond-true"><div class="cond-label t">TRUE</div>cauchyp = min(1.0, min(pval) * np)  (Bonferroni of min)</div>
+    <div class="cond-false"><div class="cond-label f">FALSE — all p in (0,1)</div>compute weighted Cauchy statistic</div>
+  </div>
+  <div class="cond-card">
+    <div class="cond-header">if (any p &lt; 1e-16)  — very small p</div>
+    <div class="cond-true"><div class="cond-label t">TRUE</div>small p: cctstat += (weight/p) / pi<br>remaining p: standard tan((0.5-p)*pi) formula</div>
+    <div class="cond-false"><div class="cond-label f">FALSE</div>cctstat = sum(weight * tan((0.5-p)*pi))</div>
+  </div>
+  <div class="cond-card">
+    <div class="cond-header">if (cctstat &gt; 1e+15)  — overflow</div>
+    <div class="cond-true"><div class="cond-label t">TRUE</div>cauchyp = (1/cctstat) / pi  (approximation)</div>
+    <div class="cond-false"><div class="cond-label f">FALSE</div>cauchyp = boost::math::cdf(complement(cauchy(0,1), cctstat))</div>
+  </div>
+</div>
+
+</div>
+</details>
+
+</div><!-- /main -->
+
+<script>
+// Smooth scroll for sidebar links
+document.querySelectorAll('#sidebar a[href^="#"]').forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    const id = a.getAttribute('href').slice(1);
+    const el = document.getElementById(id);
+    if (el) {
+      // If it's a details element, open it
+      if (el.tagName === 'DETAILS') el.open = true;
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  });
+});
+
+// Highlight active sidebar link on scroll
+const sections = document.querySelectorAll('[id]');
+const navLinks = document.querySelectorAll('#sidebar a');
+window.addEventListener('scroll', () => {
+  let current = '';
+  sections.forEach(s => {
+    if (window.scrollY >= s.offsetTop - 80) current = s.id;
+  });
+  navLinks.forEach(a => {
+    a.style.borderLeftColor = a.getAttribute('href') === '#'+current ? '#e94560' : 'transparent';
+    a.style.color = a.getAttribute('href') === '#'+current ? '#fff' : '';
+  });
+}, { passive: true });
+</script>
+</body>
+</html>

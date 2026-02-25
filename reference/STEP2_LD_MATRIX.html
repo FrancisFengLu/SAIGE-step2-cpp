@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SAIGE Step 2: The LD Matrix Tutorial</title>
+
+<!-- KaTeX CDN for math rendering -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {
+    delimiters: [
+      {left: '$$', right: '$$', display: true},
+      {left: '$', right: '$', display: false}
+    ],
+    throwOnError: false
+  });"></script>
+
+<style>
+:root {
+  --color-vector: #3498db; --color-matrix: #27ae60; --color-scalar: #e74c3c;
+  --color-test: #8e44ad; --color-bg: #ffffff; --color-sidebar-bg: #1a1a2e;
+  --color-sidebar-text: #c8c8e0; --color-sidebar-active: #e94560;
+  --color-code-bg: #1e1e2e; --color-code-text: #cdd6f4; --color-border: #e0e0e0;
+  --color-heading: #2c3e50; --color-note-bg: #fff3cd; --color-note-border: #ffc107;
+  --sidebar-width: 260px; --content-max-width: 900px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.7; color: #333; background: var(--color-bg); }
+#sidebar { position: fixed; top: 0; left: 0; width: var(--sidebar-width); height: 100vh; background: var(--color-sidebar-bg); color: var(--color-sidebar-text); overflow-y: auto; z-index: 1000; padding: 20px 0; border-right: 3px solid var(--color-sidebar-active); }
+#sidebar h2 { color: #fff; font-size: 14px; text-transform: uppercase; letter-spacing: 2px; padding: 0 20px 15px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 10px; }
+#sidebar nav a { display: block; color: var(--color-sidebar-text); text-decoration: none; padding: 8px 20px; font-size: 13px; transition: all 0.2s ease; border-left: 3px solid transparent; }
+#sidebar nav a:hover { background: rgba(255,255,255,0.05); color: #fff; }
+#sidebar nav a.active { color: #fff; background: rgba(233,69,96,0.15); border-left-color: var(--color-sidebar-active); font-weight: 600; }
+#sidebar nav a.sub { padding-left: 36px; font-size: 12px; }
+#content { margin-left: var(--sidebar-width); padding: 40px 50px; max-width: calc(var(--content-max-width) + 100px + var(--sidebar-width)); }
+h1 { font-size: 2.2em; color: var(--color-heading); border-bottom: 3px solid var(--color-sidebar-active); padding-bottom: 15px; margin-bottom: 30px; }
+h2 { font-size: 1.6em; color: var(--color-heading); margin-top: 50px; margin-bottom: 20px; padding-top: 15px; border-top: 2px solid var(--color-border); }
+h2:first-of-type { border-top: none; margin-top: 20px; }
+h3 { font-size: 1.25em; color: #444; margin-top: 30px; margin-bottom: 12px; }
+p { margin-bottom: 14px; }
+section { scroll-margin-top: 20px; }
+.vec { color: var(--color-vector); font-weight: 600; }
+.mat { color: var(--color-matrix); font-weight: 600; }
+.sca { color: var(--color-scalar); font-weight: 600; }
+.tst { color: var(--color-test); font-weight: 600; }
+.math-block { background: #f7f7ff; border: 1px solid #d0d0e0; border-left: 4px solid var(--color-test); padding: 18px 22px; margin: 18px 0; border-radius: 0 6px 6px 0; overflow-x: auto; }
+.math-block.mat-block { border-left-color: var(--color-matrix); }
+.math-block.vec-block { border-left-color: var(--color-vector); }
+.math-block.sca-block { border-left-color: var(--color-scalar); }
+.example-box { background: #eaf4fc; border: 1px solid #b8d4e8; border-left: 4px solid var(--color-vector); padding: 18px 22px; margin: 18px 0; border-radius: 0 6px 6px 0; }
+.example-box h4 { color: #1a5276; margin-top: 0; margin-bottom: 10px; font-size: 1.05em; }
+.note { background: var(--color-note-bg); border: 1px solid var(--color-note-border); border-left: 4px solid var(--color-note-border); padding: 14px 18px; border-radius: 0 6px 6px 0; margin: 16px 0; }
+.note strong { color: #856404; }
+table { border-collapse: collapse; width: 100%; margin: 18px 0; font-size: 14px; }
+th, td { border: 1px solid #ddd; padding: 10px 14px; text-align: center; }
+th { background: #34495e; color: white; font-weight: 600; }
+tr:nth-child(even) { background: #f9f9f9; }
+pre { background: var(--color-code-bg); color: var(--color-code-text); padding: 18px 22px; border-radius: 8px; overflow-x: auto; font-size: 13px; line-height: 1.5; margin: 16px 0; border: 1px solid #313244; }
+code { font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace; }
+p code, li code, td code { background: #e8e8e8; padding: 1px 6px; border-radius: 3px; font-size: 0.9em; color: #c7254e; }
+.kw { color: #cba6f7; } .fn { color: #89b4fa; } .cm { color: #6c7086; font-style: italic; }
+.cmp-table td:first-child { text-align: left; font-weight: 600; }
+.cmp-table td { text-align: left; }
+@media (max-width: 900px) { #sidebar { display: none; } #content { margin-left: 0; padding: 20px; } }
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     Sidebar
+     ============================================================ -->
+<div id="sidebar">
+  <h2>LD Matrix Tutorial</h2>
+  <nav>
+    <a href="#sec1">1. What is LD?</a>
+    <a href="#sec1-example" class="sub">Numerical Example</a>
+    <a href="#sec2">2. Why LD Matters</a>
+    <a href="#sec3">3. Two "LD Matrices"</a>
+    <a href="#sec3a" class="sub">3a. VarMat (Score Cov.)</a>
+    <a href="#sec3a-example" class="sub">VarMat Example</a>
+    <a href="#sec3b" class="sub">3b. LDmat (Raw G'G)</a>
+    <a href="#sec3b-example" class="sub">LDmat Example</a>
+    <a href="#sec4">4. Comparison Table</a>
+    <a href="#sec5">5. Conditional Analysis</a>
+  </nav>
+</div>
+
+<!-- ============================================================
+     Main Content
+     ============================================================ -->
+<div id="content">
+<h1>SAIGE Step 2: The LD Matrix</h1>
+
+<p>
+This tutorial explains the two "LD matrices" used in SAIGE Step 2's gene-level tests,
+with step-by-step numerical examples. Understanding these matrices is essential for
+grasping how SKAT, BURDEN, and SKAT-O combine information across multiple variants in
+a gene region.
+</p>
+
+<!-- ============================================================
+     SECTION 1: What is LD?
+     ============================================================ -->
+<section id="sec1">
+<h2>1. What is Linkage Disequilibrium (LD)?</h2>
+
+<p>
+<strong>Linkage Disequilibrium</strong> is the non-random association of alleles at
+different genomic positions. In simple terms: if knowing the genotype at SNP A gives
+you information about the likely genotype at SNP B, then those two SNPs are in LD.
+</p>
+
+<p>
+LD arises because nearby variants on the same chromosome tend to be inherited together
+(they sit on the same haplotype). Recombination breaks up haplotypes over generations,
+so LD decays with physical distance -- but within a gene region (typically 10-50 kb),
+substantial LD is common.
+</p>
+
+<h3>Measuring LD: the $r^2$ statistic</h3>
+
+<p>
+The most common LD measure is $r^2$, the squared Pearson correlation between two
+genotype vectors. Given genotypes coded as 0, 1, or 2 (counts of the alt allele):
+</p>
+
+<div class="math-block sca-block">
+$$r^2 = \left( \frac{\text{Cov}(G_A, G_B)}{\sqrt{\text{Var}(G_A) \cdot \text{Var}(G_B)}} \right)^2$$
+</div>
+
+<p>
+$r^2 = 1$ means perfect LD (one SNP perfectly predicts the other). $r^2 = 0$ means
+the SNPs are independent (linkage equilibrium).
+</p>
+
+<div class="example-box" id="sec1-example">
+<h4>Worked Example: 2 SNPs, 8 individuals</h4>
+
+<p>Consider two SNPs measured in 8 people. Genotypes are coded as allele counts (0, 1, or 2):</p>
+
+<table>
+<tr><th>Person</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th></tr>
+<tr><td>$G_A$</td><td>0</td><td>0</td><td>1</td><td>1</td><td>1</td><td>2</td><td>2</td><td>2</td></tr>
+<tr><td>$G_B$</td><td>0</td><td>1</td><td>0</td><td>1</td><td>1</td><td>1</td><td>2</td><td>2</td></tr>
+</table>
+
+<p>Step 1: Compute means.</p>
+$$\bar{G}_A = (0+0+1+1+1+2+2+2)/8 = 9/8 = 1.125$$
+$$\bar{G}_B = (0+1+0+1+1+1+2+2)/8 = 8/8 = 1.000$$
+
+<p>Step 2: Compute deviations $d_A = G_A - \bar{G}_A$ and $d_B = G_B - \bar{G}_B$:</p>
+
+<table>
+<tr><th>Person</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th></tr>
+<tr><td>$d_A$</td><td>-1.125</td><td>-1.125</td><td>-0.125</td><td>-0.125</td><td>-0.125</td><td>0.875</td><td>0.875</td><td>0.875</td></tr>
+<tr><td>$d_B$</td><td>-1.0</td><td>0.0</td><td>-1.0</td><td>0.0</td><td>0.0</td><td>0.0</td><td>1.0</td><td>1.0</td></tr>
+</table>
+
+<p>Step 3: Compute covariance and variances.</p>
+$$\text{Cov} = \frac{1}{8}\sum d_{A,i} \cdot d_{B,i} = \frac{1.125 + 0 + 0.125 + 0 + 0 + 0 + 0.875 + 0.875}{8} = \frac{3.0}{8} = 0.375$$
+$$\text{Var}(G_A) = \frac{1}{8}\sum d_{A,i}^2 = \frac{4.219}{8} = 0.527$$
+$$\text{Var}(G_B) = \frac{1}{8}\sum d_{B,i}^2 = \frac{4.0}{8} = 0.500$$
+
+<p>Step 4: Pearson correlation and $r^2$.</p>
+$$r = \frac{0.375}{\sqrt{0.527 \times 0.500}} = \frac{0.375}{0.513} = 0.731$$
+$$r^2 = 0.534$$
+
+<p>
+Interpretation: these two SNPs are moderately correlated ($r^2 \approx 0.53$). Knowing
+someone carries the alt allele at SNP A makes it more likely they carry the alt allele
+at SNP B, but the prediction is not perfect.
+</p>
+</div>
+
+</section>
+
+<!-- ============================================================
+     SECTION 2: Why LD Matters for Gene-Level Tests
+     ============================================================ -->
+<section id="sec2">
+<h2>2. Why LD Matters for Gene-Level Tests</h2>
+
+<p>
+In a gene-level test, SAIGE tests $m$ variants in a region simultaneously. Each
+variant $i$ has a score statistic $S_i$ measuring its marginal association with the
+phenotype. The key problem is:
+</p>
+
+<div class="note">
+<strong>The test statistics $S_1, S_2, \ldots, S_m$ are NOT independent.</strong>
+If variants are in LD, their score statistics are correlated. Ignoring this correlation
+would produce incorrect p-values.
+</div>
+
+<p>Consider two extreme scenarios:</p>
+
+<p>
+<strong>Scenario A: Two independent variants ($r^2 = 0$).</strong>
+Their score statistics are independent. Combining them gives roughly twice
+the information of a single variant. A naive sum $S_1 + S_2$ has variance
+$\text{Var}(S_1) + \text{Var}(S_2)$.
+</p>
+
+<p>
+<strong>Scenario B: Two perfectly correlated variants ($r^2 = 1$).</strong>
+They carry the same information. Combining them gives no extra information beyond a
+single variant. A naive sum $S_1 + S_2$ has variance
+$\text{Var}(S_1) + 2\text{Cov}(S_1,S_2) + \text{Var}(S_2) = 4\,\text{Var}(S_1)$,
+which is much larger than the independent case.
+</p>
+
+<p>
+The gene-level tests (SKAT, BURDEN, SKAT-O) all need the <em>covariance matrix of the
+score statistics</em> to correctly calibrate their test statistics under the null
+hypothesis. This covariance matrix is what we call <span class="mat">VarMat</span> --
+the first of the two "LD matrices" in SAIGE Step 2.
+</p>
+
+</section>
+
+<!-- ============================================================
+     SECTION 3: The Two LD Matrices
+     ============================================================ -->
+<section id="sec3">
+<h2>3. The Two "LD Matrices" in SAIGE Step 2</h2>
+
+<p>
+SAIGE Step 2 computes two distinct matrices that capture the correlation structure
+among variants. They serve very different purposes:
+</p>
+
+<table>
+<tr><th>Matrix</th><th>Name in Code</th><th>Formula</th><th>Purpose</th></tr>
+<tr>
+  <td><span class="mat">VarMat</span></td>
+  <td><code>VarMat</code>, <code>wadjVarSMat</code>, <code>Phi</code></td>
+  <td>$P_1 \cdot P_2$ (projected, weighted)</td>
+  <td>Null distribution for SKAT/BURDEN/SKAT-O</td>
+</tr>
+<tr>
+  <td><span class="mat">LDmat</span></td>
+  <td><code>LDmat</code></td>
+  <td>$G^T G$ (raw integer)</td>
+  <td>Export for meta-analysis</td>
+</tr>
+</table>
+
+<!-- ============================================================
+     SECTION 3a: VarMat
+     ============================================================ -->
+<section id="sec3a">
+<h3>3a. VarMat: The Score Covariance Matrix</h3>
+
+<p>
+<span class="mat">VarMat</span> is the covariance matrix of the score statistics for
+$m$ variants in a region. It tells SKAT/BURDEN/SKAT-O how correlated the test
+statistics are, accounting for covariates, the variance ratio, and the null model.
+</p>
+
+<p>The construction proceeds in five steps:</p>
+
+<h3>Step 1: Read raw genotypes $G$</h3>
+
+<p>
+For a gene region with $m$ variants and $N$ individuals, read the raw genotype matrix
+$G \in \mathbb{R}^{N \times m}$, where $G_{ki}$ is the allele count (0, 1, or 2) of
+individual $k$ at variant $i$.
+</p>
+
+<h3>Step 2: Adjust for covariates $\to \tilde{G}$</h3>
+
+<p>
+The raw genotype contains confounding from covariates (age, sex, PCs, etc.).
+SAIGE projects it out:
+</p>
+
+<div class="math-block mat-block">
+$$\tilde{G}_i = G_i - X (X^T V X)^{-1} X^T V \, G_i$$
+</div>
+
+<p>
+where $X$ is the $N \times p$ covariate matrix and $V = \text{diag}(\mu_k(1-\mu_k))$
+for binary traits (or $\frac{1}{\tau_0} I$ for quantitative). In code, this is
+computed as:
+</p>
+
+<pre><code><span class="cm">// saige_test.cpp: getadjG()</span>
+g = XV * GVec;           <span class="cm">// p-vector: X'V * G</span>
+g = GVec - XXVX_inv * g; <span class="cm">// N-vector: G - X(X'VX)^{-1}X'VG = G_tilde</span>
+</code></pre>
+
+<h3>Step 3: Build P1Mat and P2Mat</h3>
+
+<p>
+For each variant $i$ in the region, SAIGE constructs two vectors and stores them as
+rows/columns of the matrices <span class="mat">P1Mat</span> $[m \times N]$ and
+<span class="mat">P2Mat</span> $[N \times m]$:
+</p>
+
+<div class="math-block mat-block">
+$$\text{P1Mat}[i, :] = \sqrt{\text{VR}} \;\cdot\; \tilde{G}_i^T$$
+$$\text{P2Mat}[:, i] = \sqrt{\text{VR}} \;\cdot\; \text{diag}(\mu_2) \;\cdot\; \tau_0 \;\cdot\; \tilde{G}_i$$
+</div>
+
+<p>
+where <span class="sca">VR</span> is the variance ratio (from Step 1), $\mu_2$ is
+the variance weight vector ($\mu_k(1-\mu_k)$ for binary, $1/\tau_0$ for quantitative),
+and $\tau_0$ is the first variance component.
+</p>
+
+<pre><code><span class="cm">// main.cpp line 1905:</span>
+P1Mat.row(i) = sqrt(m_varRatioVal) * gtildeVec.t();
+P2Mat.col(i) = sqrt(m_varRatioVal) * P2Vec;
+<span class="cm">// where P2Vec = gtilde % m_mu2 * tau[0]</span>
+</code></pre>
+
+<h3>Step 4: Multiply to get VarMat</h3>
+
+<div class="math-block mat-block">
+$$\text{VarMat} = \text{P1Mat} \times \text{P2Mat} \quad [m \times m]$$
+</div>
+
+<p>
+Element $(i, j)$ of VarMat is the covariance between the score statistics of variants
+$i$ and $j$ under the null hypothesis:
+</p>
+
+$$\text{VarMat}_{ij} = \text{VR} \cdot \tilde{G}_i^T \,\text{diag}(\mu_2)\, \tau_0 \,\tilde{G}_j$$
+
+<p>
+The diagonal element $\text{VarMat}_{ii}$ equals the variance of variant $i$'s score
+statistic (the same <code>var</code> used in single-variant testing).
+</p>
+
+<h3>Step 5: Apply weights to get Phi (= wadjVarSMat)</h3>
+
+<p>
+Each variant receives a weight $w_i$ (typically from a Beta(1, 25) density evaluated
+at the variant's MAF). The weighted covariance matrix used by SKAT is:
+</p>
+
+<div class="math-block mat-block">
+$$\Phi_{ij} = w_i \cdot \text{VarMat}_{ij} \cdot w_j$$
+</div>
+
+<p>In matrix notation, $\Phi = \text{VarMat} \odot (w \, w^T)$ where $\odot$ is
+element-wise multiplication. In code:</p>
+
+<pre><code><span class="cm">// main.cpp line 2438-2440:</span>
+weightMat = AnnoWeights * AnnoWeights.t();  <span class="cm">// w * w^T</span>
+wStatVec  = StatVec % AnnoWeights;          <span class="cm">// w_i * S_i</span>
+wadjVarSMat = VarMatSub % weightMat;        <span class="cm">// Phi = VarMat .* (w w^T)</span>
+</code></pre>
+
+<div class="note">
+<strong>How Phi feeds into the tests:</strong>
+<ul style="margin-top:8px;">
+<li><strong>SKAT:</strong> $Q = S^T W S = \sum w_i^2 S_i^2$. Under $H_0$,
+$Q \sim \sum \lambda_j \chi^2(1)$ where $\lambda_j$ = eigenvalues of $\Phi$.</li>
+<li><strong>BURDEN:</strong> $Q = (\sum w_i S_i)^2$. Under $H_0$,
+$Q / \sum_{ij}\Phi_{ij} \sim \chi^2(1)$.</li>
+<li><strong>SKAT-O:</strong> Searches over $\rho \in [0, 1]$ blending SKAT and BURDEN,
+using the eigenvalues of $R_\rho^{1/2}\,\Phi\,R_\rho^{1/2}$ at each $\rho$.</li>
+</ul>
+</div>
+
+<!-- VarMat numerical example -->
+<div class="example-box" id="sec3a-example">
+<h4>Worked Example: VarMat for 3 variants, 5 individuals</h4>
+
+<p>Setup: 3 variants in a gene, 5 individuals (quantitative trait). For quantitative
+traits, $\mu_2 = 1/\tau_0$ so $\text{diag}(\mu_2) \cdot \tau_0 = I$. We also set
+$\text{VR} = 1$ for simplicity. This means P2Vec = gtilde and we can focus on the
+projection step.</p>
+
+<p><strong>Covariates</strong> (intercept only, so $X$ is a column of ones):</p>
+$$X = \begin{pmatrix} 1\\1\\1\\1\\1 \end{pmatrix}, \quad
+(X^T V X)^{-1} X^T V = \frac{1}{5}\begin{pmatrix}1&1&1&1&1\end{pmatrix}$$
+
+<p><strong>Raw genotypes</strong> $G$ (3 variants as columns):</p>
+
+<table>
+<tr><th>Person</th><th>$G_1$</th><th>$G_2$</th><th>$G_3$</th></tr>
+<tr><td>1</td><td>0</td><td>0</td><td>2</td></tr>
+<tr><td>2</td><td>0</td><td>1</td><td>1</td></tr>
+<tr><td>3</td><td>1</td><td>1</td><td>0</td></tr>
+<tr><td>4</td><td>1</td><td>0</td><td>0</td></tr>
+<tr><td>5</td><td>2</td><td>0</td><td>1</td></tr>
+</table>
+
+<p><strong>Step 2 -- Covariate adjustment</strong> (subtract column mean, since $X$ is intercept-only):</p>
+$$\bar{G}_1 = 0.8, \quad \bar{G}_2 = 0.4, \quad \bar{G}_3 = 0.8$$
+
+<table>
+<tr><th>Person</th><th>$\tilde{G}_1$</th><th>$\tilde{G}_2$</th><th>$\tilde{G}_3$</th></tr>
+<tr><td>1</td><td>-0.8</td><td>-0.4</td><td>1.2</td></tr>
+<tr><td>2</td><td>-0.8</td><td>0.6</td><td>0.2</td></tr>
+<tr><td>3</td><td>0.2</td><td>0.6</td><td>-0.8</td></tr>
+<tr><td>4</td><td>0.2</td><td>-0.4</td><td>-0.8</td></tr>
+<tr><td>5</td><td>1.2</td><td>-0.4</td><td>0.2</td></tr>
+</table>
+
+<p><strong>Steps 3-4 -- VarMat = P1Mat * P2Mat</strong> (with VR=1, quantitative: P1=P2=$\tilde{G}^T$):</p>
+
+$$\text{VarMat}_{11} = \tilde{G}_1^T \tilde{G}_1 = (-0.8)^2 + (-0.8)^2 + 0.2^2 + 0.2^2 + 1.2^2 = 2.80$$
+$$\text{VarMat}_{22} = \tilde{G}_2^T \tilde{G}_2 = 0.16 + 0.36 + 0.36 + 0.16 + 0.16 = 1.20$$
+$$\text{VarMat}_{33} = \tilde{G}_3^T \tilde{G}_3 = 1.44 + 0.04 + 0.64 + 0.64 + 0.04 = 2.80$$
+$$\text{VarMat}_{12} = \tilde{G}_1^T \tilde{G}_2 = 0.32 + (-0.48) + 0.12 + (-0.08) + (-0.48) = -0.60$$
+$$\text{VarMat}_{13} = \tilde{G}_1^T \tilde{G}_3 = (-0.96) + (-0.16) + (-0.16) + (-0.16) + 0.24 = -1.20$$
+$$\text{VarMat}_{23} = \tilde{G}_2^T \tilde{G}_3 = (-0.48) + 0.12 + (-0.48) + 0.32 + (-0.08) = -0.60$$
+
+$$\text{VarMat} = \begin{pmatrix} 2.80 & -0.60 & -1.20 \\ -0.60 & 1.20 & -0.60 \\ -1.20 & -0.60 & 2.80 \end{pmatrix}$$
+
+<p><strong>Step 5 -- Apply weights.</strong> Suppose MAF$_1$ = 0.20, MAF$_2$ = 0.10,
+MAF$_3$ = 0.20 and we use Beta(1, 25) weights:</p>
+
+$$w_1 \approx 0.236, \quad w_2 \approx 2.007, \quad w_3 \approx 0.236$$
+
+<p>Then $\Phi = \text{VarMat} \odot (w w^T)$:</p>
+
+$$\Phi = \begin{pmatrix}
+2.80 \times 0.056 & -0.60 \times 0.474 & -1.20 \times 0.056 \\
+-0.60 \times 0.474 & 1.20 \times 4.029 & -0.60 \times 0.474 \\
+-1.20 \times 0.056 & -0.60 \times 0.474 & 2.80 \times 0.056
+\end{pmatrix}
+= \begin{pmatrix}
+0.156 & -0.284 & -0.067 \\
+-0.284 & 4.835 & -0.284 \\
+-0.067 & -0.284 & 0.156
+\end{pmatrix}$$
+
+<p>
+Notice how variant 2 (MAF=0.10, rarer) gets a much larger weight, amplifying its
+contribution to the test. The SKAT test statistic would use the eigenvalues of this
+$\Phi$ matrix to determine the null distribution.
+</p>
+</div>
+
+</section>
+
+<!-- ============================================================
+     SECTION 3b: LDmat
+     ============================================================ -->
+<section id="sec3b">
+<h3>3b. LDmat: The Raw $G^T G$ Matrix</h3>
+
+<p>
+The <span class="mat">LDmat</span> is a much simpler object: it is the raw
+genotype cross-product $G^T G$ computed on integer allele counts. It captures
+LD for <em>meta-analysis export</em>, not for computing test p-values.
+</p>
+
+<div class="math-block mat-block">
+$$\text{LDmat} = G^T G \quad [m \times m] \quad \text{(integer-valued)}$$
+</div>
+
+<p>Key differences from VarMat:</p>
+<ul>
+<li>No covariate adjustment (no projection, no $\tilde{G}$)</li>
+<li>No variance ratio multiplication</li>
+<li>No weights</li>
+<li>Integer-valued (genotypes are 0/1/2)</li>
+<li>Stored as sparse COO format (only lower triangle, only nonzero entries)</li>
+</ul>
+
+<p>
+The purpose of LDmat is to enable downstream meta-analysis tools to reconstruct
+the genotype correlation structure across studies without sharing individual-level data.
+The computation is done in chunks for memory efficiency (since gene regions can contain
+thousands of variants).
+</p>
+
+<pre><code><span class="cm">// ldmat.cpp: chunked sparse computation</span>
+<span class="cm">// For each chunk, build sparse integer matrix P1Mat[m_chunk x N]</span>
+<span class="cm">// Then: LDmat_chunk = P1Mat * P1Mat^T  (or P1Mat * P2Mat^T for cross-chunks)</span>
+<span class="cm">// Output lower triangle in COO format: row col value</span>
+</code></pre>
+
+<div class="example-box" id="sec3b-example">
+<h4>Worked Example: LDmat for the same 3 variants, 5 individuals</h4>
+
+<p>Using the same raw genotypes $G$ from above (before covariate adjustment):</p>
+
+<table>
+<tr><th>Person</th><th>$G_1$</th><th>$G_2$</th><th>$G_3$</th></tr>
+<tr><td>1</td><td>0</td><td>0</td><td>2</td></tr>
+<tr><td>2</td><td>0</td><td>1</td><td>1</td></tr>
+<tr><td>3</td><td>1</td><td>1</td><td>0</td></tr>
+<tr><td>4</td><td>1</td><td>0</td><td>0</td></tr>
+<tr><td>5</td><td>2</td><td>0</td><td>1</td></tr>
+</table>
+
+$$G^T G = \begin{pmatrix} G_1^T \\ G_2^T \\ G_3^T \end{pmatrix} \begin{pmatrix} G_1 & G_2 & G_3 \end{pmatrix}$$
+
+<p>Element-by-element:</p>
+
+$$G_1^T G_1 = 0^2 + 0^2 + 1^2 + 1^2 + 2^2 = 6$$
+$$G_2^T G_2 = 0^2 + 1^2 + 1^2 + 0^2 + 0^2 = 2$$
+$$G_3^T G_3 = 2^2 + 1^2 + 0^2 + 0^2 + 1^2 = 6$$
+$$G_1^T G_2 = 0{\cdot}0 + 0{\cdot}1 + 1{\cdot}1 + 1{\cdot}0 + 2{\cdot}0 = 1$$
+$$G_1^T G_3 = 0{\cdot}2 + 0{\cdot}1 + 1{\cdot}0 + 1{\cdot}0 + 2{\cdot}1 = 2$$
+$$G_2^T G_3 = 0{\cdot}2 + 1{\cdot}1 + 1{\cdot}0 + 0{\cdot}0 + 0{\cdot}1 = 1$$
+
+$$\text{LDmat} = G^T G = \begin{pmatrix} 6 & 1 & 2 \\ 1 & 2 & 1 \\ 2 & 1 & 6 \end{pmatrix}$$
+
+<p><strong>Sparse COO output</strong> (lower triangle only):</p>
+
+<pre><code>0 0 6
+1 0 1
+1 1 2
+2 0 2
+2 1 1
+2 2 6</code></pre>
+
+<p>
+Compare to VarMat: the LDmat is all integers, has no negative values (genotypes are
+non-negative), and is not adjusted for covariates. The diagonal simply counts
+$\sum G_i^2$ -- the sum of squared allele counts.
+</p>
+</div>
+
+</section>
+</section>
+
+<!-- ============================================================
+     SECTION 4: Comparison Table
+     ============================================================ -->
+<section id="sec4">
+<h2>4. VarMat vs LDmat: Side-by-Side Comparison</h2>
+
+<table class="cmp-table">
+<tr>
+  <th style="width:25%">Property</th>
+  <th style="width:37.5%">VarMat (Score Covariance)</th>
+  <th style="width:37.5%">LDmat (Raw Cross-Product)</th>
+</tr>
+<tr>
+  <td>Formula</td>
+  <td>$\text{P1Mat} \times \text{P2Mat}$ where<br>
+      $\text{P1}[i] = \sqrt{\text{VR}} \cdot \tilde{G}_i^T$<br>
+      $\text{P2}[i] = \sqrt{\text{VR}} \cdot \text{diag}(\mu_2) \cdot \tau_0 \cdot \tilde{G}_i$</td>
+  <td>$G^T G$ (raw integer genotypes)</td>
+</tr>
+<tr>
+  <td>Covariate adjusted?</td>
+  <td>Yes -- genotypes projected orthogonal to $X$</td>
+  <td>No</td>
+</tr>
+<tr>
+  <td>Variance ratio?</td>
+  <td>Yes -- scaled by $\text{VR}$</td>
+  <td>No</td>
+</tr>
+<tr>
+  <td>Null model info?</td>
+  <td>Yes -- uses $\mu$, $V$, $\tau$, $X$ from Step 1</td>
+  <td>No -- genotypes only</td>
+</tr>
+<tr>
+  <td>Data type</td>
+  <td>Double-precision floating point</td>
+  <td>Integer</td>
+</tr>
+<tr>
+  <td>Symmetry</td>
+  <td>Symmetric (by construction, though only upper triangle is directly computed)</td>
+  <td>Symmetric (stored as lower triangle in sparse COO)</td>
+</tr>
+<tr>
+  <td>Can have negative values?</td>
+  <td>Yes (negative covariance is common)</td>
+  <td>No (product of non-negative genotypes)</td>
+</tr>
+<tr>
+  <td>Used for</td>
+  <td>SKAT, BURDEN, SKAT-O null distributions; SPA Phi adjustment</td>
+  <td>Export for downstream meta-analysis</td>
+</tr>
+<tr>
+  <td>Weighted version</td>
+  <td>$\Phi = \text{VarMat} \odot (w\,w^T)$</td>
+  <td>Not weighted</td>
+</tr>
+<tr>
+  <td>Memory strategy</td>
+  <td>Dense, chunked P1/P2 to disk</td>
+  <td>Sparse integer, chunked to disk</td>
+</tr>
+<tr>
+  <td>Code location</td>
+  <td><code>main.cpp</code> lines 1905, 2204-2244</td>
+  <td><code>ldmat.cpp</code></td>
+</tr>
+</table>
+
+<div class="note">
+<strong>Key insight:</strong> VarMat is specific to a particular null model (phenotype,
+covariates, trait type). If you change the phenotype, VarMat changes. LDmat depends
+only on genotypes and is the same regardless of the phenotype being tested.
+</div>
+
+</section>
+
+<!-- ============================================================
+     SECTION 5: Conditional Analysis
+     ============================================================ -->
+<section id="sec5">
+<h2>5. Connection to Conditional Analysis</h2>
+
+<p>
+Conditional analysis in SAIGE Step 2 tests whether a gene region is significant
+<em>after</em> accounting for known associated variants (condition markers). It reuses
+the VarMat framework, extending it to include the condition markers.
+</p>
+
+<h3>Setup</h3>
+
+<p>
+Suppose we have $m$ test variants and $k$ condition markers. SAIGE builds an
+<em>augmented</em> VarMat of size $(m+k) \times (m+k)$ that covers both test
+and condition variants:
+</p>
+
+<div class="math-block mat-block">
+$$\text{VarMat}_{\text{full}} = \begin{pmatrix} \Sigma_{TT} & \Sigma_{TC} \\ \Sigma_{CT} & \Sigma_{CC} \end{pmatrix}$$
+</div>
+
+<p>
+where $\Sigma_{TT}$ is the $m \times m$ covariance among test variants,
+$\Sigma_{CC}$ is the $k \times k$ covariance among condition markers, and
+$\Sigma_{TC}$ is the $m \times k$ cross-covariance.
+</p>
+
+<h3>Conditional variance</h3>
+
+<p>
+The conditional covariance matrix (the variance of the test statistics
+<em>given</em> the condition markers) is obtained by the Schur complement:
+</p>
+
+<div class="math-block mat-block">
+$$\Sigma_{T|C} = \Sigma_{TT} - \Sigma_{TC} \, \Sigma_{CC}^{-1} \, \Sigma_{CT}$$
+</div>
+
+<p>
+In code, $\Sigma_{CC}^{-1}$ is computed via pseudo-inverse
+(<code>arma::pinv</code>) to handle collinear condition markers. The conditional
+score statistics are similarly adjusted:
+</p>
+
+$$S_{T|C} = S_T - \Sigma_{TC} \, \Sigma_{CC}^{-1} \, S_C$$
+
+<p>
+The SKAT/BURDEN/SKAT-O tests then proceed with $S_{T|C}$ and $\Sigma_{T|C}$
+(weighted to form $\Phi_{T|C}$) exactly as in the unconditional case. The
+conditional single-variant results add five extra columns: BETA_c, SE_c,
+Tstat_c, var_c, and p.value_c.
+</p>
+
+<div class="note">
+<strong>LDmat is NOT affected by conditioning.</strong> The raw $G^T G$ matrix
+does not change when condition markers are specified -- conditioning only affects
+VarMat and the score statistics.
+</div>
+
+</section>
+
+</div><!-- end #content -->
+
+<!-- ============================================================
+     Scroll spy for sidebar
+     ============================================================ -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const links = document.querySelectorAll('#sidebar nav a');
+  const sections = [];
+  links.forEach(function(link) {
+    const id = link.getAttribute('href').slice(1);
+    const el = document.getElementById(id);
+    if (el) sections.push({ id: id, el: el, link: link });
+  });
+
+  function updateActive() {
+    let current = sections[0];
+    for (let i = 0; i < sections.length; i++) {
+      if (sections[i].el.getBoundingClientRect().top <= 80) {
+        current = sections[i];
+      }
+    }
+    links.forEach(function(l) { l.classList.remove('active'); });
+    if (current) current.link.classList.add('active');
+  }
+
+  window.addEventListener('scroll', updateActive);
+  updateActive();
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SAIGE Step 2: Annotated Flowchart with Code References</title>
+<style>
+:root {
+  --color-blue: #3498db;
+  --color-green: #27ae60;
+  --color-red: #e74c3c;
+  --color-purple: #8e44ad;
+  --color-orange: #f39c12;
+  --color-teal: #16a085;
+  --color-dark: #2c3e50;
+  --color-gray: #7f8c8d;
+  --sidebar-width: 240px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  line-height: 1.7;
+  color: #333;
+  background: #ffffff;
+}
+#sidebar {
+  position: fixed;
+  top: 0; left: 0;
+  width: var(--sidebar-width);
+  height: 100vh;
+  background: #1a1a2e;
+  color: #c8c8e0;
+  overflow-y: auto;
+  z-index: 1000;
+  padding: 20px 0;
+  border-right: 3px solid #e94560;
+}
+#sidebar h2 {
+  color: #fff;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  padding: 0 18px 15px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  margin-bottom: 10px;
+}
+#sidebar nav a {
+  display: block;
+  color: #c8c8e0;
+  text-decoration: none;
+  padding: 7px 18px;
+  font-size: 12.5px;
+  transition: all 0.2s ease;
+  border-left: 3px solid transparent;
+}
+#sidebar nav a:hover {
+  background: rgba(255,255,255,0.05);
+  color: #fff;
+}
+#sidebar nav a.sub {
+  padding-left: 32px;
+  font-size: 11.5px;
+}
+#content {
+  margin-left: var(--sidebar-width);
+  padding: 30px 40px;
+  max-width: 1700px;
+}
+h1 {
+  font-size: 2em;
+  color: var(--color-dark);
+  border-bottom: 3px solid #e94560;
+  padding-bottom: 12px;
+  margin-bottom: 20px;
+}
+h2 {
+  font-size: 1.5em;
+  color: var(--color-dark);
+  margin-top: 40px;
+  margin-bottom: 15px;
+  padding-top: 12px;
+  border-top: 2px solid #e0e0e0;
+}
+h2:first-of-type { border-top: none; margin-top: 15px; }
+p { margin-bottom: 12px; font-size: 14px; }
+section { scroll-margin-top: 20px; }
+.legend {
+  display: flex;
+  gap: 20px;
+  margin: 12px 0 20px;
+  padding: 10px 16px;
+  background: #f0f0f0;
+  border-radius: 6px;
+  font-size: 13px;
+  flex-wrap: wrap;
+}
+.legend span { display: inline-flex; align-items: center; gap: 5px; }
+.legend .dot { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
+.pipeline-container {
+  width: 100%;
+  overflow-x: auto;
+  margin: 15px 0 25px;
+}
+.pipeline-container svg { display: block; margin: 0 auto; }
+.code-ref {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-left: 4px solid #6c5ce7;
+  border-radius: 0 6px 6px 0;
+  padding: 12px 16px;
+  margin: 10px 0 20px;
+  font-size: 13px;
+  line-height: 1.8;
+}
+.code-ref strong { color: #6c5ce7; }
+.code-ref code {
+  font-family: 'Menlo', 'Consolas', monospace;
+  background: #e9ecef;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 12px;
+}
+.note {
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-left: 4px solid #ffc107;
+  padding: 10px 14px;
+  border-radius: 0 6px 6px 0;
+  margin: 12px 0;
+  font-size: 13px;
+}
+.note strong { color: #856404; }
+@media (max-width: 1000px) {
+  #sidebar { display: none; }
+  #content { margin-left: 0; padding: 20px; }
+}
+</style>
+</head>
+<body>
+
+<div id="sidebar">
+  <h2>Annotated Flowchart</h2>
+  <nav>
+    <a href="#sec-part1">1. Main Entry</a>
+    <a href="#sec-part2">2. Single-Variant</a>
+    <a class="sub" href="#sec-part2">Score Test / SPA / ER</a>
+    <a href="#sec-part3">3. Region/Gene</a>
+    <a class="sub" href="#sec-part3">BURDEN / SKAT / SKAT-O</a>
+    <a href="#sec-part4">4. SPA Detail</a>
+    <a href="#sec-part5">5. VR Assignment</a>
+    <a href="#sec-part6">6. CCT</a>
+  </nav>
+</div>
+
+<div id="content">
+
+<h1>SAIGE Step 2 &mdash; Annotated Flowchart with Code References</h1>
+
+<p>Each section includes SVG flowcharts annotated with the exact C++ function names, source files, and line numbers from the standalone port. Decision diamonds show the corresponding C++ condition.</p>
+
+<div class="legend">
+  <span><span class="dot" style="background:#3498db"></span> Standard flow</span>
+  <span><span class="dot" style="background:#e74c3c"></span> Binary-trait only</span>
+  <span><span class="dot" style="background:#27ae60"></span> Output / result</span>
+  <span><span class="dot" style="background:#8e44ad"></span> Region-test specific</span>
+  <span><span class="dot" style="background:#f39c12"></span> Decision point</span>
+  <span><span class="dot" style="background:#16a085"></span> Optional path</span>
+</div>
+
+
+<!-- ============================================================ -->
+<!-- PART 1: MAIN ENTRY -->
+<!-- ============================================================ -->
+<section id="sec-part1">
+<h2>Part 1: Main Entry &mdash; Top-Level Decision</h2>
+
+<div class="pipeline-container">
+<svg viewBox="0 0 2200 530" width="2180" height="520" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif">
+  <rect width="2200" height="530" fill="#fafbfc" rx="10"/>
+  <defs>
+    <marker id="a1" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#555"/></marker>
+    <marker id="a1b" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#3498db"/></marker>
+    <marker id="a1p" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#8e44ad"/></marker>
+  </defs>
+
+  <text x="800" y="30" text-anchor="middle" font-size="18" font-weight="bold" fill="#2c3e50">SAIGE Step 2 &mdash; Top-Level Flow</text>
+
+  <!-- Row 1: Inputs -->
+  <rect x="30" y="55" width="200" height="55" rx="8" fill="#3498db" stroke="#2980b9" stroke-width="2"/>
+  <text x="130" y="78" text-anchor="middle" fill="white" font-size="13" font-weight="bold">Null Model</text>
+  <text x="130" y="96" text-anchor="middle" fill="#d5e8f7" font-size="10">(JSON + .arma files)</text>
+
+  <rect x="260" y="55" width="200" height="55" rx="8" fill="#27ae60" stroke="#219a52" stroke-width="2"/>
+  <text x="360" y="78" text-anchor="middle" fill="white" font-size="13" font-weight="bold">Genotype File</text>
+  <text x="360" y="96" text-anchor="middle" fill="#c8f0d4" font-size="10">PLINK / VCF / BGEN / PGEN</text>
+
+  <rect x="490" y="55" width="200" height="55" rx="8" fill="#e74c3c" stroke="#c0392b" stroke-width="2"/>
+  <text x="590" y="78" text-anchor="middle" fill="white" font-size="13" font-weight="bold">Variance Ratios</text>
+  <text x="590" y="96" text-anchor="middle" fill="#f5c6cb" font-size="10">MAC category bins</text>
+
+  <rect x="720" y="55" width="200" height="55" rx="8" fill="#8e44ad" stroke="#7d3c98" stroke-width="2"/>
+  <text x="820" y="78" text-anchor="middle" fill="white" font-size="13" font-weight="bold">Group File</text>
+  <text x="820" y="96" text-anchor="middle" fill="#dcc6e8" font-size="10">(region test only)</text>
+
+  <rect x="950" y="55" width="200" height="55" rx="8" fill="#16a085" stroke="#1abc9c" stroke-width="1.5" stroke-dasharray="5,3"/>
+  <text x="1050" y="78" text-anchor="middle" fill="white" font-size="12" font-weight="bold">Condition Markers</text>
+  <text x="1050" y="96" text-anchor="middle" fill="#a3e4d7" font-size="10">(optional)</text>
+
+  <!-- Arrows to SAIGEClass -->
+  <line x1="130" y1="110" x2="130" y2="140" stroke="#555" stroke-width="2"/>
+  <line x1="360" y1="110" x2="360" y2="140" stroke="#555" stroke-width="2"/>
+  <line x1="590" y1="110" x2="500" y2="140" stroke="#555" stroke-width="1.5"/>
+  <line x1="130" y1="140" x2="500" y2="140" stroke="#555" stroke-width="2"/>
+  <line x1="500" y1="140" x2="500" y2="155" stroke="#555" stroke-width="2" marker-end="url(#a1)"/>
+
+  <!-- SAIGEClass init -->
+  <rect x="310" y="155" width="380" height="50" rx="8" fill="#34495e" stroke="#2c3e50" stroke-width="2"/>
+  <text x="500" y="176" text-anchor="middle" fill="white" font-size="14" font-weight="bold">Initialize SAIGEClass</text>
+  <text x="500" y="194" text-anchor="middle" fill="#b0bec5" font-size="11">setSAIGEobjInCPP() &rarr; main.cpp:208</text>
+
+  <!-- Annotation: Initialize SAIGEClass -->
+  <rect x="1660" y="150" width="400" height="52" rx="4" fill="#e8f0fd" stroke="#34495e" stroke-width="1.5"/>
+  <text x="1672" y="165" font-family="Menlo, Consolas, monospace" font-size="9" fill="#2c3e50" font-weight="bold">setSAIGEobjInCPP()</text>
+  <text x="1672" y="178" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">defined: main.cpp:208</text>
+  <text x="1672" y="191" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">called at: main.cpp:2650 (after YAML parse)</text>
+
+  <line x1="500" y1="205" x2="500" y2="240" stroke="#555" stroke-width="2" marker-end="url(#a1)"/>
+
+  <!-- Main decision diamond -->
+  <polygon points="500,240 650,280 500,320 350,280" fill="#f39c12" stroke="#e67e22" stroke-width="2"/>
+  <text x="500" y="278" text-anchor="middle" fill="white" font-size="12" font-weight="bold">Region test?</text>
+
+  <!-- Gray annotation for decision -->
+  <rect x="1660" y="449" width="230" height="22" rx="4" fill="#ecf0f1" stroke="#bdc3c7"/>
+  <text x="1775" y="464" text-anchor="middle" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">groupFile != "" (main.cpp:2760)</text>
+
+  <!-- LEFT: Single-variant path -->
+  <line x1="350" y1="280" x2="200" y2="280" stroke="#3498db" stroke-width="2.5"/>
+  <line x1="200" y1="280" x2="200" y2="330" stroke="#3498db" stroke-width="2.5" marker-end="url(#a1b)"/>
+  <text x="275" y="270" font-size="11" fill="#3498db" font-weight="bold">NO</text>
+
+  <rect x="70" y="330" width="260" height="50" rx="8" fill="#3498db" stroke="#2980b9" stroke-width="2"/>
+  <text x="200" y="352" text-anchor="middle" fill="white" font-size="13" font-weight="bold">mainMarkerInCPP()</text>
+  <text x="200" y="370" text-anchor="middle" fill="#d5e8f7" font-size="10">main.cpp:637 &mdash; per-marker loop</text>
+
+  <!-- Annotation: mainMarkerInCPP -->
+  <rect x="1660" y="325" width="400" height="52" rx="4" fill="#e8f0fd" stroke="#3498db" stroke-width="1.5"/>
+  <text x="1672" y="340" font-family="Menlo, Consolas, monospace" font-size="9" fill="#2c3e50" font-weight="bold">mainMarkerInCPP()</text>
+  <text x="1672" y="353" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">defined: main.cpp:637</text>
+  <text x="1672" y="366" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">called at: main.cpp:2760 (groupFile=="")</text>
+
+  <line x1="200" y1="380" x2="200" y2="410" stroke="#555" stroke-width="1.5" marker-end="url(#a1)"/>
+  <rect x="80" y="410" width="240" height="40" rx="6" fill="#ecf0f1" stroke="#bdc3c7"/>
+  <text x="200" y="434" text-anchor="middle" font-size="11" fill="#333">For each marker: read G, QC, score test</text>
+
+  <line x1="200" y1="450" x2="200" y2="470" stroke="#555" stroke-width="1.5" marker-end="url(#a1)"/>
+  <rect x="70" y="470" width="260" height="35" rx="6" fill="#27ae60" stroke="#219a52"/>
+  <text x="200" y="492" text-anchor="middle" font-size="11" fill="white" font-weight="bold">Output: single-variant results</text>
+
+  <!-- RIGHT: Region path -->
+  <line x1="650" y1="280" x2="850" y2="280" stroke="#8e44ad" stroke-width="2.5"/>
+  <line x1="850" y1="280" x2="850" y2="330" stroke="#8e44ad" stroke-width="2.5" marker-end="url(#a1p)"/>
+  <text x="740" y="270" font-size="11" fill="#8e44ad" font-weight="bold">YES</text>
+
+  <rect x="700" y="330" width="300" height="50" rx="8" fill="#8e44ad" stroke="#7d3c98" stroke-width="2"/>
+  <text x="850" y="352" text-anchor="middle" fill="white" font-size="13" font-weight="bold">mainRegionInCPP()</text>
+  <text x="850" y="370" text-anchor="middle" fill="#dcc6e8" font-size="10">main.cpp:1637 &mdash; per-gene loop</text>
+
+  <!-- Annotation: mainRegionInCPP -->
+  <rect x="1660" y="387" width="400" height="52" rx="4" fill="#f3e8fd" stroke="#8e44ad" stroke-width="1.5"/>
+  <text x="1672" y="402" font-family="Menlo, Consolas, monospace" font-size="9" fill="#2c3e50" font-weight="bold">mainRegionInCPP()</text>
+  <text x="1672" y="415" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">defined: main.cpp:1637</text>
+  <text x="1672" y="428" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">called at: main.cpp:2760 (groupFile!="")</text>
+
+  <line x1="770" y1="380" x2="720" y2="415" stroke="#555" stroke-width="1.5" marker-end="url(#a1)"/>
+  <line x1="850" y1="380" x2="850" y2="415" stroke="#555" stroke-width="1.5" marker-end="url(#a1)"/>
+  <line x1="930" y1="380" x2="980" y2="415" stroke="#555" stroke-width="1.5" marker-end="url(#a1)"/>
+
+  <rect x="650" y="415" width="110" height="35" rx="6" fill="#2ecc71" stroke="#27ae60"/>
+  <text x="705" y="437" text-anchor="middle" fill="white" font-size="11" font-weight="bold">BURDEN</text>
+
+  <rect x="795" y="415" width="110" height="35" rx="6" fill="#3498db" stroke="#2980b9"/>
+  <text x="850" y="437" text-anchor="middle" fill="white" font-size="11" font-weight="bold">SKAT</text>
+
+  <rect x="940" y="415" width="110" height="35" rx="6" fill="#9b59b6" stroke="#8e44ad"/>
+  <text x="995" y="437" text-anchor="middle" fill="white" font-size="11" font-weight="bold">SKAT-O</text>
+
+  <line x1="705" y1="450" x2="705" y2="468" stroke="#555" stroke-width="1"/>
+  <line x1="850" y1="450" x2="850" y2="468" stroke="#555" stroke-width="1"/>
+  <line x1="995" y1="450" x2="995" y2="468" stroke="#555" stroke-width="1"/>
+  <line x1="705" y1="468" x2="995" y2="468" stroke="#555" stroke-width="1.5"/>
+  <line x1="850" y1="468" x2="850" y2="485" stroke="#555" stroke-width="1.5" marker-end="url(#a1)"/>
+  <rect x="780" y="485" width="140" height="30" rx="6" fill="#e67e22" stroke="#d35400"/>
+  <text x="850" y="504" text-anchor="middle" fill="white" font-size="11" font-weight="bold">CCT Combination</text>
+
+  <!-- Conditional analysis note -->
+  <line x1="1050" y1="110" x2="1050" y2="145" stroke="#16a085" stroke-width="1.5" stroke-dasharray="5,3"/>
+  <line x1="1050" y1="145" x2="500" y2="145" stroke="#16a085" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="1200" y="142" font-size="9" fill="#16a085">assign_conditionMarkers_factors() main.cpp:285</text>
+</svg>
+</div>
+
+<div class="code-ref">
+  <strong>Code References &mdash; Part 1: Main Entry</strong><br/>
+  <code>main()</code> &mdash; <code>main.cpp:2621</code> &mdash; CLI entry, YAML config parsing, opens genotype file<br/>
+  &rarr; <code>setSAIGEobjInCPP()</code> &mdash; <code>main.cpp:208</code> &mdash; constructs SAIGEClass with null model params<br/>
+  &rarr; <code>SAIGEClass::SAIGEClass()</code> &mdash; <code>saige_test.cpp:38</code> &mdash; stores mu, res, XVX, XV, tau, VR, sparse GRM<br/>
+  &rarr; <code>assign_conditionMarkers_factors()</code> &mdash; <code>main.cpp:285</code> &mdash; reads condition marker genotypes<br/>
+  &rarr; <code>setAssocTest_GlobalVarsInCPP()</code> &mdash; <code>main.cpp:110</code> &mdash; impute method, SPA/ER/Firth cutoffs<br/>
+  Branch: if <code>groupFile != ""</code> (main.cpp:2760) &rarr; <code>mainRegionInCPP()</code> else &rarr; <code>mainMarkerInCPP()</code>
+</div>
+
+</section>
+
+
+<!-- ============================================================ -->
+<!-- PART 2: SINGLE-VARIANT PATH -->
+<!-- ============================================================ -->
+<section id="sec-part2">
+<h2>Part 2: Single-Variant Path (Per-Marker Decision Tree)</h2>
+
+<div class="pipeline-container">
+<svg viewBox="0 0 2100 1700" width="2080" height="1690" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif">
+  <rect width="1700" height="1700" fill="#fafbfc" rx="10"/>
+  <defs>
+    <marker id="a2" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#555"/></marker>
+    <marker id="a2r" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#e74c3c"/></marker>
+    <marker id="a2b" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#3498db"/></marker>
+    <marker id="a2g" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#27ae60"/></marker>
+    <marker id="a2o" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#e67e22"/></marker>
+  </defs>
+
+  <text x="850" y="28" text-anchor="middle" font-size="18" font-weight="bold" fill="#2c3e50">Single-Variant Testing &mdash; Per-Marker Decision Tree</text>
+
+  <!-- START -->
+  <rect x="700" y="48" width="300" height="40" rx="20" fill="#34495e" stroke="#2c3e50" stroke-width="2"/>
+  <text x="850" y="73" text-anchor="middle" fill="white" font-size="13" font-weight="bold">Read genotype G &mdash; mainMarkerInCPP()</text>
+
+  <line x1="850" y1="88" x2="850" y2="115" stroke="#555" stroke-width="2" marker-end="url(#a2)"/>
+
+  <!-- QC Filter -->
+  <polygon points="850,115 1010,155 850,195 690,155" fill="#f39c12" stroke="#e67e22" stroke-width="2"/>
+  <text x="850" y="150" text-anchor="middle" fill="white" font-size="11" font-weight="bold">QC: MAC, missing rate,</text>
+  <text x="850" y="164" text-anchor="middle" fill="white" font-size="11" font-weight="bold">MAF within range?</text>
+
+  <!-- Gray annotation -->
+  <rect x="1550" y="130" width="340" height="22" rx="4" fill="#ecf0f1" stroke="#bdc3c7"/>
+  <text x="1720" y="145" text-anchor="middle" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">missingRate>cutoff || MAF>max || MAC&lt;min (main.cpp:1842)</text>
+
+  <line x1="1010" y1="155" x2="1130" y2="155" stroke="#e74c3c" stroke-width="2" marker-end="url(#a2r)"/>
+  <text x="1060" y="147" font-size="10" fill="#e74c3c" font-weight="bold">FAIL</text>
+  <rect x="1130" y="140" width="130" height="30" rx="6" fill="#ecf0f1" stroke="#bdc3c7"/>
+  <text x="1195" y="160" text-anchor="middle" font-size="11" fill="#7f8c8d">Skip marker</text>
+
+  <line x1="850" y1="195" x2="850" y2="225" stroke="#27ae60" stroke-width="2" marker-end="url(#a2g)"/>
+  <text x="870" y="215" font-size="10" fill="#27ae60" font-weight="bold">PASS</text>
+
+  <rect x="710" y="225" width="280" height="36" rx="6" fill="#ecf0f1" stroke="#bdc3c7"/>
+  <text x="850" y="248" text-anchor="middle" font-size="11" fill="#333">Impute missing, flip if ALT freq > 0.5</text>
+
+  <line x1="850" y1="261" x2="850" y2="290" stroke="#555" stroke-width="2" marker-end="url(#a2)"/>
+
+  <rect x="700" y="290" width="300" height="36" rx="6" fill="#3498db" stroke="#2980b9"/>
+  <text x="850" y="313" text-anchor="middle" fill="white" font-size="11" font-weight="bold">assignVarianceRatio() &mdash; saige_test.cpp:866</text>
+
+  <!-- Annotation: assignVarianceRatio -->
+  <rect x="1550" y="280" width="340" height="52" rx="4" fill="#e8f0fd" stroke="#3498db" stroke-width="1.5"/>
+  <text x="1562" y="295" font-family="Menlo, Consolas, monospace" font-size="9" fill="#2c3e50" font-weight="bold">assignVarianceRatio()</text>
+  <text x="1562" y="308" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">defined: saige_test.cpp:866</text>
+  <text x="1562" y="321" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">called at: saige_test.cpp:getMarkerPval</text>
+
+  <line x1="850" y1="326" x2="850" y2="360" stroke="#555" stroke-width="2" marker-end="url(#a2)"/>
+
+  <!-- DP1: isFastTest -->
+  <text x="850" y="355" text-anchor="middle" font-size="10" fill="#e74c3c" font-weight="bold">Decision 1</text>
+
+  <polygon points="850,370 1020,405 850,440 680,405" fill="#f39c12" stroke="#e67e22" stroke-width="2"/>
+  <text x="850" y="403" text-anchor="middle" fill="white" font-size="10" font-weight="bold">Fast test mode?</text>
+
+  <rect x="1550" y="377" width="280" height="22" rx="4" fill="#ecf0f1" stroke="#bdc3c7"/>
+  <text x="1690" y="392" text-anchor="middle" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">m_isFastTest (main.cpp:837)</text>
+
+  <line x1="850" y1="440" x2="850" y2="460" stroke="#555" stroke-width="1.5" marker-end="url(#a2)"/>
+  <text x="870" y="455" font-size="9" fill="#27ae60">YES: sparse=false</text>
+
+  <line x1="680" y1="405" x2="570" y2="405" stroke="#555" stroke-width="1.5"/>
+  <line x1="570" y1="405" x2="570" y2="460" stroke="#555" stroke-width="1.5" marker-end="url(#a2)"/>
+  <text x="610" y="397" font-size="9" fill="#555">NO: use model flag</text>
+  <line x1="570" y1="460" x2="850" y2="480" stroke="#555" stroke-width="1" stroke-dasharray="3,3"/>
+
+  <!-- 3-way score test -->
+  <polygon points="850,480 1050,520 850,560 650,520" fill="#f39c12" stroke="#e67e22" stroke-width="2"/>
+  <text x="850" y="515" text-anchor="middle" fill="white" font-size="10" font-weight="bold">Which score test?</text>
+  <text x="850" y="530" text-anchor="middle" fill="white" font-size="9">sparse? / noadjCov? / standard?</text>
+
+  <rect x="1550" y="498" width="360" height="22" rx="4" fill="#ecf0f1" stroke="#bdc3c7"/>
+  <text x="1730" y="513" text-anchor="middle" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">getMarkerPval() saige_test.cpp:391, checks :428,:436</text>
+
+  <!-- Path A: noadjCov -->
+  <line x1="650" y1="520" x2="270" y2="520" stroke="#27ae60" stroke-width="2"/>
+  <line x1="270" y1="520" x2="270" y2="565" stroke="#27ae60" stroke-width="2" marker-end="url(#a2g)"/>
+  <text x="420" y="512" font-size="10" fill="#27ae60" font-weight="bold">!sparse AND noadjCov</text>
+  <rect x="140" y="565" width="260" height="55" rx="6" fill="#27ae60" stroke="#219a52"/>
+  <text x="270" y="585" text-anchor="middle" fill="white" font-size="12" font-weight="bold">scoreTestFast_noadjCov</text>
+  <text x="270" y="605" text-anchor="middle" fill="#c8f0d4" font-size="10">saige_test.cpp:289</text>
+
+  <!-- Annotation: scoreTestFast_noadjCov -->
+  <rect x="1550" y="555" width="370" height="52" rx="4" fill="#e8fdf0" stroke="#27ae60" stroke-width="1.5"/>
+  <text x="1562" y="570" font-family="Menlo, Consolas, monospace" font-size="9" fill="#2c3e50" font-weight="bold">scoreTestFast_noadjCov()</text>
+  <text x="1562" y="583" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">defined: saige_test.cpp:289</text>
+  <text x="1562" y="596" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">called at: saige_test.cpp:436</text>
+
+  <!-- Path B: sparse -->
+  <line x1="1050" y1="520" x2="1380" y2="520" stroke="#e74c3c" stroke-width="2"/>
+  <line x1="1380" y1="520" x2="1380" y2="565" stroke="#e74c3c" stroke-width="2" marker-end="url(#a2r)"/>
+  <text x="1200" y="512" font-size="10" fill="#e74c3c" font-weight="bold">sparse GRM active</text>
+  <rect x="1250" y="565" width="260" height="55" rx="6" fill="#e74c3c" stroke="#c0392b"/>
+  <text x="1380" y="585" text-anchor="middle" fill="white" font-size="12" font-weight="bold">scoreTest (PCG)</text>
+  <text x="1380" y="605" text-anchor="middle" fill="#f5c6cb" font-size="10">saige_test.cpp:125</text>
+
+  <!-- Annotation: scoreTest PCG (placed below to avoid overlap with scoreTestFast_noadjCov annot) -->
+  <rect x="1550" y="617" width="370" height="52" rx="4" fill="#fde8e8" stroke="#e74c3c" stroke-width="1.5"/>
+  <text x="1562" y="632" font-family="Menlo, Consolas, monospace" font-size="9" fill="#2c3e50" font-weight="bold">scoreTest() [PCG]</text>
+  <text x="1562" y="645" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">defined: saige_test.cpp:125</text>
+  <text x="1562" y="658" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">called at: saige_test.cpp:428</text>
+
+  <!-- Path C: standard -->
+  <line x1="850" y1="560" x2="850" y2="565" stroke="#3498db" stroke-width="2" marker-end="url(#a2b)"/>
+  <text x="875" y="558" font-size="10" fill="#3498db" font-weight="bold">default</text>
+  <rect x="700" y="565" width="300" height="55" rx="6" fill="#3498db" stroke="#2980b9"/>
+  <text x="850" y="585" text-anchor="middle" fill="white" font-size="12" font-weight="bold">scoreTestFast (standard)</text>
+  <text x="850" y="605" text-anchor="middle" fill="#d5e8f7" font-size="10">saige_test.cpp:205</text>
+
+  <!-- Annotation: scoreTestFast standard -->
+  <rect x="1550" y="679" width="370" height="52" rx="4" fill="#e8f0fd" stroke="#3498db" stroke-width="1.5"/>
+  <text x="1562" y="694" font-family="Menlo, Consolas, monospace" font-size="9" fill="#2c3e50" font-weight="bold">scoreTestFast()</text>
+  <text x="1562" y="707" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">defined: saige_test.cpp:205</text>
+  <text x="1562" y="720" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">called at: saige_test.cpp:449</text>
+
+  <!-- Merge -->
+  <line x1="270" y1="620" x2="270" y2="660" stroke="#555" stroke-width="1.5"/>
+  <line x1="850" y1="620" x2="850" y2="660" stroke="#555" stroke-width="1.5"/>
+  <line x1="1380" y1="620" x2="1380" y2="660" stroke="#555" stroke-width="1.5"/>
+  <line x1="270" y1="660" x2="1380" y2="660" stroke="#555" stroke-width="1.5"/>
+  <line x1="850" y1="660" x2="850" y2="680" stroke="#555" stroke-width="2" marker-end="url(#a2)"/>
+
+  <rect x="680" y="680" width="340" height="40" rx="6" fill="#ecf0f1" stroke="#bdc3c7"/>
+  <text x="850" y="705" text-anchor="middle" font-size="12" fill="#333">Z = S / &#x221A;Var(S), p = 2&#x22C5;&#x3A6;(&#x2212;|Z|)</text>
+
+  <line x1="850" y1="720" x2="850" y2="755" stroke="#555" stroke-width="2" marker-end="url(#a2)"/>
+
+  <!-- DP2: ER check -->
+  <text x="850" y="750" text-anchor="middle" font-size="10" fill="#e74c3c" font-weight="bold">Decision 2</text>
+
+  <polygon points="850,765 1060,805 850,845 640,805" fill="#f39c12" stroke="#e67e22" stroke-width="2"/>
+  <text x="850" y="798" text-anchor="middle" fill="white" font-size="10" font-weight="bold">Binary AND</text>
+  <text x="850" y="812" text-anchor="middle" fill="white" font-size="10" font-weight="bold">MAC &#x2264; ER cutoff?</text>
+
+  <rect x="1550" y="780" width="380" height="22" rx="4" fill="#ecf0f1" stroke="#bdc3c7"/>
+  <text x="1740" y="795" text-anchor="middle" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">MAC &lt;= g_MACCutoffforER &amp;&amp; traitType=="binary" (main.cpp:871)</text>
+
+  <line x1="1060" y1="805" x2="1350" y2="805" stroke="#d35400" stroke-width="2.5"/>
+  <line x1="1350" y1="805" x2="1350" y2="850" stroke="#d35400" stroke-width="2.5" marker-end="url(#a2o)"/>
+  <text x="1180" y="797" font-size="10" fill="#d35400" font-weight="bold">YES: ultra-rare binary</text>
+
+  <rect x="1220" y="850" width="260" height="50" rx="6" fill="#d35400" stroke="#e67e22" stroke-width="2"/>
+  <text x="1350" y="870" text-anchor="middle" fill="white" font-size="12" font-weight="bold">Efficient Resampling (ER)</text>
+  <text x="1350" y="890" text-anchor="middle" fill="#fde3cd" font-size="10">SKATExactBin_Work() er_binary.cpp:770</text>
+
+  <!-- Annotation: Efficient Resampling -->
+  <rect x="1550" y="845" width="370" height="52" rx="4" fill="#fde8d8" stroke="#d35400" stroke-width="1.5"/>
+  <text x="1562" y="860" font-family="Menlo, Consolas, monospace" font-size="9" fill="#2c3e50" font-weight="bold">SKATExactBin_Work()</text>
+  <text x="1562" y="873" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">defined: er_binary.cpp:770</text>
+  <text x="1562" y="886" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">called at: main.cpp:871</text>
+
+  <line x1="850" y1="845" x2="850" y2="880" stroke="#555" stroke-width="2" marker-end="url(#a2)"/>
+  <text x="810" y="870" font-size="10" fill="#555">NO</text>
+
+  <!-- DP3: SPA -->
+  <text x="850" y="878" text-anchor="middle" font-size="10" fill="#e74c3c" font-weight="bold">Decision 3</text>
+
+  <polygon points="850,890 1070,930 850,970 630,930" fill="#f39c12" stroke="#e67e22" stroke-width="2"/>
+  <text x="850" y="925" text-anchor="middle" fill="white" font-size="10" font-weight="bold">Binary AND |Z| > SPA cutoff?</text>
+
+  <rect x="1550" y="908" width="400" height="22" rx="4" fill="#ecf0f1" stroke="#bdc3c7"/>
+  <text x="1750" y="923" text-anchor="middle" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">StdStat > m_SPA_Cutoff &amp;&amp; traitType!="quant" (saige_test.cpp:480)</text>
+
+  <line x1="630" y1="930" x2="300" y2="930" stroke="#95a5a6" stroke-width="2"/>
+  <line x1="300" y1="930" x2="300" y2="970" stroke="#95a5a6" stroke-width="2" marker-end="url(#a2)"/>
+  <text x="450" y="922" font-size="10" fill="#95a5a6" font-weight="bold">NO (quant or small Z)</text>
+
+  <rect x="170" y="970" width="260" height="45" rx="6" fill="#95a5a6" stroke="#7f8c8d"/>
+  <text x="300" y="990" text-anchor="middle" fill="white" font-size="12" font-weight="bold">Normal Approximation</text>
+  <text x="300" y="1005" text-anchor="middle" fill="#ecf0f1" font-size="10">p = P(&#x3C7;&#xB2;&#x2081; > Z&#xB2;)</text>
+
+  <!-- Annotation: Normal Approximation -->
+  <rect x="1550" y="963" width="370" height="52" rx="4" fill="#f0f0f0" stroke="#95a5a6" stroke-width="1.5"/>
+  <text x="1562" y="978" font-family="Menlo, Consolas, monospace" font-size="9" fill="#2c3e50" font-weight="bold">p = pchisq(Z^2, df=1)</text>
+  <text x="1562" y="991" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">inline in: saige_test.cpp:480</text>
+  <text x="1562" y="1004" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">no SPA (quant or small |Z|)</text>
+
+  <line x1="850" y1="970" x2="850" y2="1000" stroke="#e74c3c" stroke-width="2.5" marker-end="url(#a2r)"/>
+  <text x="870" y="993" font-size="10" fill="#e74c3c" font-weight="bold">YES</text>
+
+  <!-- SPA fast vs full -->
+  <polygon points="850,1010 1020,1040 850,1070 680,1040" fill="#ffeaa7" stroke="#f39c12" stroke-width="1.5"/>
+  <text x="850" y="1037" text-anchor="middle" fill="#333" font-size="10" font-weight="bold">Nonzero frac &#x2265; 50%?</text>
+
+  <rect x="1550" y="1018" width="380" height="22" rx="4" fill="#ecf0f1" stroke="#bdc3c7"/>
+  <text x="1740" y="1033" text-anchor="middle" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">p_iIndexComVecSize >= 0.5 &amp;&amp; !m_flagSparseGRM_cur (:524)</text>
+
+  <line x1="680" y1="1040" x2="530" y2="1040" stroke="#e74c3c" stroke-width="2"/>
+  <line x1="530" y1="1040" x2="530" y2="1080" stroke="#e74c3c" stroke-width="2" marker-end="url(#a2r)"/>
+  <text x="590" y="1032" font-size="9" fill="#e74c3c">YES</text>
+  <rect x="420" y="1080" width="220" height="45" rx="6" fill="#e74c3c" stroke="#c0392b"/>
+  <text x="530" y="1100" text-anchor="middle" fill="white" font-size="11" font-weight="bold">SPA_fast()</text>
+  <text x="530" y="1115" text-anchor="middle" fill="#f5c6cb" font-size="9">spa.cpp:81</text>
+
+  <!-- Annotation: SPA_fast -->
+  <rect x="1550" y="1075" width="370" height="52" rx="4" fill="#fde8e8" stroke="#e74c3c" stroke-width="1.5"/>
+  <text x="1562" y="1090" font-family="Menlo, Consolas, monospace" font-size="9" fill="#2c3e50" font-weight="bold">SPA_fast()</text>
+  <text x="1562" y="1103" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">defined: spa.cpp:81</text>
+  <text x="1562" y="1116" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">called at: saige_test.cpp:524</text>
+
+  <line x1="1020" y1="1040" x2="1130" y2="1040" stroke="#c0392b" stroke-width="2"/>
+  <line x1="1130" y1="1040" x2="1130" y2="1080" stroke="#c0392b" stroke-width="2" marker-end="url(#a2r)"/>
+  <text x="1070" y="1032" font-size="9" fill="#c0392b">NO</text>
+  <rect x="1020" y="1080" width="220" height="45" rx="6" fill="#c0392b" stroke="#922b21"/>
+  <text x="1130" y="1100" text-anchor="middle" fill="white" font-size="11" font-weight="bold">SPA()</text>
+  <text x="1130" y="1115" text-anchor="middle" fill="#f5c6cb" font-size="9">spa.cpp:20</text>
+
+  <!-- Annotation: SPA -->
+  <rect x="1550" y="1137" width="370" height="52" rx="4" fill="#fde8e8" stroke="#c0392b" stroke-width="1.5"/>
+  <text x="1562" y="1152" font-family="Menlo, Consolas, monospace" font-size="9" fill="#2c3e50" font-weight="bold">SPA()</text>
+  <text x="1562" y="1165" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">defined: spa.cpp:20</text>
+  <text x="1562" y="1178" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">called at: saige_test.cpp:530</text>
+
+  <!-- SPA convergence -->
+  <line x1="530" y1="1125" x2="530" y2="1155" stroke="#555" stroke-width="1.5"/>
+  <line x1="1130" y1="1125" x2="1130" y2="1155" stroke="#555" stroke-width="1.5"/>
+  <line x1="530" y1="1155" x2="1130" y2="1155" stroke="#555" stroke-width="1.5"/>
+  <line x1="830" y1="1155" x2="830" y2="1180" stroke="#555" stroke-width="2" marker-end="url(#a2)"/>
+
+  <polygon points="830,1185 970,1210 830,1235 690,1210" fill="#ffeaa7" stroke="#f39c12" stroke-width="1.5"/>
+  <text x="830" y="1213" text-anchor="middle" fill="#333" font-size="10" font-weight="bold">SPA converged?</text>
+
+  <line x1="690" y1="1210" x2="530" y2="1210" stroke="#95a5a6" stroke-width="2"/>
+  <text x="600" y="1203" font-size="9" fill="#95a5a6">NO: fall back</text>
+  <line x1="530" y1="1210" x2="300" y2="1015" stroke="#95a5a6" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#a2)"/>
+
+  <line x1="830" y1="1235" x2="830" y2="1260" stroke="#555" stroke-width="2" marker-end="url(#a2)"/>
+  <text x="852" y="1252" font-size="9" fill="#27ae60">YES: use SPA p</text>
+
+  <!-- Merge ER + SPA + normal -->
+  <line x1="1350" y1="900" x2="1350" y2="1260" stroke="#d35400" stroke-width="1.5"/>
+  <line x1="1350" y1="1260" x2="830" y2="1260" stroke="#555" stroke-width="1.5"/>
+  <line x1="300" y1="1015" x2="300" y2="1260" stroke="#95a5a6" stroke-width="1.5"/>
+  <line x1="300" y1="1260" x2="830" y2="1260" stroke="#555" stroke-width="1"/>
+
+  <!-- DP4: Firth -->
+  <text x="830" y="1278" text-anchor="middle" font-size="10" fill="#e74c3c" font-weight="bold">Decision 4</text>
+
+  <polygon points="830,1285 1010,1315 830,1345 650,1315" fill="#f39c12" stroke="#e67e22" stroke-width="2"/>
+  <text x="830" y="1312" text-anchor="middle" fill="white" font-size="10" font-weight="bold">Binary AND p &#x2264; pCutoffForFirth?</text>
+
+  <rect x="1550" y="1292" width="380" height="22" rx="4" fill="#ecf0f1" stroke="#bdc3c7"/>
+  <text x="1740" y="1307" text-anchor="middle" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">m_is_Firth_beta &amp;&amp; pval &lt;= m_pCutoffforFirth (saige_test.cpp:594)</text>
+
+  <line x1="1010" y1="1315" x2="1200" y2="1315" stroke="#e74c3c" stroke-width="2"/>
+  <line x1="1200" y1="1315" x2="1200" y2="1348" stroke="#e74c3c" stroke-width="2" marker-end="url(#a2r)"/>
+  <text x="1090" y="1307" font-size="10" fill="#e74c3c" font-weight="bold">YES</text>
+
+  <rect x="1080" y="1348" width="240" height="45" rx="6" fill="#e74c3c" stroke="#c0392b"/>
+  <text x="1200" y="1366" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Firth Correction</text>
+  <text x="1200" y="1383" text-anchor="middle" fill="#f5c6cb" font-size="10">fast_logistf_fit_simple() :982</text>
+
+  <!-- Annotation: Firth Correction -->
+  <rect x="1550" y="1343" width="370" height="52" rx="4" fill="#fde8e8" stroke="#e74c3c" stroke-width="1.5"/>
+  <text x="1562" y="1358" font-family="Menlo, Consolas, monospace" font-size="9" fill="#2c3e50" font-weight="bold">fast_logistf_fit_simple()</text>
+  <text x="1562" y="1371" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">defined: saige_test.cpp:982</text>
+  <text x="1562" y="1384" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">called at: saige_test.cpp:594</text>
+
+  <line x1="650" y1="1315" x2="530" y2="1315" stroke="#555" stroke-width="1.5"/>
+  <text x="570" y="1307" font-size="10" fill="#555">NO</text>
+
+  <line x1="530" y1="1315" x2="530" y2="1410" stroke="#555" stroke-width="1.5"/>
+  <line x1="1200" y1="1393" x2="1200" y2="1410" stroke="#555" stroke-width="1.5"/>
+  <line x1="530" y1="1410" x2="1200" y2="1410" stroke="#555" stroke-width="1"/>
+  <line x1="830" y1="1410" x2="830" y2="1438" stroke="#555" stroke-width="2" marker-end="url(#a2)"/>
+
+  <!-- DP5: Fast test re-eval -->
+  <text x="830" y="1436" text-anchor="middle" font-size="10" fill="#e74c3c" font-weight="bold">Decision 5</text>
+
+  <polygon points="830,1445 1040,1480 830,1515 620,1480" fill="#f39c12" stroke="#e67e22" stroke-width="2"/>
+  <text x="830" y="1475" text-anchor="middle" fill="white" font-size="10" font-weight="bold">isFastTest AND p &lt; 0.05?</text>
+
+  <rect x="1550" y="1458" width="410" height="22" rx="4" fill="#ecf0f1" stroke="#bdc3c7"/>
+  <text x="1755" y="1473" text-anchor="middle" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">m_isFastTest &amp;&amp; pval &lt; m_pval_cutoff_for_fastTest (main.cpp:922)</text>
+
+  <line x1="1040" y1="1480" x2="1260" y2="1480" stroke="#27ae60" stroke-width="2"/>
+  <line x1="1260" y1="1480" x2="1260" y2="1515" stroke="#27ae60" stroke-width="2" marker-end="url(#a2g)"/>
+  <text x="1140" y="1472" font-size="10" fill="#27ae60" font-weight="bold">YES</text>
+
+  <rect x="1100" y="1515" width="320" height="50" rx="6" fill="#27ae60" stroke="#219a52"/>
+  <text x="1260" y="1536" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Re-evaluate with full model</text>
+  <text x="1260" y="1554" text-anchor="middle" fill="#c8f0d4" font-size="10">Unified_getMarkerPval() main.cpp:941</text>
+
+  <!-- Annotation: Re-evaluate -->
+  <rect x="1550" y="1510" width="370" height="52" rx="4" fill="#e8fdf0" stroke="#27ae60" stroke-width="1.5"/>
+  <text x="1562" y="1525" font-family="Menlo, Consolas, monospace" font-size="9" fill="#2c3e50" font-weight="bold">Unified_getMarkerPval()</text>
+  <text x="1562" y="1538" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">defined: main.cpp:941</text>
+  <text x="1562" y="1551" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">called at: main.cpp:922</text>
+
+  <line x1="1420" y1="1540" x2="1550" y2="1540" stroke="#27ae60" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <line x1="1550" y1="1540" x2="1550" y2="500" stroke="#27ae60" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <line x1="1550" y1="500" x2="1050" y2="500" stroke="#27ae60" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#a2g)"/>
+  <text x="1570" y="1020" font-size="10" fill="#27ae60" transform="rotate(90,1570,1020)">loops back to score test</text>
+
+  <line x1="830" y1="1515" x2="830" y2="1545" stroke="#555" stroke-width="1.5"/>
+  <text x="790" y="1535" font-size="10" fill="#555">NO</text>
+
+  <line x1="830" y1="1545" x2="830" y2="1570" stroke="#555" stroke-width="2" marker-end="url(#a2)"/>
+
+  <!-- Conditional -->
+  <polygon points="830,1575 990,1600 830,1625 670,1600" fill="#ffeaa7" stroke="#f39c12" stroke-width="1.5"/>
+  <text x="830" y="1605" text-anchor="middle" fill="#333" font-size="10" font-weight="bold">Conditional markers?</text>
+
+  <line x1="990" y1="1600" x2="1130" y2="1600" stroke="#16a085" stroke-width="1.5" stroke-dasharray="5,3"/>
+  <text x="1050" y="1593" font-size="9" fill="#16a085">YES</text>
+  <rect x="1130" y="1585" width="240" height="30" rx="5" fill="#16a085" stroke="#1abc9c" stroke-dasharray="5,3"/>
+  <text x="1250" y="1605" text-anchor="middle" fill="white" font-size="10">Compute &#x3B2;_c, SE_c, p_c</text>
+
+  <line x1="830" y1="1625" x2="830" y2="1655" stroke="#555" stroke-width="2" marker-end="url(#a2)"/>
+
+  <rect x="670" y="1655" width="320" height="36" rx="18" fill="#27ae60" stroke="#219a52" stroke-width="2"/>
+  <text x="830" y="1678" text-anchor="middle" fill="white" font-size="13" font-weight="bold">Output: CHR, POS, REF, ALT, AF, MAC, Beta, SE, p</text>
+</svg>
+</div>
+
+<div class="code-ref">
+  <strong>Code References &mdash; Part 2: Single-Variant</strong><br/>
+  <code>mainMarkerInCPP()</code> &mdash; <code>main.cpp:637-1100</code> &mdash; outer loop over all markers<br/>
+  &rarr; <code>Unified_getMarkerPval()</code> &mdash; <code>main.cpp:154</code> &mdash; dispatches to getMarkerPval<br/>
+  &rarr; <code>SAIGEClass::getMarkerPval()</code> &mdash; <code>saige_test.cpp:391-830</code> &mdash; core per-marker logic<br/>
+  &nbsp;&nbsp;&rarr; <code>scoreTestFast()</code> &mdash; <code>saige_test.cpp:205</code> &mdash; standard fast path<br/>
+  &nbsp;&nbsp;&rarr; <code>scoreTestFast_noadjCov()</code> &mdash; <code>saige_test.cpp:289</code> &mdash; no-covariate-adjust path<br/>
+  &nbsp;&nbsp;&rarr; <code>scoreTest()</code> &mdash; <code>saige_test.cpp:125</code> &mdash; sparse GRM PCG path<br/>
+  &nbsp;&nbsp;&rarr; <code>SPA()</code> / <code>SPA_fast()</code> &mdash; <code>spa.cpp:20</code> / <code>spa.cpp:81</code> &mdash; saddlepoint approximation<br/>
+  &nbsp;&nbsp;&rarr; <code>SKATExactBin_Work()</code> &mdash; <code>er_binary.cpp:770</code> &mdash; efficient resampling for ultra-rare<br/>
+  &nbsp;&nbsp;&rarr; <code>fast_logistf_fit_simple()</code> &mdash; <code>saige_test.cpp:982</code> &mdash; Firth penalized logistic regression<br/>
+  Re-eval: <code>main.cpp:918-957</code> &mdash; if isFastTest and p &lt; 0.05, re-run with exact model
+</div>
+
+</section>
+
+
+<!-- ============================================================ -->
+<!-- PART 3: REGION / GENE PATH -->
+<!-- ============================================================ -->
+<section id="sec-part3">
+<h2>Part 3: Region / Gene-Based Testing</h2>
+
+<div class="pipeline-container">
+<svg viewBox="0 0 2100 1500" width="2080" height="1490" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif">
+  <rect width="2100" height="1500" fill="#fafbfc" rx="10"/>
+  <defs>
+    <marker id="a3" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#555"/></marker>
+    <marker id="a3r" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#e74c3c"/></marker>
+    <marker id="a3b" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#3498db"/></marker>
+    <marker id="a3g" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#27ae60"/></marker>
+    <marker id="a3o" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#e67e22"/></marker>
+    <marker id="a3p" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#8e44ad"/></marker>
+  </defs>
+
+  <text x="850" y="28" text-anchor="middle" font-size="18" font-weight="bold" fill="#2c3e50">Region / Gene-Based Testing &mdash; mainRegionInCPP()</text>
+
+  <!-- START -->
+  <rect x="680" y="48" width="340" height="40" rx="20" fill="#8e44ad" stroke="#7d3c98" stroke-width="2"/>
+  <text x="850" y="73" text-anchor="middle" fill="white" font-size="13" font-weight="bold">Parse group file: gene &rarr; variants + annotations</text>
+
+  <line x1="850" y1="88" x2="850" y2="115" stroke="#555" stroke-width="2" marker-end="url(#a3)"/>
+
+  <rect x="680" y="115" width="340" height="36" rx="6" fill="#34495e" stroke="#2c3e50"/>
+  <text x="850" y="138" text-anchor="middle" fill="white" font-size="12" font-weight="bold">For each gene, annotation mask, MAF cutoff</text>
+
+  <line x1="850" y1="151" x2="850" y2="178" stroke="#555" stroke-width="2" marker-end="url(#a3)"/>
+
+  <rect x="700" y="178" width="300" height="36" rx="6" fill="#ecf0f1" stroke="#bdc3c7"/>
+  <text x="850" y="200" text-anchor="middle" font-size="11" fill="#333">Read markers, apply QC &mdash; main.cpp:1800-1846</text>
+
+  <line x1="850" y1="214" x2="850" y2="248" stroke="#555" stroke-width="2" marker-end="url(#a3)"/>
+
+  <!-- Weights -->
+  <polygon points="850,248 1020,280 850,312 680,280" fill="#ffeaa7" stroke="#f39c12" stroke-width="1.5"/>
+  <text x="850" y="276" text-anchor="middle" fill="#333" font-size="10" font-weight="bold">Custom weights?</text>
+
+  <rect x="1550" y="258" width="300" height="22" rx="4" fill="#ecf0f1" stroke="#bdc3c7"/>
+  <text x="1700" y="273" text-anchor="middle" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">isWeightCustomized (main.cpp:1664)</text>
+
+  <line x1="680" y1="280" x2="520" y2="280" stroke="#555" stroke-width="1.5"/>
+  <text x="580" y="273" font-size="9" fill="#555">NO</text>
+  <rect x="380" y="265" width="140" height="30" rx="5" fill="#ecf0f1" stroke="#bdc3c7"/>
+  <text x="450" y="284" text-anchor="middle" font-size="10" fill="#333">w = Beta(MAF;1,25)</text>
+
+  <line x1="1020" y1="280" x2="1160" y2="280" stroke="#555" stroke-width="1.5"/>
+  <text x="1080" y="273" font-size="9" fill="#555">YES</text>
+  <rect x="1160" y="265" width="160" height="30" rx="5" fill="#ecf0f1" stroke="#bdc3c7"/>
+  <text x="1240" y="284" text-anchor="middle" font-size="10" fill="#333">Use group file weight</text>
+
+  <line x1="450" y1="295" x2="450" y2="330" stroke="#555" stroke-width="1"/>
+  <line x1="1240" y1="295" x2="1240" y2="330" stroke="#555" stroke-width="1"/>
+  <line x1="450" y1="330" x2="1240" y2="330" stroke="#555" stroke-width="1"/>
+  <line x1="850" y1="330" x2="850" y2="355" stroke="#555" stroke-width="2" marker-end="url(#a3)"/>
+
+  <!-- DP6: URV vs Regular -->
+  <text x="850" y="350" text-anchor="middle" font-size="10" fill="#e74c3c" font-weight="bold">Decision 6</text>
+
+  <polygon points="850,365 1050,400 850,435 650,400" fill="#f39c12" stroke="#e67e22" stroke-width="2"/>
+  <text x="850" y="398" text-anchor="middle" fill="white" font-size="11" font-weight="bold">MAC > minMAC cutoff (10)?</text>
+
+  <rect x="1550" y="378" width="340" height="22" rx="4" fill="#ecf0f1" stroke="#bdc3c7"/>
+  <text x="1720" y="393" text-anchor="middle" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">MAC > g_region_minMAC_cutoff (main.cpp:1857)</text>
+
+  <!-- Regular marker -->
+  <line x1="650" y1="400" x2="340" y2="400" stroke="#27ae60" stroke-width="2"/>
+  <line x1="340" y1="400" x2="340" y2="445" stroke="#27ae60" stroke-width="2" marker-end="url(#a3g)"/>
+  <text x="470" y="392" font-size="10" fill="#27ae60" font-weight="bold">YES: regular</text>
+
+  <rect x="200" y="445" width="280" height="50" rx="6" fill="#27ae60" stroke="#219a52"/>
+  <text x="340" y="466" text-anchor="middle" fill="white" font-size="12" font-weight="bold">getMarkerPval()</text>
+  <text x="340" y="484" text-anchor="middle" fill="#c8f0d4" font-size="10">saige_test.cpp:391 &mdash; add to P1/P2 matrices</text>
+
+  <!-- Annotation: getMarkerPval (region context) -->
+  <rect x="1750" y="440" width="310" height="52" rx="4" fill="#e8fdf0" stroke="#27ae60" stroke-width="1.5"/>
+  <text x="1762" y="455" font-family="Menlo, Consolas, monospace" font-size="9" fill="#2c3e50" font-weight="bold">getMarkerPval()</text>
+  <text x="1762" y="468" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">defined: saige_test.cpp:391</text>
+  <text x="1762" y="481" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">called at: main.cpp:1870</text>
+
+  <line x1="340" y1="495" x2="340" y2="520" stroke="#555" stroke-width="1.5" marker-end="url(#a3)"/>
+  <rect x="200" y="520" width="280" height="36" rx="5" fill="#ecf0f1" stroke="#bdc3c7"/>
+  <text x="340" y="543" text-anchor="middle" font-size="10" fill="#333">P1[i] = &#x221A;VR * gtilde', P2[i] = &#x221A;VR * P2Vec</text>
+
+  <!-- URV collapse -->
+  <line x1="1050" y1="400" x2="1350" y2="400" stroke="#e67e22" stroke-width="2"/>
+  <line x1="1350" y1="400" x2="1350" y2="445" stroke="#e67e22" stroke-width="2" marker-end="url(#a3o)"/>
+  <text x="1190" y="392" font-size="10" fill="#e67e22" font-weight="bold">NO: ultra-rare (URV)</text>
+
+  <rect x="1200" y="445" width="300" height="50" rx="6" fill="#e67e22" stroke="#d35400"/>
+  <text x="1350" y="466" text-anchor="middle" fill="white" font-size="12" font-weight="bold">Collapse via max()</text>
+  <text x="1350" y="484" text-anchor="middle" fill="#fde3cd" font-size="10">genoURMat = max(G_j) main.cpp:1979</text>
+
+  <!-- Annotation: Collapse via max -->
+  <rect x="1750" y="502" width="310" height="52" rx="4" fill="#fde8d8" stroke="#d35400" stroke-width="1.5"/>
+  <text x="1762" y="517" font-family="Menlo, Consolas, monospace" font-size="9" fill="#2c3e50" font-weight="bold">genoURMat = max(G_j)</text>
+  <text x="1762" y="530" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">defined: main.cpp:1979</text>
+  <text x="1762" y="543" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">called at: main.cpp:1965</text>
+
+  <line x1="1350" y1="495" x2="1350" y2="525" stroke="#555" stroke-width="1.5" marker-end="url(#a3)"/>
+  <rect x="1210" y="525" width="280" height="36" rx="5" fill="#ecf0f1" stroke="#bdc3c7"/>
+  <text x="1350" y="548" text-anchor="middle" font-size="10" fill="#333">Score URV pseudo-marker, add to P1/P2</text>
+
+  <!-- Merge -->
+  <line x1="340" y1="556" x2="340" y2="600" stroke="#555" stroke-width="1.5"/>
+  <line x1="1350" y1="561" x2="1350" y2="600" stroke="#555" stroke-width="1.5"/>
+  <line x1="340" y1="600" x2="1350" y2="600" stroke="#555" stroke-width="1.5"/>
+  <line x1="850" y1="600" x2="850" y2="628" stroke="#555" stroke-width="2" marker-end="url(#a3)"/>
+
+  <rect x="620" y="628" width="460" height="55" rx="6" fill="#3498db" stroke="#2980b9"/>
+  <text x="850" y="650" text-anchor="middle" fill="white" font-size="12" font-weight="bold">Build Variance-Covariance Matrix</text>
+  <text x="850" y="670" text-anchor="middle" fill="#d5e8f7" font-size="10">VarMat = P1 * P2 &mdash; main.cpp:2204-2245</text>
+
+  <!-- Annotation: Build VarMat -->
+  <rect x="1750" y="623" width="310" height="52" rx="4" fill="#e8f0fd" stroke="#3498db" stroke-width="1.5"/>
+  <text x="1762" y="638" font-family="Menlo, Consolas, monospace" font-size="9" fill="#2c3e50" font-weight="bold">VarMat = P1 * P2</text>
+  <text x="1762" y="651" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">defined: main.cpp:2204</text>
+  <text x="1762" y="664" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">called at: main.cpp:2245</text>
+
+  <line x1="850" y1="683" x2="850" y2="715" stroke="#555" stroke-width="2" marker-end="url(#a3)"/>
+
+  <!-- DP7: Test type -->
+  <text x="850" y="712" text-anchor="middle" font-size="10" fill="#e74c3c" font-weight="bold">Decision 7</text>
+
+  <polygon points="850,725 1060,760 850,795 640,760" fill="#f39c12" stroke="#e67e22" stroke-width="2"/>
+  <text x="850" y="758" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Test type?</text>
+
+  <rect x="1550" y="738" width="310" height="22" rx="4" fill="#ecf0f1" stroke="#bdc3c7"/>
+  <text x="1705" y="753" text-anchor="middle" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">t_regionTestType (main.cpp:2255,2374)</text>
+
+  <!-- BURDEN -->
+  <line x1="640" y1="760" x2="300" y2="760" stroke="#2ecc71" stroke-width="2.5"/>
+  <line x1="300" y1="760" x2="300" y2="800" stroke="#2ecc71" stroke-width="2.5" marker-end="url(#a3g)"/>
+  <text x="440" y="752" font-size="10" fill="#2ecc71" font-weight="bold">BURDEN (&#x3C1; = 1)</text>
+
+  <rect x="150" y="800" width="300" height="55" rx="6" fill="#2ecc71" stroke="#27ae60"/>
+  <text x="300" y="822" text-anchor="middle" fill="white" font-size="12" font-weight="bold">BURDEN Test</text>
+  <text x="300" y="842" text-anchor="middle" fill="#c8f0d4" font-size="10">get_SKAT_pvalue() skat.cpp:804</text>
+
+  <!-- Annotation: BURDEN Test -->
+  <rect x="1750" y="795" width="310" height="52" rx="4" fill="#e8fdf0" stroke="#27ae60" stroke-width="1.5"/>
+  <text x="1762" y="810" font-family="Menlo, Consolas, monospace" font-size="9" fill="#2c3e50" font-weight="bold">get_SKAT_pvalue() [rho=1]</text>
+  <text x="1762" y="823" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">defined: skat.cpp:804</text>
+  <text x="1762" y="836" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">called at: main.cpp:2255</text>
+
+  <!-- SKAT -->
+  <line x1="850" y1="795" x2="850" y2="800" stroke="#3498db" stroke-width="2.5" marker-end="url(#a3b)"/>
+
+  <rect x="700" y="800" width="300" height="55" rx="6" fill="#3498db" stroke="#2980b9"/>
+  <text x="850" y="822" text-anchor="middle" fill="white" font-size="12" font-weight="bold">SKAT Test</text>
+  <text x="850" y="842" text-anchor="middle" fill="#d5e8f7" font-size="10">davies_pvalue() skat.cpp:236</text>
+
+  <!-- Annotation: SKAT Test -->
+  <rect x="1750" y="857" width="310" height="52" rx="4" fill="#e8f0fd" stroke="#3498db" stroke-width="1.5"/>
+  <text x="1762" y="872" font-family="Menlo, Consolas, monospace" font-size="9" fill="#2c3e50" font-weight="bold">davies_pvalue()</text>
+  <text x="1762" y="885" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">defined: skat.cpp:236</text>
+  <text x="1762" y="898" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">called at: main.cpp:2374</text>
+
+  <!-- SKAT-O -->
+  <line x1="1060" y1="760" x2="1400" y2="760" stroke="#9b59b6" stroke-width="2.5"/>
+  <line x1="1400" y1="760" x2="1400" y2="800" stroke="#9b59b6" stroke-width="2.5" marker-end="url(#a3p)"/>
+  <text x="1210" y="752" font-size="10" fill="#9b59b6" font-weight="bold">SKAT-O (&#x3C1; grid)</text>
+
+  <rect x="1250" y="800" width="300" height="55" rx="6" fill="#9b59b6" stroke="#8e44ad"/>
+  <text x="1400" y="822" text-anchor="middle" fill="white" font-size="12" font-weight="bold">SKAT-O (optimal &#x3C1;)</text>
+  <text x="1400" y="842" text-anchor="middle" fill="#dcc6e8" font-size="10">SKATO_optimal_pvalue() skat.cpp:616</text>
+
+  <!-- Annotation: SKAT-O -->
+  <rect x="1750" y="919" width="310" height="52" rx="4" fill="#f3e8fd" stroke="#8e44ad" stroke-width="1.5"/>
+  <text x="1762" y="934" font-family="Menlo, Consolas, monospace" font-size="9" fill="#2c3e50" font-weight="bold">SKATO_optimal_pvalue()</text>
+  <text x="1762" y="947" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">defined: skat.cpp:616</text>
+  <text x="1762" y="960" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">called at: main.cpp:2374</text>
+
+  <!-- Davies / Liu decision -->
+  <line x1="850" y1="855" x2="850" y2="895" stroke="#555" stroke-width="2" marker-end="url(#a3)"/>
+
+  <text x="850" y="893" text-anchor="middle" font-size="10" fill="#e74c3c" font-weight="bold">Decision 8</text>
+
+  <polygon points="850,905 1030,935 850,965 670,935" fill="#ffeaa7" stroke="#f39c12" stroke-width="1.5"/>
+  <text x="850" y="932" text-anchor="middle" fill="#333" font-size="10" font-weight="bold">Davies converges?</text>
+
+  <rect x="1550" y="760" width="340" height="22" rx="4" fill="#ecf0f1" stroke="#bdc3c7"/>
+  <text x="1720" y="775" text-anchor="middle" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">ifault==0 &amp;&amp; p in [0,1] (skat.cpp:260-280)</text>
+
+  <line x1="670" y1="935" x2="530" y2="935" stroke="#27ae60" stroke-width="2"/>
+  <line x1="530" y1="935" x2="530" y2="968" stroke="#27ae60" stroke-width="2" marker-end="url(#a3g)"/>
+  <text x="586" y="927" font-size="9" fill="#27ae60" font-weight="bold">YES</text>
+  <rect x="410" y="968" width="240" height="36" rx="6" fill="#27ae60" stroke="#219a52"/>
+  <text x="530" y="991" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Davies p-value (exact)</text>
+
+  <!-- Annotation: Davies -->
+  <rect x="1750" y="981" width="310" height="52" rx="4" fill="#e8fdf0" stroke="#27ae60" stroke-width="1.5"/>
+  <text x="1762" y="996" font-family="Menlo, Consolas, monospace" font-size="9" fill="#2c3e50" font-weight="bold">davies_pvalue()</text>
+  <text x="1762" y="1009" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">defined: skat.cpp:236</text>
+  <text x="1762" y="1022" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">used when ifault==0, p in [0,1]</text>
+
+  <line x1="1030" y1="935" x2="1160" y2="935" stroke="#e67e22" stroke-width="2"/>
+  <line x1="1160" y1="935" x2="1160" y2="968" stroke="#e67e22" stroke-width="2" marker-end="url(#a3o)"/>
+  <text x="1085" y="927" font-size="9" fill="#e67e22" font-weight="bold">NO</text>
+  <rect x="1030" y="968" width="260" height="36" rx="6" fill="#e67e22" stroke="#d35400"/>
+  <text x="1160" y="985" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Liu moment-matching</text>
+  <text x="1160" y="997" text-anchor="middle" fill="#fde3cd" font-size="9">liu_pvalue() skat.cpp:292</text>
+
+  <!-- Annotation: Liu -->
+  <rect x="1750" y="1043" width="310" height="52" rx="4" fill="#fde8d8" stroke="#d35400" stroke-width="1.5"/>
+  <text x="1762" y="1058" font-family="Menlo, Consolas, monospace" font-size="9" fill="#2c3e50" font-weight="bold">liu_pvalue()</text>
+  <text x="1762" y="1071" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">defined: skat.cpp:292</text>
+  <text x="1762" y="1084" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">fallback when Davies fails</text>
+
+  <line x1="1400" y1="855" x2="1400" y2="935" stroke="#555" stroke-width="1.5"/>
+  <line x1="1400" y1="935" x2="1290" y2="935" stroke="#555" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="1340" y="927" font-size="8" fill="#555">also uses Davies/Liu per &#x3C1;</text>
+
+  <!-- Merge -->
+  <line x1="300" y1="855" x2="300" y2="1040" stroke="#555" stroke-width="1.5"/>
+  <line x1="530" y1="1004" x2="530" y2="1040" stroke="#555" stroke-width="1.5"/>
+  <line x1="1160" y1="1004" x2="1160" y2="1040" stroke="#555" stroke-width="1.5"/>
+  <line x1="300" y1="1040" x2="1160" y2="1040" stroke="#555" stroke-width="1.5"/>
+  <line x1="850" y1="1040" x2="850" y2="1068" stroke="#555" stroke-width="2" marker-end="url(#a3)"/>
+
+  <!-- SPA Phi adjustment -->
+  <polygon points="850,1075 1040,1105 850,1135 660,1105" fill="#ffeaa7" stroke="#f39c12" stroke-width="1.5"/>
+  <text x="850" y="1102" text-anchor="middle" fill="#333" font-size="10" font-weight="bold">Binary or survival trait?</text>
+
+  <rect x="1550" y="1097" width="380" height="22" rx="4" fill="#ecf0f1" stroke="#bdc3c7"/>
+  <text x="1740" y="1112" text-anchor="middle" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">traitType=="binary"||"survival" (main.cpp:2499)</text>
+
+  <line x1="1040" y1="1105" x2="1240" y2="1105" stroke="#e74c3c" stroke-width="2"/>
+  <line x1="1240" y1="1105" x2="1240" y2="1140" stroke="#e74c3c" stroke-width="2" marker-end="url(#a3r)"/>
+  <text x="1130" y="1097" font-size="10" fill="#e74c3c" font-weight="bold">YES</text>
+
+  <rect x="1080" y="1140" width="320" height="50" rx="6" fill="#e74c3c" stroke="#c0392b"/>
+  <text x="1240" y="1160" text-anchor="middle" fill="white" font-size="11" font-weight="bold">SPA &#x3A6; Adjustment</text>
+  <text x="1240" y="1178" text-anchor="middle" fill="#f5c6cb" font-size="10">get_newPhi_scaleFactor_traitType() main.cpp:1544</text>
+
+  <!-- Annotation: SPA Phi -->
+  <rect x="1750" y="1135" width="310" height="52" rx="4" fill="#fde8e8" stroke="#e74c3c" stroke-width="1.5"/>
+  <text x="1762" y="1150" font-family="Menlo, Consolas, monospace" font-size="9" fill="#2c3e50" font-weight="bold">get_newPhi_scaleFactor()</text>
+  <text x="1762" y="1163" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">defined: main.cpp:1544</text>
+  <text x="1762" y="1176" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">called at: main.cpp:2499</text>
+
+  <line x1="660" y1="1105" x2="530" y2="1105" stroke="#555" stroke-width="1.5"/>
+  <text x="580" y="1097" font-size="9" fill="#555">NO</text>
+
+  <line x1="530" y1="1105" x2="530" y2="1210" stroke="#555" stroke-width="1.5"/>
+  <line x1="1240" y1="1190" x2="1240" y2="1210" stroke="#555" stroke-width="1.5"/>
+  <line x1="530" y1="1210" x2="1240" y2="1210" stroke="#555" stroke-width="1"/>
+  <line x1="850" y1="1210" x2="850" y2="1240" stroke="#555" stroke-width="2" marker-end="url(#a3)"/>
+
+  <!-- CCT -->
+  <polygon points="850,1247 1060,1277 850,1307 640,1277" fill="#ffeaa7" stroke="#f39c12" stroke-width="1.5"/>
+  <text x="850" y="1272" text-anchor="middle" fill="#333" font-size="10" font-weight="bold">Multiple annotations</text>
+  <text x="850" y="1285" text-anchor="middle" fill="#333" font-size="10" font-weight="bold">or MAF cutoffs?</text>
+
+  <line x1="1060" y1="1277" x2="1240" y2="1277" stroke="#e67e22" stroke-width="2"/>
+  <line x1="1240" y1="1277" x2="1240" y2="1320" stroke="#e67e22" stroke-width="2" marker-end="url(#a3o)"/>
+  <text x="1140" y="1269" font-size="10" fill="#e67e22" font-weight="bold">YES</text>
+
+  <rect x="1100" y="1320" width="280" height="50" rx="6" fill="#e67e22" stroke="#d35400"/>
+  <text x="1240" y="1340" text-anchor="middle" fill="white" font-size="12" font-weight="bold">Cauchy Combination Test</text>
+  <text x="1240" y="1358" text-anchor="middle" fill="#fde3cd" font-size="10">get_CCT_pvalue() main.cpp:1612 &rarr; CCT_cpp()</text>
+
+  <!-- Annotation: CCT -->
+  <rect x="1750" y="1315" width="310" height="52" rx="4" fill="#fde8d8" stroke="#d35400" stroke-width="1.5"/>
+  <text x="1762" y="1330" font-family="Menlo, Consolas, monospace" font-size="9" fill="#2c3e50" font-weight="bold">get_CCT_pvalue() / CCT_cpp()</text>
+  <text x="1762" y="1343" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">defined: main.cpp:1612 / cct.cpp:14</text>
+  <text x="1762" y="1356" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">called at: main.cpp:2559</text>
+
+  <line x1="640" y1="1277" x2="530" y2="1277" stroke="#555" stroke-width="1.5"/>
+  <text x="575" y="1270" font-size="9" fill="#555">NO: single group</text>
+
+  <line x1="530" y1="1277" x2="530" y2="1400" stroke="#555" stroke-width="1.5"/>
+  <line x1="1240" y1="1370" x2="1240" y2="1400" stroke="#555" stroke-width="1.5"/>
+  <line x1="530" y1="1400" x2="1240" y2="1400" stroke="#555" stroke-width="1"/>
+  <line x1="850" y1="1400" x2="850" y2="1430" stroke="#555" stroke-width="2" marker-end="url(#a3)"/>
+
+  <rect x="580" y="1430" width="540" height="40" rx="20" fill="#27ae60" stroke="#219a52" stroke-width="2"/>
+  <text x="850" y="1455" text-anchor="middle" fill="white" font-size="13" font-weight="bold">Output: Region, Annotation, MAF, p_SKATO, p_Burden, p_SKAT</text>
+</svg>
+</div>
+
+<div class="code-ref">
+  <strong>Code References &mdash; Part 3: Region/Gene</strong><br/>
+  <code>mainRegionInCPP()</code> &mdash; <code>main.cpp:1637-2620</code> &mdash; per-gene marker loop, URV collapse, VarMat, tests<br/>
+  &rarr; Marker scoring: <code>getMarkerPval()</code> &mdash; <code>saige_test.cpp:391</code><br/>
+  &rarr; URV collapse: <code>genoURMat = max(G_j)</code> &mdash; <code>main.cpp:1965-1999</code><br/>
+  &rarr; VarMat build: <code>VarMat = P1 * P2</code> &mdash; <code>main.cpp:2204-2245</code><br/>
+  &rarr; SPA Phi: <code>get_newPhi_scaleFactor_traitType()</code> &mdash; <code>main.cpp:1544</code><br/>
+  &nbsp;&nbsp;&rarr; <code>SPA_ER_kernel_related_Phiadj_fast_new()</code> &mdash; <code>main.cpp:1441</code><br/>
+  &rarr; SKAT/BURDEN/SKAT-O: <code>get_SKAT_pvalue()</code> &mdash; <code>skat.cpp:804</code><br/>
+  &nbsp;&nbsp;&rarr; <code>davies_pvalue()</code> &mdash; <code>skat.cpp:236</code><br/>
+  &nbsp;&nbsp;&rarr; <code>liu_pvalue()</code> &mdash; <code>skat.cpp:292</code><br/>
+  &nbsp;&nbsp;&rarr; <code>SKATO_optimal_pvalue()</code> &mdash; <code>skat.cpp:616</code><br/>
+  &rarr; CCT: <code>get_CCT_pvalue()</code> &mdash; <code>main.cpp:1612</code> &rarr; <code>CCT_cpp()</code> &mdash; <code>cct.cpp:14</code>
+</div>
+
+</section>
+
+
+<!-- ============================================================ -->
+<!-- PART 4: SPA DETAIL -->
+<!-- ============================================================ -->
+<section id="sec-part4">
+<h2>Part 4: SPA (Saddlepoint Approximation) Detail</h2>
+
+<div class="pipeline-container">
+<svg viewBox="0 0 1950 700" width="1930" height="690" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif">
+  <rect width="1950" height="700" fill="#fafbfc" rx="10"/>
+  <defs>
+    <marker id="a4" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#555"/></marker>
+    <marker id="a4r" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#e74c3c"/></marker>
+    <marker id="a4g" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#27ae60"/></marker>
+  </defs>
+
+  <text x="700" y="28" text-anchor="middle" font-size="16" font-weight="bold" fill="#2c3e50">SPA: Saddlepoint Approximation &mdash; spa.cpp + spa_binary.cpp</text>
+
+  <!-- Entry -->
+  <rect x="510" y="50" width="380" height="36" rx="18" fill="#e74c3c" stroke="#c0392b" stroke-width="2"/>
+  <text x="700" y="73" text-anchor="middle" fill="white" font-size="12" font-weight="bold">SPA() / SPA_fast() called &mdash; spa.cpp:20 / spa.cpp:81</text>
+
+  <!-- Annotation: SPA entry -->
+  <rect x="1500" y="45" width="380" height="52" rx="4" fill="#fde8e8" stroke="#e74c3c" stroke-width="1.5"/>
+  <text x="1512" y="60" font-family="Menlo, Consolas, monospace" font-size="9" fill="#2c3e50" font-weight="bold">SPA() / SPA_fast()</text>
+  <text x="1512" y="73" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">defined: spa.cpp:20 / spa.cpp:81</text>
+  <text x="1512" y="86" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">called at: saige_test.cpp:524/530</text>
+
+  <line x1="700" y1="86" x2="700" y2="115" stroke="#555" stroke-width="2" marker-end="url(#a4)"/>
+
+  <rect x="530" y="115" width="340" height="36" rx="6" fill="#ecf0f1" stroke="#bdc3c7"/>
+  <text x="700" y="138" text-anchor="middle" font-size="11" fill="#333">q = T/&#x221A;(Var1/Var2) + &#x2211;&#x3BC;g &mdash; saige_test.cpp:503</text>
+
+  <line x1="700" y1="151" x2="700" y2="185" stroke="#555" stroke-width="2" marker-end="url(#a4)"/>
+
+  <!-- Boundary check -->
+  <polygon points="700,185 870,215 700,245 530,215" fill="#ffeaa7" stroke="#f39c12" stroke-width="1.5"/>
+  <text x="700" y="213" text-anchor="middle" fill="#333" font-size="10" font-weight="bold">q at boundary?</text>
+
+  <rect x="1500" y="196" width="380" height="22" rx="4" fill="#ecf0f1" stroke="#bdc3c7"/>
+  <text x="1690" y="211" text-anchor="middle" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">q >= &#x2211;g_pos or q &lt;= &#x2211;g_neg (spa_binary.cpp:70)</text>
+
+  <line x1="870" y1="215" x2="1050" y2="215" stroke="#e74c3c" stroke-width="2"/>
+  <rect x="1050" y="200" width="220" height="30" rx="5" fill="#e74c3c" stroke="#c0392b"/>
+  <text x="1160" y="220" text-anchor="middle" fill="white" font-size="10" font-weight="bold">&#x3B6; = &#x221E;, boundary converged</text>
+
+  <line x1="700" y1="245" x2="700" y2="280" stroke="#555" stroke-width="2" marker-end="url(#a4)"/>
+  <text x="720" y="268" font-size="9" fill="#555">NO</text>
+
+  <!-- Newton-Raphson -->
+  <rect x="440" y="280" width="520" height="60" rx="6" fill="#3498db" stroke="#2980b9"/>
+  <text x="700" y="300" text-anchor="middle" fill="white" font-size="12" font-weight="bold">Newton-Raphson: find &#x3B6; where K'(&#x3B6;) = q</text>
+  <text x="700" y="320" text-anchor="middle" fill="#d5e8f7" font-size="10">getroot_K1_Binom() spa_binary.cpp:61 (full) or :269 (fast)</text>
+  <text x="700" y="335" text-anchor="middle" fill="#d5e8f7" font-size="9">K(t)=&#x2211;log(1&#x2212;&#x3BC;+&#x3BC;&#xB7;exp(g&#xB7;t)) &mdash; Korg_Binom() :20, K1_adj_Binom() :28, K2_Binom() :42</text>
+
+  <!-- Annotation: Newton-Raphson -->
+  <rect x="1500" y="275" width="380" height="52" rx="4" fill="#e8f0fd" stroke="#3498db" stroke-width="1.5"/>
+  <text x="1512" y="290" font-family="Menlo, Consolas, monospace" font-size="9" fill="#2c3e50" font-weight="bold">getroot_K1_Binom()</text>
+  <text x="1512" y="303" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">defined: spa_binary.cpp:61 (full) / :269 (fast)</text>
+  <text x="1512" y="316" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">called at: spa.cpp:20 / spa.cpp:81</text>
+
+  <line x1="700" y1="340" x2="700" y2="375" stroke="#555" stroke-width="2" marker-end="url(#a4)"/>
+
+  <!-- Convergence -->
+  <polygon points="700,375 850,405 700,435 550,405" fill="#ffeaa7" stroke="#f39c12" stroke-width="1.5"/>
+  <text x="700" y="403" text-anchor="middle" fill="#333" font-size="10" font-weight="bold">Converged (|&#x394;&#x3B6;| &lt; tol)?</text>
+
+  <rect x="1500" y="388" width="380" height="22" rx="4" fill="#ecf0f1" stroke="#bdc3c7"/>
+  <text x="1690" y="403" text-anchor="middle" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">abs(x_new-x_old)&lt;tol (:92) maxiter=1000</text>
+
+  <line x1="550" y1="405" x2="300" y2="405" stroke="#95a5a6" stroke-width="2"/>
+  <text x="410" y="397" font-size="10" fill="#95a5a6" font-weight="bold">NO</text>
+  <rect x="170" y="390" width="130" height="30" rx="5" fill="#95a5a6" stroke="#7f8c8d"/>
+  <text x="235" y="410" text-anchor="middle" fill="white" font-size="10">Not converged</text>
+  <line x1="235" y1="420" x2="235" y2="460" stroke="#95a5a6" stroke-width="1.5" marker-end="url(#a4)"/>
+  <rect x="150" y="460" width="170" height="30" rx="5" fill="#95a5a6" stroke="#7f8c8d"/>
+  <text x="235" y="480" text-anchor="middle" fill="white" font-size="10">Fall back to normal p</text>
+
+  <line x1="700" y1="435" x2="700" y2="473" stroke="#555" stroke-width="2" marker-end="url(#a4)"/>
+  <text x="720" y="458" font-size="9" fill="#27ae60">YES</text>
+
+  <!-- Saddle probability -->
+  <rect x="430" y="473" width="540" height="55" rx="6" fill="#34495e" stroke="#2c3e50"/>
+  <text x="700" y="493" text-anchor="middle" fill="white" font-size="12" font-weight="bold">Saddle Probability</text>
+  <text x="700" y="513" text-anchor="middle" fill="#b0bec5" font-size="10">Get_Saddle_Prob_Binom() spa_binary.cpp:124 (full) or :332 (fast)</text>
+
+  <!-- Annotation: Saddle Probability -->
+  <rect x="1500" y="468" width="380" height="52" rx="4" fill="#fde8e8" stroke="#e74c3c" stroke-width="1.5"/>
+  <text x="1512" y="483" font-family="Menlo, Consolas, monospace" font-size="9" fill="#2c3e50" font-weight="bold">Get_Saddle_Prob_Binom()</text>
+  <text x="1512" y="496" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">defined: spa_binary.cpp:124 / :332 (fast)</text>
+  <text x="1512" y="509" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">called at: spa.cpp:40 / spa.cpp:100</text>
+
+  <line x1="700" y1="528" x2="700" y2="560" stroke="#555" stroke-width="2" marker-end="url(#a4)"/>
+
+  <!-- Two-sided -->
+  <rect x="430" y="560" width="540" height="50" rx="6" fill="#ecf0f1" stroke="#bdc3c7"/>
+  <text x="700" y="580" text-anchor="middle" font-size="11" fill="#333" font-weight="bold">Two-sided p-value</text>
+  <text x="700" y="598" text-anchor="middle" font-size="10" fill="#555">p = p_upper(q) + p_lower(q*) &mdash; spa.cpp:40-70</text>
+
+  <!-- Annotation: Two-sided p-value -->
+  <rect x="1500" y="555" width="380" height="52" rx="4" fill="#f0f0f0" stroke="#95a5a6" stroke-width="1.5"/>
+  <text x="1512" y="570" font-family="Menlo, Consolas, monospace" font-size="9" fill="#2c3e50" font-weight="bold">p = p_upper + p_lower</text>
+  <text x="1512" y="583" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">defined: spa.cpp:40-70</text>
+  <text x="1512" y="596" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">called at: spa.cpp:SPA()/SPA_fast()</text>
+
+  <line x1="700" y1="610" x2="700" y2="645" stroke="#555" stroke-width="2" marker-end="url(#a4)"/>
+
+  <rect x="570" y="645" width="260" height="35" rx="17" fill="#27ae60" stroke="#219a52" stroke-width="2"/>
+  <text x="700" y="667" text-anchor="middle" fill="white" font-size="12" font-weight="bold">Return SPA-corrected p</text>
+
+  <line x1="1160" y1="230" x2="1160" y2="645" stroke="#d35400" stroke-width="1.5" stroke-dasharray="5,3"/>
+  <line x1="1160" y1="645" x2="830" y2="645" stroke="#d35400" stroke-width="1" stroke-dasharray="5,3"/>
+  <text x="1185" y="430" font-size="9" fill="#d35400" transform="rotate(90,1185,430)">boundary: skip N-R</text>
+</svg>
+</div>
+
+<div class="code-ref">
+  <strong>Code References &mdash; Part 4: SPA</strong><br/>
+  <code>SPA()</code> &mdash; <code>spa.cpp:20</code> &mdash; full SPA (all samples), calls binary SPA functions<br/>
+  <code>SPA_fast()</code> &mdash; <code>spa.cpp:81</code> &mdash; fast SPA with NA/NB sample partition<br/>
+  <code>SPA_pval()</code> &mdash; <code>spa.cpp:144</code> &mdash; standalone SPA p-value wrapper<br/>
+  <strong>spa_binary.cpp (core CGF functions):</strong><br/>
+  &nbsp;&nbsp;<code>Korg_Binom()</code> &mdash; <code>:20</code> &mdash; K(t) = &#x2211; log(1-&#x3BC;+&#x3BC;exp(gt))<br/>
+  &nbsp;&nbsp;<code>K1_adj_Binom()</code> &mdash; <code>:28</code> &mdash; K'(t) - q (first derivative minus target)<br/>
+  &nbsp;&nbsp;<code>K2_Binom()</code> &mdash; <code>:42</code> &mdash; K''(t) (second derivative)<br/>
+  &nbsp;&nbsp;<code>getroot_K1_Binom()</code> &mdash; <code>:61</code> &mdash; Newton-Raphson root finder<br/>
+  &nbsp;&nbsp;<code>Get_Saddle_Prob_Binom()</code> &mdash; <code>:124</code> &mdash; saddle probability from root<br/>
+  <strong>Fast variants (NA/NB split):</strong><br/>
+  &nbsp;&nbsp;<code>Korg_fast_Binom()</code> &mdash; <code>:226</code>, <code>K1_adj_fast_Binom()</code> &mdash; <code>:234</code>, <code>K2_fast_Binom()</code> &mdash; <code>:251</code><br/>
+  &nbsp;&nbsp;<code>getroot_K1_fast_Binom()</code> &mdash; <code>:269</code>, <code>Get_Saddle_Prob_fast_Binom()</code> &mdash; <code>:332</code>
+</div>
+
+</section>
+
+
+<!-- ============================================================ -->
+<!-- PART 5: VR ASSIGNMENT -->
+<!-- ============================================================ -->
+<section id="sec-part5">
+<h2>Part 5: Variance Ratio Assignment Logic</h2>
+
+<div class="pipeline-container">
+<svg viewBox="0 0 1950 530" width="1930" height="520" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif">
+  <rect width="1950" height="530" fill="#fafbfc" rx="10"/>
+  <defs>
+    <marker id="a5" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#555"/></marker>
+    <marker id="a5r" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#e74c3c"/></marker>
+    <marker id="a5g" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#27ae60"/></marker>
+  </defs>
+
+  <text x="650" y="28" text-anchor="middle" font-size="16" font-weight="bold" fill="#2c3e50">Variance Ratio Assignment &mdash; assignVarianceRatio()</text>
+
+  <rect x="500" y="50" width="300" height="36" rx="18" fill="#34495e" stroke="#2c3e50" stroke-width="2"/>
+  <text x="650" y="73" text-anchor="middle" fill="white" font-size="12" font-weight="bold">Compute MAC for current marker</text>
+
+  <line x1="650" y1="86" x2="650" y2="120" stroke="#555" stroke-width="2" marker-end="url(#a5)"/>
+
+  <!-- Single vs categorical -->
+  <polygon points="650,120 840,155 650,190 460,155" fill="#f39c12" stroke="#e67e22" stroke-width="2"/>
+  <text x="650" y="153" text-anchor="middle" fill="white" font-size="10" font-weight="bold">Single VR category?</text>
+
+  <rect x="1550" y="138" width="330" height="22" rx="4" fill="#ecf0f1" stroke="#bdc3c7"/>
+  <text x="1715" y="153" text-anchor="middle" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">isSingleVarianceRatio (main.cpp:843)</text>
+
+  <line x1="460" y1="155" x2="200" y2="155" stroke="#27ae60" stroke-width="2"/>
+  <line x1="200" y1="155" x2="200" y2="200" stroke="#27ae60" stroke-width="2" marker-end="url(#a5g)"/>
+  <text x="300" y="147" font-size="10" fill="#27ae60" font-weight="bold">YES (1 category)</text>
+
+  <rect x="60" y="200" width="280" height="42" rx="6" fill="#27ae60" stroke="#219a52"/>
+  <text x="200" y="218" text-anchor="middle" fill="white" font-size="11" font-weight="bold">assignSingleVarianceRatio()</text>
+  <text x="200" y="234" text-anchor="middle" fill="#c8f0d4" font-size="9">saige_test.cpp:907 / :918</text>
+
+  <!-- Annotation: assignSingleVarianceRatio -->
+  <rect x="1550" y="195" width="360" height="52" rx="4" fill="#e8fdf0" stroke="#27ae60" stroke-width="1.5"/>
+  <text x="1562" y="210" font-family="Menlo, Consolas, monospace" font-size="9" fill="#2c3e50" font-weight="bold">assignSingleVarianceRatio()</text>
+  <text x="1562" y="223" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">defined: saige_test.cpp:907 / :918</text>
+  <text x="1562" y="236" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">called at: saige_test.cpp:843</text>
+
+  <line x1="650" y1="190" x2="650" y2="230" stroke="#555" stroke-width="2" marker-end="url(#a5)"/>
+  <text x="670" y="215" font-size="10" fill="#555">NO (multiple)</text>
+
+  <!-- MAC bin -->
+  <rect x="470" y="230" width="360" height="40" rx="6" fill="#ecf0f1" stroke="#bdc3c7"/>
+  <text x="650" y="254" text-anchor="middle" font-size="11" fill="#333">Find MAC bin: minMAC_i &#x2264; MAC &lt; maxMAC_i</text>
+
+  <rect x="1550" y="252" width="380" height="22" rx="4" fill="#ecf0f1" stroke="#bdc3c7"/>
+  <text x="1740" y="267" text-anchor="middle" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">m_cateVarRatioMinMACVecExclude[i] (saige_test.cpp:842)</text>
+
+  <line x1="650" y1="270" x2="650" y2="305" stroke="#555" stroke-width="2" marker-end="url(#a5)"/>
+
+  <!-- 3-way VR type -->
+  <polygon points="650,305 860,340 650,375 440,340" fill="#f39c12" stroke="#e67e22" stroke-width="2"/>
+  <text x="650" y="338" text-anchor="middle" fill="white" font-size="10" font-weight="bold">Which VR type?</text>
+
+  <rect x="1550" y="497" width="340" height="22" rx="4" fill="#ecf0f1" stroke="#bdc3c7"/>
+  <text x="1720" y="512" text-anchor="middle" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">issparseforVR / isnoXadj (saige_test.cpp:866-905)</text>
+
+  <!-- Sparse -->
+  <line x1="860" y1="340" x2="1100" y2="340" stroke="#e74c3c" stroke-width="2"/>
+  <line x1="1100" y1="340" x2="1100" y2="385" stroke="#e74c3c" stroke-width="2" marker-end="url(#a5r)"/>
+  <text x="960" y="332" font-size="10" fill="#e74c3c" font-weight="bold">sparse GRM</text>
+  <rect x="980" y="385" width="240" height="45" rx="6" fill="#e74c3c" stroke="#c0392b"/>
+  <text x="1100" y="405" text-anchor="middle" fill="white" font-size="11" font-weight="bold">m_varRatio_sparse[i]</text>
+  <text x="1100" y="422" text-anchor="middle" fill="#f5c6cb" font-size="9">PCG scoreTest path</text>
+
+  <!-- Annotation: m_varRatio_sparse -->
+  <rect x="1550" y="380" width="360" height="52" rx="4" fill="#fde8e8" stroke="#e74c3c" stroke-width="1.5"/>
+  <text x="1562" y="395" font-family="Menlo, Consolas, monospace" font-size="9" fill="#2c3e50" font-weight="bold">m_varRatio_sparse[i]</text>
+  <text x="1562" y="408" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">defined: saige_test.cpp:866 (sparse branch)</text>
+  <text x="1562" y="421" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">loaded from: varianceRatio.txt (sparse col)</text>
+
+  <!-- noadjCov -->
+  <line x1="440" y1="340" x2="200" y2="340" stroke="#16a085" stroke-width="2"/>
+  <line x1="200" y1="340" x2="200" y2="385" stroke="#16a085" stroke-width="2" marker-end="url(#a5)"/>
+  <text x="290" y="332" font-size="10" fill="#16a085" font-weight="bold">noadjCov</text>
+  <rect x="80" y="385" width="240" height="45" rx="6" fill="#16a085" stroke="#1abc9c"/>
+  <text x="200" y="405" text-anchor="middle" fill="white" font-size="11" font-weight="bold">m_varRatio_noadjCov[i]</text>
+  <text x="200" y="422" text-anchor="middle" fill="#a3e4d7" font-size="9">No covariate adjustment</text>
+
+  <!-- Annotation: m_varRatio_noadjCov -->
+  <rect x="1550" y="442" width="360" height="52" rx="4" fill="#e8fdf8" stroke="#16a085" stroke-width="1.5"/>
+  <text x="1562" y="457" font-family="Menlo, Consolas, monospace" font-size="9" fill="#2c3e50" font-weight="bold">m_varRatio_noadjCov[i]</text>
+  <text x="1562" y="470" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">defined: saige_test.cpp:900 (noadjCov branch)</text>
+  <text x="1562" y="483" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">loaded from: varianceRatio.txt (null_noXadj)</text>
+
+  <!-- Standard -->
+  <line x1="650" y1="375" x2="650" y2="385" stroke="#3498db" stroke-width="2" marker-end="url(#a5)"/>
+  <text x="670" y="380" font-size="10" fill="#3498db" font-weight="bold">default</text>
+  <rect x="530" y="385" width="240" height="45" rx="6" fill="#3498db" stroke="#2980b9"/>
+  <text x="650" y="405" text-anchor="middle" fill="white" font-size="11" font-weight="bold">m_varRatio_null[i]</text>
+  <text x="650" y="422" text-anchor="middle" fill="#d5e8f7" font-size="9">Standard fast score test</text>
+
+  <!-- Annotation: m_varRatio_null -->
+  <rect x="1550" y="318" width="360" height="52" rx="4" fill="#e8f0fd" stroke="#3498db" stroke-width="1.5"/>
+  <text x="1562" y="333" font-family="Menlo, Consolas, monospace" font-size="9" fill="#2c3e50" font-weight="bold">m_varRatio_null[i]</text>
+  <text x="1562" y="346" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">defined: saige_test.cpp:880 (default)</text>
+  <text x="1562" y="359" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">loaded from: varianceRatio.txt (null col)</text>
+
+  <!-- Merge -->
+  <line x1="200" y1="430" x2="200" y2="470" stroke="#555" stroke-width="1"/>
+  <line x1="650" y1="430" x2="650" y2="470" stroke="#555" stroke-width="1"/>
+  <line x1="1100" y1="430" x2="1100" y2="470" stroke="#555" stroke-width="1"/>
+  <line x1="200" y1="470" x2="1100" y2="470" stroke="#555" stroke-width="1"/>
+  <line x1="650" y1="470" x2="650" y2="495" stroke="#555" stroke-width="2" marker-end="url(#a5)"/>
+
+  <rect x="430" y="495" width="440" height="30" rx="6" fill="#ecf0f1" stroke="#bdc3c7"/>
+  <text x="650" y="514" text-anchor="middle" font-size="11" fill="#333">m_varRatioVal used in: Var(S) = VR * G' P G</text>
+</svg>
+</div>
+
+<div class="code-ref">
+  <strong>Code References &mdash; Part 5: VR Assignment</strong><br/>
+  <code>assignVarianceRatio(MAC, issparse)</code> &mdash; <code>saige_test.cpp:832</code> &mdash; 2-arg version<br/>
+  <code>assignVarianceRatio(MAC, issparse, isnoXadj)</code> &mdash; <code>saige_test.cpp:866</code> &mdash; 3-arg version (selects null/sparse/noadjCov)<br/>
+  <code>assignSingleVarianceRatio(issparse)</code> &mdash; <code>saige_test.cpp:907</code> &mdash; when only 1 VR category<br/>
+  <code>assignSingleVarianceRatio(issparse, isnoXadj)</code> &mdash; <code>saige_test.cpp:918</code><br/>
+  <code>assignSingleVarianceRatio_withinput(t_varRatioVal)</code> &mdash; <code>saige_test.cpp:934</code> &mdash; direct value override<br/>
+  MAC bin matching: <code>m_cateVarRatioMinMACVecExclude(i)</code> &lt; MAC &le; <code>m_cateVarRatioMaxMACVecInclude(i)</code> at line :842
+</div>
+
+</section>
+
+
+<!-- ============================================================ -->
+<!-- PART 6: CCT -->
+<!-- ============================================================ -->
+<section id="sec-part6">
+<h2>Part 6: Cauchy Combination Test (CCT)</h2>
+
+<div class="pipeline-container">
+<svg viewBox="0 0 1800 600" width="1780" height="590" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif">
+  <rect width="1800" height="600" fill="#fafbfc" rx="10"/>
+  <defs>
+    <marker id="a6" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#555"/></marker>
+    <marker id="a6r" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#e74c3c"/></marker>
+    <marker id="a6g" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#27ae60"/></marker>
+  </defs>
+
+  <text x="600" y="28" text-anchor="middle" font-size="16" font-weight="bold" fill="#2c3e50">Cauchy Combination Test &mdash; CCT_cpp() cct.cpp:14</text>
+
+  <!-- Entry -->
+  <rect x="370" y="50" width="460" height="36" rx="18" fill="#e67e22" stroke="#d35400" stroke-width="2"/>
+  <text x="600" y="73" text-anchor="middle" fill="white" font-size="12" font-weight="bold">Input: p1, p2, ..., pk &mdash; get_CCT_pvalue() main.cpp:1612</text>
+
+  <!-- Annotation: CCT entry -->
+  <rect x="1250" y="45" width="490" height="52" rx="4" fill="#fde8d8" stroke="#d35400" stroke-width="1.5"/>
+  <text x="1262" y="60" font-family="Menlo, Consolas, monospace" font-size="9" fill="#2c3e50" font-weight="bold">get_CCT_pvalue() / CCT_cpp()</text>
+  <text x="1262" y="73" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">defined: main.cpp:1612 / cct.cpp:14</text>
+  <text x="1262" y="86" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">called at: main.cpp:2559 (per gene)</text>
+
+  <line x1="600" y1="86" x2="600" y2="120" stroke="#555" stroke-width="2" marker-end="url(#a6)"/>
+
+  <!-- Any p = 0? -->
+  <polygon points="600,120 770,150 600,180 430,150" fill="#ffeaa7" stroke="#f39c12" stroke-width="1.5"/>
+  <text x="600" y="153" text-anchor="middle" fill="#333" font-size="10" font-weight="bold">Any p_k = 0?</text>
+
+  <rect x="1250" y="122" width="250" height="22" rx="4" fill="#ecf0f1" stroke="#bdc3c7"/>
+  <text x="1375" y="137" text-anchor="middle" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">pval(i) == 0 (cct.cpp:24)</text>
+
+  <line x1="770" y1="150" x2="950" y2="150" stroke="#e74c3c" stroke-width="2"/>
+  <text x="850" y="142" font-size="10" fill="#e74c3c">YES</text>
+  <rect x="950" y="135" width="170" height="30" rx="6" fill="#e74c3c" stroke="#c0392b"/>
+  <text x="1035" y="155" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Return p_CCT = 0</text>
+
+  <line x1="600" y1="180" x2="600" y2="215" stroke="#555" stroke-width="2" marker-end="url(#a6)"/>
+  <text x="620" y="200" font-size="9" fill="#555">NO</text>
+
+  <!-- Any p = 1? -->
+  <polygon points="600,215 780,245 600,275 420,245" fill="#ffeaa7" stroke="#f39c12" stroke-width="1.5"/>
+  <text x="600" y="248" text-anchor="middle" fill="#333" font-size="10" font-weight="bold">Any p_k = 1?</text>
+
+  <rect x="1250" y="225" width="280" height="22" rx="4" fill="#ecf0f1" stroke="#bdc3c7"/>
+  <text x="1390" y="240" text-anchor="middle" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">is_pval_1 flag (cct.cpp:26-28)</text>
+
+  <line x1="780" y1="245" x2="950" y2="245" stroke="#e67e22" stroke-width="2"/>
+  <text x="860" y="237" font-size="10" fill="#e67e22">YES</text>
+  <rect x="950" y="230" width="200" height="30" rx="6" fill="#e67e22" stroke="#d35400"/>
+  <text x="1050" y="250" text-anchor="middle" fill="white" font-size="10">p_CCT = min(1, p_min * k)</text>
+
+  <line x1="600" y1="275" x2="600" y2="310" stroke="#555" stroke-width="2" marker-end="url(#a6)"/>
+  <text x="620" y="295" font-size="9" fill="#555">NO</text>
+
+  <!-- Extreme check -->
+  <polygon points="600,315 810,350 600,385 390,350" fill="#ffeaa7" stroke="#f39c12" stroke-width="1.5"/>
+  <text x="600" y="348" text-anchor="middle" fill="#333" font-size="10" font-weight="bold">All p_k &#x2265; 10&#x207B;&#xB9;&#x2076;?</text>
+
+  <rect x="1250" y="330" width="280" height="22" rx="4" fill="#ecf0f1" stroke="#bdc3c7"/>
+  <text x="1390" y="345" text-anchor="middle" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">pval(i) &lt; 1e-16 check (cct.cpp:38)</text>
+
+  <!-- Standard formula -->
+  <line x1="390" y1="350" x2="180" y2="350" stroke="#3498db" stroke-width="2"/>
+  <line x1="180" y1="350" x2="180" y2="395" stroke="#3498db" stroke-width="2" marker-end="url(#a6)"/>
+  <text x="270" y="342" font-size="10" fill="#3498db" font-weight="bold">YES</text>
+
+  <rect x="40" y="395" width="280" height="40" rx="6" fill="#3498db" stroke="#2980b9"/>
+  <text x="180" y="420" text-anchor="middle" fill="white" font-size="11" font-weight="bold">T = &#x2211;w tan((&#xBD; &#x2212; p_k)&#x3C0;)</text>
+
+  <!-- Annotation: Standard Cauchy formula -->
+  <rect x="1250" y="390" width="490" height="52" rx="4" fill="#e8f0fd" stroke="#3498db" stroke-width="1.5"/>
+  <text x="1262" y="405" font-family="Menlo, Consolas, monospace" font-size="9" fill="#2c3e50" font-weight="bold">T = sum(w * tan((0.5-p)*pi))</text>
+  <text x="1262" y="418" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">defined: cct.cpp:38-50</text>
+  <text x="1262" y="431" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">standard path: all p_k >= 1e-16</text>
+
+  <!-- Mixed formula -->
+  <line x1="810" y1="350" x2="1000" y2="350" stroke="#8e44ad" stroke-width="2"/>
+  <line x1="1000" y1="350" x2="1000" y2="395" stroke="#8e44ad" stroke-width="2" marker-end="url(#a6)"/>
+  <text x="900" y="342" font-size="10" fill="#8e44ad" font-weight="bold">NO (extreme)</text>
+
+  <rect x="860" y="395" width="280" height="40" rx="6" fill="#8e44ad" stroke="#7d3c98"/>
+  <text x="1000" y="413" text-anchor="middle" fill="white" font-size="10" font-weight="bold">Small: w/(p * &#x3C0;)</text>
+  <text x="1000" y="427" text-anchor="middle" fill="#dcc6e8" font-size="9">Large: tan((&#xBD; &#x2212; p)&#x3C0;)</text>
+
+  <!-- Annotation: Mixed extreme formula -->
+  <rect x="1250" y="452" width="490" height="52" rx="4" fill="#f3e8fd" stroke="#8e44ad" stroke-width="1.5"/>
+  <text x="1262" y="467" font-family="Menlo, Consolas, monospace" font-size="9" fill="#2c3e50" font-weight="bold">mixed: w/(p*pi) for small p</text>
+  <text x="1262" y="480" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">defined: cct.cpp:38-50</text>
+  <text x="1262" y="493" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">extreme path: any p_k &lt; 1e-16</text>
+
+  <!-- Merge -->
+  <line x1="180" y1="435" x2="180" y2="470" stroke="#555" stroke-width="1"/>
+  <line x1="1000" y1="435" x2="1000" y2="470" stroke="#555" stroke-width="1"/>
+  <line x1="180" y1="470" x2="1000" y2="470" stroke="#555" stroke-width="1"/>
+  <line x1="600" y1="470" x2="600" y2="500" stroke="#555" stroke-width="2" marker-end="url(#a6)"/>
+
+  <!-- Tail -->
+  <polygon points="600,505 770,535 600,565 430,535" fill="#ffeaa7" stroke="#f39c12" stroke-width="1.5"/>
+  <text x="600" y="538" text-anchor="middle" fill="#333" font-size="10" font-weight="bold">T > 10&#xB9;&#x2075;?</text>
+
+  <rect x="1250" y="518" width="260" height="22" rx="4" fill="#ecf0f1" stroke="#bdc3c7"/>
+  <text x="1380" y="533" text-anchor="middle" font-family="Menlo, Consolas, monospace" font-size="9" fill="#555">cctstat > 1e15 (cct.cpp:60)</text>
+
+  <line x1="430" y1="535" x2="220" y2="535" stroke="#555" stroke-width="1.5"/>
+  <text x="310" y="527" font-size="9" fill="#555">NO</text>
+  <rect x="100" y="520" width="120" height="30" rx="6" fill="#27ae60" stroke="#219a52"/>
+  <text x="160" y="540" text-anchor="middle" fill="white" font-size="10">1 &#x2212; F_C(T)</text>
+
+  <line x1="770" y1="535" x2="950" y2="535" stroke="#555" stroke-width="1.5"/>
+  <text x="850" y="527" font-size="9" fill="#e74c3c">YES</text>
+  <rect x="950" y="520" width="160" height="30" rx="6" fill="#e74c3c" stroke="#c0392b"/>
+  <text x="1030" y="540" text-anchor="middle" fill="white" font-size="10">1/(T * &#x3C0;) tail approx</text>
+</svg>
+</div>
+
+<div class="code-ref">
+  <strong>Code References &mdash; Part 6: CCT</strong><br/>
+  <code>CCT_cpp(pval)</code> &mdash; <code>cct.cpp:14</code> &mdash; core Cauchy combination logic<br/>
+  <code>get_CCT_pvalue(pvals)</code> &mdash; <code>main.cpp:1612</code> &mdash; filters NaN/invalid, converts to arma::vec, calls CCT_cpp<br/>
+  Edge cases: p=0 returns 0 (line :24), p=1 uses Bonferroni (line :28), extreme p uses 1/(p*pi) (line :38)<br/>
+  Final CDF: <code>boost::math::cdf(complement(cauchy, cctstat))</code> (line :62) or tail approx <code>1/(T*pi)</code> (line :60)
+</div>
+
+<div class="note">
+  <strong>F_C is the Cauchy CDF:</strong> F_C(x) = 1/2 + (1/pi)*arctan(x). For very large T, the tail approximation 1/(T*pi) avoids numerical overflow.
+</div>
+
+</section>
+
+
+</div><!-- #content -->
+</body>
+</html>

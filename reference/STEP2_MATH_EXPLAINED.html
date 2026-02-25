@@ -401,6 +401,17 @@ tr:hover { background: #f0f4f8; }
     <a href="#sec-liu" class="sub">9b. Liu Fallback</a>
     <a href="#sec-skato">10. SKAT-O</a>
     <a href="#sec-cct">11. CCT</a>
+    <a href="#sec-er">12. Efficient Resampling</a>
+    <a href="#sec-er-hypergeo" class="sub">12a. HyperGeo Prob</a>
+    <a href="#sec-er-exact" class="sub">12b. Exact Enumeration</a>
+    <a href="#sec-conditional">13. Conditional Analysis</a>
+    <a href="#sec-cond-projection" class="sub">13a. Projection</a>
+    <a href="#sec-cond-spa" class="sub">13b. Conditional SPA</a>
+    <a href="#sec-sparse-grm">14. Sparse GRM &amp; PCG</a>
+    <a href="#sec-pcg" class="sub">14a. PCG Solver</a>
+    <a href="#sec-ldmat">15. LD Matrix</a>
+    <a href="#sec-validation">16. Validation Summary</a>
+    <a href="#sec-appendix">Appendix: Variables</a>
   </nav>
 </div>
 
@@ -440,9 +451,9 @@ The pipeline is shown below.
 </p>
 
 <div class="pipeline-container">
-<svg viewBox="0 0 880 400" width="860" height="390" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif">
+<svg viewBox="0 0 960 480" width="940" height="470" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif">
   <!-- Background -->
-  <rect width="880" height="400" fill="#fafbfc" rx="10"/>
+  <rect width="960" height="480" fill="#fafbfc" rx="10"/>
 
   <!-- Row 1: Inputs -->
   <rect x="20" y="20" width="160" height="60" rx="8" fill="#3498db" stroke="#2980b9" stroke-width="2"/>
@@ -451,7 +462,8 @@ The pipeline is shown below.
 
   <rect x="200" y="20" width="160" height="60" rx="8" fill="#27ae60" stroke="#219a52" stroke-width="2"/>
   <text x="280" y="45" text-anchor="middle" fill="white" font-size="13" font-weight="bold">Genotype File</text>
-  <text x="280" y="62" text-anchor="middle" fill="#c8f0d4" font-size="10">PLINK .bed/.bim/.fam</text>
+  <text x="280" y="55" text-anchor="middle" fill="#c8f0d4" font-size="9">PLINK / VCF / BGEN / PGEN</text>
+  <text x="280" y="68" text-anchor="middle" fill="#c8f0d4" font-size="8">.bed .vcf .bgen .pgen</text>
 
   <rect x="380" y="20" width="160" height="60" rx="8" fill="#e74c3c" stroke="#c0392b" stroke-width="2"/>
   <text x="460" y="45" text-anchor="middle" fill="white" font-size="13" font-weight="bold">Variance Ratios</text>
@@ -460,6 +472,12 @@ The pipeline is shown below.
   <rect x="560" y="20" width="160" height="60" rx="8" fill="#8e44ad" stroke="#7d3c98" stroke-width="2"/>
   <text x="640" y="45" text-anchor="middle" fill="white" font-size="13" font-weight="bold">Group File</text>
   <text x="640" y="62" text-anchor="middle" fill="#dcc6e8" font-size="10">gene -> variants + annot</text>
+
+  <!-- Optional inputs -->
+  <rect x="780" y="20" width="160" height="60" rx="8" fill="#16a085" stroke="#1abc9c" stroke-width="1.5" stroke-dasharray="5,3"/>
+  <text x="860" y="40" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Condition Markers</text>
+  <text x="860" y="55" text-anchor="middle" fill="#a3e4d7" font-size="9">(optional)</text>
+  <text x="860" y="68" text-anchor="middle" fill="#a3e4d7" font-size="8">rs1, rs2, ...</text>
 
   <!-- Arrows down -->
   <line x1="100" y1="80" x2="100" y2="120" stroke="#888" stroke-width="2" marker-end="url(#arrowhead)"/>
@@ -478,21 +496,49 @@ The pipeline is shown below.
   <polygon points="210,210 310,240 210,270 110,240" fill="#f39c12" stroke="#e67e22" stroke-width="2"/>
   <text x="210" y="243" text-anchor="middle" fill="white" font-size="11" font-weight="bold">|Z| > cutoff?</text>
 
-  <!-- Left: No SPA -->
+  <!-- Left: No SPA (normal approximation) -->
   <line x1="110" y1="240" x2="40" y2="240" stroke="#888" stroke-width="2"/>
   <line x1="40" y1="240" x2="40" y2="310" stroke="#888" stroke-width="2" marker-end="url(#arrowhead)"/>
-  <text x="60" y="230" fill="#888" font-size="10">No (quant)</text>
+  <text x="68" y="226" fill="#888" font-size="10">No (|Z| &lt;= cutoff</text>
+  <text x="68" y="237" fill="#888" font-size="10">or quant trait)</text>
 
-  <rect x="10" y="310" width="130" height="40" rx="6" fill="#95a5a6" stroke="#7f8c8d" stroke-width="1.5"/>
-  <text x="75" y="335" text-anchor="middle" fill="white" font-size="12" font-weight="bold">p = P(chi2 > Z2)</text>
+  <rect x="10" y="310" width="170" height="50" rx="6" fill="#95a5a6" stroke="#7f8c8d" stroke-width="1.5"/>
+  <text x="95" y="330" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Normal Approx</text>
+  <text x="95" y="347" text-anchor="middle" fill="#d5d8dc" font-size="10">p = P(chi2_1 > Z^2)</text>
 
-  <!-- Right: SPA -->
+  <!-- Right: Yes (binary, |Z| > cutoff) → MAC check -->
   <line x1="310" y1="240" x2="400" y2="240" stroke="#888" stroke-width="2"/>
-  <line x1="400" y1="240" x2="400" y2="310" stroke="#888" stroke-width="2" marker-end="url(#arrowhead)"/>
-  <text x="330" y="230" fill="#888" font-size="10">Yes (binary)</text>
+  <line x1="400" y1="240" x2="400" y2="280" stroke="#888" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="340" y="230" fill="#888" font-size="10">Yes (binary)</text>
 
-  <rect x="330" y="310" width="140" height="40" rx="6" fill="#e74c3c" stroke="#c0392b" stroke-width="1.5"/>
-  <text x="400" y="335" text-anchor="middle" fill="white" font-size="12" font-weight="bold">SPA Correction</text>
+  <!-- MAC <= 4 decision diamond (comes BEFORE SPA, not after) -->
+  <polygon points="400,280 460,305 400,330 340,305" fill="#d35400" stroke="#e67e22" stroke-width="2"/>
+  <text x="400" y="308" text-anchor="middle" fill="white" font-size="10" font-weight="bold">MAC &lt;= 4?</text>
+
+  <!-- No branch (MAC > 4): SPA -->
+  <line x1="340" y1="305" x2="230" y2="305" stroke="#888" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="290" y="298" fill="#888" font-size="10">No (MAC > 4)</text>
+
+  <rect x="180" y="330" width="150" height="50" rx="6" fill="#e74c3c" stroke="#c0392b" stroke-width="1.5"/>
+  <text x="255" y="350" text-anchor="middle" fill="white" font-size="11" font-weight="bold">SPA Correction</text>
+  <text x="255" y="367" text-anchor="middle" fill="#f5c6cb" font-size="9">(+ Firth if p&lt;0.05)</text>
+  <line x1="230" y1="305" x2="230" y2="330" stroke="#888" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+  <!-- Yes branch (MAC <= 4): ER Resampling -->
+  <line x1="460" y1="305" x2="530" y2="305" stroke="#888" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="480" y="298" fill="#888" font-size="10">Yes</text>
+
+  <rect x="480" y="330" width="150" height="50" rx="6" fill="#d35400" stroke="#c0392b" stroke-width="1.5"/>
+  <text x="555" y="350" text-anchor="middle" fill="white" font-size="11" font-weight="bold">ER Resampling</text>
+  <text x="555" y="367" text-anchor="middle" fill="#f5c6cb" font-size="9">(+ Firth if p&lt;0.05)</text>
+  <line x1="530" y1="305" x2="530" y2="330" stroke="#888" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+  <!-- Conditional analysis branch (dashed) -->
+  <line x1="860" y1="80" x2="860" y2="435" stroke="#16a085" stroke-width="1.5" stroke-dasharray="5,3"/>
+  <line x1="860" y1="435" x2="630" y2="435" stroke="#16a085" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arrowhead)"/>
+  <rect x="630" y="420" width="160" height="32" rx="6" fill="#16a085" stroke="#1abc9c" stroke-width="1.5" stroke-dasharray="5,3"/>
+  <text x="710" y="440" text-anchor="middle" fill="white" font-size="10" font-weight="bold">Conditional Analysis</text>
+  <text x="710" y="460" text-anchor="middle" fill="#16a085" font-size="9">BETA_c, SE_c, p.value_c</text>
 
   <!-- Right branch: Region tests -->
   <line x1="640" y1="80" x2="640" y2="120" stroke="#888" stroke-width="2" marker-end="url(#arrowhead)"/>
@@ -525,12 +571,12 @@ The pipeline is shown below.
   <rect x="570" y="310" width="150" height="40" rx="6" fill="#e67e22" stroke="#d35400" stroke-width="1.5"/>
   <text x="645" y="335" text-anchor="middle" fill="white" font-size="12" font-weight="bold">CCT Combination</text>
 
-  <!-- Final output row -->
-  <line x1="75" y1="350" x2="75" y2="375" stroke="#888" stroke-width="1.5"/>
-  <line x1="400" y1="350" x2="400" y2="375" stroke="#888" stroke-width="1.5"/>
-  <line x1="645" y1="350" x2="645" y2="375" stroke="#888" stroke-width="1.5"/>
-  <line x1="75" y1="375" x2="645" y2="375" stroke="#888" stroke-width="1.5"/>
-  <line x1="360" y1="375" x2="360" y2="390" stroke="#888" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <!-- LD Matrix (optional) -->
+  <rect x="780" y="310" width="140" height="40" rx="6" fill="#7f8c8d" stroke="#6c7a89" stroke-width="1.5" stroke-dasharray="5,3"/>
+  <text x="850" y="328" text-anchor="middle" fill="white" font-size="10" font-weight="bold">LD Matrix</text>
+  <text x="850" y="342" text-anchor="middle" fill="#d5d8dc" font-size="8">(optional)</text>
+  <line x1="760" y1="160" x2="850" y2="160" stroke="#7f8c8d" stroke-width="1.5" stroke-dasharray="5,3"/>
+  <line x1="850" y1="160" x2="850" y2="310" stroke="#7f8c8d" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arrowhead)"/>
 
   <!-- Arrow marker -->
   <defs>
@@ -555,12 +601,19 @@ Step 2 loads the null model fitted in Step 1. The null model provides everything
 to compute score statistics <em>without</em> re-fitting the model for each variant.
 </p>
 
+<div class="note">
+<strong>Dimension conventions:</strong>
+$N$ = number of samples (individuals) in the study.
+$p$ = number of covariates in the null model design matrix, including the intercept
+(e.g., if fitting intercept + age + sex, then $p = 3$).
+</div>
+
 <table>
 <tr><th>Variable</th><th>Type</th><th>Dimension</th><th>Description</th></tr>
 <tr><td><span class="vec">mu</span></td><td>vec</td><td>$N$</td><td>Fitted values $\hat{\mu}_i = E[y_i | X_i]$</td></tr>
 <tr><td><span class="vec">res</span></td><td>vec</td><td>$N$</td><td>Residuals $r_i = y_i - \hat{\mu}_i$</td></tr>
 <tr><td><span class="vec">y</span></td><td>vec</td><td>$N$</td><td>Phenotype values</td></tr>
-<tr><td><span class="vec">mu2</span></td><td>vec</td><td>$N$</td><td>Variance weights: $\hat{\mu}_i(1-\hat{\mu}_i)$ (binary)</td></tr>
+<tr><td><span class="vec">mu2</span></td><td>vec</td><td>$N$</td><td>Variance weights (C++ name: <code>m_mu2</code>). See Derived Quantities below.</td></tr>
 <tr><td><span class="mat">X</span></td><td>mat</td><td>$N \times p$</td><td>Design matrix (intercept + covariates)</td></tr>
 <tr><td><span class="mat">XVX</span></td><td>mat</td><td>$p \times p$</td><td>$X^\top V X$ where $V = \text{diag}(\mu_2)$</td></tr>
 <tr><td><span class="mat">XXVX_inv</span></td><td>mat</td><td>$N \times p$</td><td>$X (X^\top V X)^{-1}$</td></tr>
@@ -572,11 +625,16 @@ to compute score statistics <em>without</em> re-fitting the model for each varia
 
 <h3>Derived Quantities</h3>
 
+<p>
+The variance weight vector is stored in C++ as <code>m_mu2</code> (a vector of length $N$).
+We write $\texttt{mu2}[i]$ for its $i$-th element to avoid confusion with subscript notation.
+</p>
+
 <div class="math-block vec-block">
-<strong>Variance weight vector</strong> (binary trait):
-$$\text{mu2}_i = \hat{\mu}_i (1 - \hat{\mu}_i)$$
-<strong>Variance weight vector</strong> (quantitative trait):
-$$\text{mu2}_i = 1/\tau_0$$
+<strong>Variance weight vector <code>mu2</code></strong> $[N \times 1]$ (binary trait):
+$$\texttt{mu2}[i] = \hat{\mu}_i (1 - \hat{\mu}_i)$$
+<strong>Variance weight vector <code>mu2</code></strong> $[N \times 1]$ (quantitative trait):
+$$\texttt{mu2}[i] = 1/\tau_0 \quad \text{(constant for all } i\text{)}$$
 </div>
 
 <h3>Projection Matrix $P$</h3>
@@ -629,7 +687,7 @@ accounting for covariates. SAIGE implements three paths:
 $$\color{#8e44ad}{S} = \frac{\tilde{G}^\top \cdot \color{#3498db}{\text{res}}}{\color{#e74c3c}{\tau_0}}$$
 
 <strong>Unadjusted variance (binary):</strong>
-$$\color{#e74c3c}{\text{var}_2} = \sum_i \color{#3498db}{\text{mu2}}_i \cdot \tilde{G}_i^2$$
+$$\color{#e74c3c}{\text{var}_2} = \sum_i \color{#3498db}{\texttt{mu2}[i]} \cdot \tilde{G}_i^2$$
 
 <strong>Unadjusted variance (quantitative):</strong>
 $$\color{#e74c3c}{\text{var}_2} = Z^\top \color{#27ae60}{\text{XVX}} \cdot Z \cdot \tau_0 + G^\top G - 2 B^\top G$$
@@ -664,7 +722,7 @@ $$S_2 = -(S_a - \text{res}[I]^\top X_1)^\top Z$$
 $$S = \frac{S_1 + S_2}{\tau_0}$$
 
 <strong>Variance (binary):</strong>
-$$\text{var}_2 = Z^\top (\text{XVX}) Z - \sum_i \text{mu2}[I_i] \cdot B_i^2 + \sum_i \text{mu2}[I_i] \cdot \tilde{G}_{1,i}^2$$
+$$\text{var}_2 = Z^\top (\text{XVX}) Z - \sum_i \texttt{mu2}[I_i] \cdot B_i^2 + \sum_i \texttt{mu2}[I_i] \cdot \tilde{G}_{1,i}^2$$
 </div>
 
 </section>
@@ -680,7 +738,7 @@ allele frequency $\texttt{altFreq}$:
 <div class="math-block">
 $$S = \frac{G_1^\top \text{res}[I] - \text{sum}(\text{res}) \cdot 2f}{\tau_0}$$
 
-$$\text{var}_2 = \left[\sum_i \text{mu2}[I_i] \cdot G_{1,i}^2 - \sum_i \text{mu2}[I_i] \cdot 4f \cdot G_{1,i} + \sum_i \text{mu2}_i \cdot 4f^2\right] \cdot \tau_0$$
+$$\text{var}_2 = \left[\sum_i \texttt{mu2}[I_i] \cdot G_{1,i}^2 - \sum_i \texttt{mu2}[I_i] \cdot 4f \cdot G_{1,i} + \sum_i \texttt{mu2}[i] \cdot 4f^2\right] \cdot \tau_0$$
 </div>
 </section>
 
@@ -697,7 +755,7 @@ $$G = \begin{pmatrix}0\\1\\0\\2\\0\end{pmatrix}, \quad
 <p>Non-zero indices: $I = \{1, 3\}$ (0-indexed). Assume $\tilde{G} \approx G$ (identity projection for simplicity).</p>
 
 $$S = \tilde{G}^\top \text{res} = 0 \cdot 0.3 + 1 \cdot (-0.2) + 0 \cdot 0.1 + 2 \cdot (-0.5) + 0 \cdot 0.3 = -1.2$$
-$$\text{var}_2 = \sum_i \text{mu2}_i \cdot G_i^2 = 0.24 \cdot 1 + 0.16 \cdot 4 = 0.88$$
+$$\text{var}_2 = \sum_i \texttt{mu2}[i] \cdot G_i^2 = 0.24 \cdot 1 + 0.16 \cdot 4 = 0.88$$
 $$\text{var}_1 = 0.88 \times \text{VR}$$
 
 <p>If $\text{VR} = 1.02$: $\text{var}_1 = 0.8976$, $\text{stat} = 1.44/0.8976 = 1.604$, $p = P(\chi^2_1 > 1.604) \approx 0.205$.</p>
@@ -1409,6 +1467,623 @@ typically are, since the variant sets overlap across MAF thresholds). Other comb
 
 
 <!-- ============================================================
+     SECTION 12: EFFICIENT RESAMPLING (ER)
+     ============================================================ -->
+<section id="sec-er">
+<h2>12. Efficient Resampling (ER) for Binary Rare Variants</h2>
+
+<p>
+When testing binary traits with extremely rare variants (MAC &leq; <code>MACCutoffforER</code>,
+default 4), the SPA approximation becomes unreliable because the test statistic takes on only
+a handful of discrete values. SAIGE uses <strong>Efficient Resampling (ER)</strong> to compute
+an exact (or near-exact) p-value by enumerating all possible case/control assignments weighted
+by their probabilities under the null model.
+</p>
+
+<div class="insight">
+<strong>Why ER?</strong> For a variant with MAC = 1, the genotype vector has only one non-reference
+allele carrier. The score statistic $S = G^\top y$ can take at most 2 distinct values (carrier is a
+case or a control). SPA, which relies on a smooth CGF, cannot accurately approximate such a
+discrete distribution. ER instead computes the exact null distribution.
+</div>
+
+<h3>Overview of <code>SKATExactBin_Work()</code></h3>
+
+<p>
+The main entry point is <code>SKATExactBin_Work()</code> in <code>er_binary.cpp</code>. Given $k$ carriers
+of the rare variant and $n$ total samples with $n_{\text{case}}$ cases, it:
+</p>
+
+<ol>
+  <li>Computes the weighted hypergeometric probability $P(\text{carriers among cases} = j)$ for $j = 0, 1, \ldots, k$</li>
+  <li>Enumerates all $\binom{k}{j}$ ways to assign $j$ carriers among the $k$ positions, for each $j$</li>
+  <li>For each assignment, computes the SKAT-like test statistic $Q = \|Z_{\text{test}}\|^2$</li>
+  <li>Weights each $Q$ by its Fisher probability (odds-based)</li>
+  <li>Computes the exact p-value as $P(Q \geq Q_{\text{obs}})$ under the weighted null</li>
+</ol>
+
+<div class="math-block">
+<p><strong>Test statistic for each permutation:</strong></p>
+<p>For an assignment where carriers indexed by $\{a_1, \ldots, a_j\}$ are cases:</p>
+$$Z_{\text{test}} = Z_0 + \sum_{i=1}^{j} (Z_1[a_i] - Z_0[a_i])$$
+$$Q = \|Z_{\text{test}}\|^2 = \sum_{l=1}^{m} Z_{\text{test},l}^2$$
+
+<p>where $Z_0[i] = -\pi_i \cdot G_i$ (expected contribution if carrier $i$ is a control)
+and $Z_1[i] = (1-\pi_i) \cdot G_i$ (expected contribution if carrier $i$ is a case),
+with $\pi_i = \hat{\mu}_i$ the null model fitted probability for sample $i$.</p>
+
+<p><strong>Final p-value:</strong></p>
+$$p_{\text{ER}} = \sum_{\{Q_r \geq Q_{\text{obs}}\}} w_r - \frac{1}{2}\sum_{\{Q_r = Q_{\text{obs}}\}} w_r$$
+<p>where $w_r$ are the normalized Fisher probabilities (odds-weighted) for each possible assignment.</p>
+</div>
+
+<p>Source: <code>SKATExactBin_Work()</code> in <code>er_binary.cpp</code> lines 770-832.</p>
+
+<section id="sec-er-hypergeo">
+<h3>12a. Hypergeometric Probability Computation</h3>
+
+<p>
+The <code>HyperGeo</code> class computes weighted hypergeometric probabilities, which give the null
+distribution of how many carriers fall among the cases. Samples are grouped into $G$ bins by
+their null probabilities $\pi_i$, and within each bin, the combinatorial probability is computed.
+</p>
+
+<div class="math-block">
+<p><strong>Log-probability table construction:</strong></p>
+<p>For each group $g$ with $n_g$ samples and average odds $w_g = \bar{\pi}_g / (1 - \bar{\pi}_g)$:</p>
+$$\text{table}[g][j] = \log\binom{n_g}{j} + j \cdot \log(w_g)$$
+
+<p><strong>Recursive enumeration:</strong></p>
+<p>For groups $g = 0, 1, \ldots, G-1$, recursively enumerate all ways to distribute
+$n_{\text{case}}$ cases across groups. For the last group ($g = G-1$), the count is
+determined: $j_{G-1} = n_{\text{case}} - \sum_{g'<G-1} j_{g'}$.</p>
+
+$$P(k \text{ carriers among cases}) = \frac{\sum_{\text{valid combos}} \exp(\text{log-prob})}{\sum_{k'} \sum_{\text{valid combos}} \exp(\text{log-prob})}$$
+
+<p><strong>Log-combination function:</strong></p>
+$$\log\binom{n}{k} = \sum_{d=1}^{k} [\log(n - d + 1) - \log(d)]$$
+</div>
+
+<p>Source: <code>HyperGeo::Run()</code>, <code>HyperGeo::Recursive()</code>, <code>HyperGeo::lCombinations()</code> in <code>er_binary.cpp</code> lines 167-274.</p>
+
+<pre><code><span class="kw">int</span> <span class="fn">HyperGeo::Recursive</span>(<span class="kw">double</span> lprob, <span class="kw">int</span> idx, <span class="kw">int</span> ncase_used) {
+    <span class="kw">int</span> num = m_group[idx];
+    <span class="kw">if</span> (idx == m_ngroup - <span class="nu">1</span>) {
+        lprob1 = <span class="fn">GetLogProb</span>(idx, ncase_used);
+        <span class="fn">SaveProb</span>(lprob + lprob1, ncase_used);  <span class="cm">// Accumulate exp(lprob - ref)</span>
+        <span class="kw">return</span> <span class="nu">1</span>;
+    }
+    <span class="kw">for</span> (i = <span class="nu">0</span>; i &lt;= num; i++) {
+        <span class="kw">if</span> (ncase_used + i &lt;= m_ncase) {
+            lprob1 = <span class="fn">GetLogProb</span>(idx, i);
+            <span class="fn">Recursive</span>(lprob + lprob1, idx+<span class="nu">1</span>, ncase_used + i);
+        }
+    }
+}</code></pre>
+
+</section>
+
+<section id="sec-er-exact">
+<h3>12b. Exact Enumeration and Resampling</h3>
+
+<p>
+The <code>ComputeExact</code> class handles the actual enumeration of all $\binom{k}{j}$ carrier
+assignments for each $j$. For small $k$ (MAC &leq; 4 means $k \leq 4$), the total number of
+combinations is manageable: $\sum_{j=0}^{4}\binom{4}{j} = 16$.
+</p>
+
+<div class="math-block">
+<p><strong>Total combinations per $k$:</strong></p>
+$$N_{\text{total}} = \sum_{j=0}^{k} \binom{k}{j} = 2^k$$
+
+<p>For $k = 1$: 2 combinations. For $k = 2$: 4. For $k = 3$: 8. For $k = 4$: 16.</p>
+
+<p><strong>Fisher probability for each assignment:</strong></p>
+<p>If $j$ carriers out of $k$ are cases, and the selected carriers have indices $\{a_1, \ldots, a_j\}$:</p>
+$$\text{FisherProb} = \prod_{i=1}^{j} \text{odds}_{a_i}, \quad \text{where } \text{odds}_i = \frac{\pi_i}{1 - \pi_i}$$
+
+<p><strong>Inverse enumeration</strong> (for $j > k/2$, enumerate controls instead for efficiency):</p>
+$$\text{FisherProb}_{\text{inv}} = \frac{\prod_{\text{all}} \text{odds}_i}{\prod_{l=1}^{k-j} \text{odds}_{b_l}}$$
+<p>where $\{b_1, \ldots, b_{k-j}\}$ are the non-case carriers.</p>
+</div>
+
+<p>
+When $N_{\text{total}}$ exceeds the resampling budget (<code>NResampling</code>, default 10000),
+some strata switch from exact enumeration to Monte Carlo resampling. The
+<code>SKAT_Resampling()</code> function randomly samples carrier assignments, weighted
+by the hypergeometric probabilities.
+</p>
+
+<p>Source: <code>ComputeExact::Run()</code>, <code>SKAT_Exact_Recurse()</code>, <code>CalTestStat()</code>,
+<code>CalFisherProb()</code> in <code>er_binary.cpp</code> lines 280-589.</p>
+
+<div class="example">
+<h4>Numerical Example: ER with MAC = 2</h4>
+<p>
+Suppose $k = 2$ carriers at positions $\{3, 7\}$ in a cohort of $N = 100$ with
+$n_{\text{case}} = 20$. Null probabilities: $\pi_3 = 0.15$, $\pi_7 = 0.25$.
+</p>
+<p>Odds: $o_3 = 0.15/0.85 = 0.176$, $o_7 = 0.25/0.75 = 0.333$.</p>
+<p>Possible assignments ($j$ = number of carrier-cases):</p>
+$$j=0: \binom{2}{0}=1 \text{ way}, \quad j=1: \binom{2}{1}=2 \text{ ways}, \quad j=2: \binom{2}{2}=1 \text{ way}$$
+<p>Fisher probabilities: $j=0$: $1.0$ (baseline); $j=1$: $\{o_3, o_7\} = \{0.176, 0.333\}$; $j=2$: $o_3 \cdot o_7 = 0.059$.</p>
+<p>After normalization and weighting by hypergeometric $P(j)$, the test statistic for each of the 4
+assignments is compared to $Q_{\text{obs}}$ to yield the exact p-value.</p>
+</div>
+
+<div class="note">
+<strong>Interaction with SPA/Firth:</strong> When ER is used, the p-value replaces the SPA p-value.
+The SE is back-calculated from the ER p-value: $\text{SE} = |\hat{\beta}| / |\Phi^{-1}(p_{\text{ER}}/2)|$.
+If the Firth correction is also active (p &lt; <code>pCutoffforFirth</code>), the Firth-adjusted beta
+is combined with the ER p-value for the SE.
+</div>
+
+</section>
+</section>
+
+
+<!-- ============================================================
+     SECTION 13: CONDITIONAL ANALYSIS
+     ============================================================ -->
+<section id="sec-conditional">
+<h2>13. Conditional Analysis</h2>
+
+<p>
+Conditional analysis tests whether a marker has an independent effect after accounting for
+the effects of one or more <strong>conditioning markers</strong>. This is used to determine whether
+a significant signal at a locus is driven by a single causal variant or by multiple independent
+signals. The conditioning markers' genotypes are loaded and their score test statistics pre-computed
+during initialization via <code>assignConditionFactors()</code>.
+</p>
+
+<h3>Setup: Conditioning Factor Matrices</h3>
+
+<p>
+Let $G_2$ be the $[N \times c]$ genotype matrix of $c$ conditioning markers. During initialization,
+the following quantities are pre-computed and stored:
+</p>
+
+<div class="math-block mat-block">
+<p><strong>Pre-computed conditioning matrices:</strong></p>
+$$\texttt{P2Mat\_cond} \;[N \times c]: \text{P2 vectors of conditioning markers}$$
+$$\texttt{VarMat\_cond} \;[c \times c]: \text{variance-covariance of conditioning markers}$$
+$$\texttt{VarInvMat\_cond} \;[c \times c] = \texttt{VarMat\_cond}^{-1}$$
+$$\texttt{Tstat\_cond} \;[c]: \text{score statistics of conditioning markers}$$
+</div>
+
+<p>Source: <code>assignConditionFactors()</code> in <code>saige_test.cpp</code> lines 942-962.</p>
+
+<section id="sec-cond-projection">
+<h3>13a. Conditional Score and Variance Projection</h3>
+
+<p>
+For each test marker with adjusted genotype $\tilde{G}_1$ and unconditional statistics
+$(S, \text{var}_1)$, the conditional statistics are obtained by projecting out the
+conditioning markers' contribution:
+</p>
+
+<div class="math-block">
+<p><strong>Cross-covariance (G1 with conditioning markers):</strong></p>
+$$\texttt{G1P2} = \sqrt{\text{VR}} \cdot \tilde{G}_1^\top \cdot \texttt{P2Mat\_cond} \quad [1 \times c]$$
+
+<p><strong>Conditional score statistic:</strong></p>
+$$S_c = S - \texttt{G1P2} \cdot \texttt{VarInvMat\_cond} \cdot \texttt{Tstat\_cond}$$
+
+<p><strong>Conditional variance:</strong></p>
+$$\text{var}_c = \text{var}_1 - \texttt{G1P2} \cdot \texttt{VarInvMat\_cond} \cdot \texttt{G1P2}^\top$$
+
+<p><strong>Conditional test statistic and p-value:</strong></p>
+$$\text{stat}_c = \frac{S_c^2}{\text{var}_c} \sim \chi^2_1 \quad\text{under } H_0$$
+$$p_c = P(\chi^2_1 > \text{stat}_c)$$
+
+<p><strong>Conditional effect size:</strong></p>
+$$\hat{\beta}_c = \frac{S_c}{\text{var}_c}, \qquad \text{SE}_c = \frac{|\hat{\beta}_c|}{\sqrt{\text{stat}_c}}$$
+</div>
+
+<p>Source: <code>getMarkerPval()</code> conditional branch in <code>saige_test.cpp</code> lines 670-726.</p>
+
+<pre><code><span class="cm">// Conditional projection (from saige_test.cpp)</span>
+t_G1tilde_P_G2tilde = <span class="fn">sqrt</span>(m_varRatioVal) * t_gtilde.<span class="fn">t</span>() * m_P2Mat_cond;
+<span class="ty">arma::vec</span> t_Tstat_ctemp = t_G1tilde_P_G2tilde * m_VarInvMat_cond * m_Tstat_cond;
+t_Tstat_c = t_Tstat - t_Tstat_ctemp(<span class="nu">0</span>);
+<span class="ty">arma::vec</span> t_varT_ctemp = t_G1tilde_P_G2tilde * m_VarInvMat_cond * (t_G1tilde_P_G2tilde.<span class="fn">t</span>());
+t_varT_c = t_var1 - t_varT_ctemp(<span class="nu">0</span>);</code></pre>
+
+<div class="note">
+<strong>Self-conditioning:</strong> When a test marker is also a conditioning marker, $\texttt{G1P2}$
+is proportional to a row of $\texttt{VarMat\_cond}$, and the conditional variance approaches zero.
+Both R and C++ output $p_c = 1.0$ for these markers.
+</div>
+
+</section>
+
+<section id="sec-cond-spa">
+<h3>13b. Conditional SPA (Binary Traits)</h3>
+
+<p>
+For binary traits where the conditional test statistic exceeds the SPA cutoff
+($\text{stat}_c > \text{SPA\_cutoff}^2$), SPA is applied to the conditional
+score statistic using the same CGF machinery but with the conditional $q$ value:
+</p>
+
+<div class="math-block">
+$$q_c = \frac{S_c}{\sqrt{\text{var}_c / \text{var}_2}} + m_1, \qquad m_1 = \mu^\top \tilde{G}$$
+
+<p>The reflection $q_{\text{inv},c}$ and two-sided SPA p-value are computed
+identically to the unconditional case (Section 5), but using $q_c$ instead of $q$.</p>
+</div>
+
+<p>Source: <code>getMarkerPval()</code> conditional SPA branch in <code>saige_test.cpp</code> lines 729-780.</p>
+
+</section>
+
+<div class="example">
+<h4>Numerical Example: Conditional Analysis (c=2 conditioning markers)</h4>
+<p>Unconditional statistics for test marker: $S = 2.5$, $\text{var}_1 = 0.80$.</p>
+<p>Conditioning markers' score statistics: $T_{\text{cond}} = (1.8, 0.9)^\top$.</p>
+$$\texttt{VarInvMat\_cond} = \begin{pmatrix}1.3 & -0.2\\-0.2 & 1.1\end{pmatrix}, \quad
+\texttt{G1P2} = (0.15, \; 0.08)$$
+
+$$S_c = 2.5 - (0.15, 0.08) \begin{pmatrix}1.3 & -0.2\\-0.2 & 1.1\end{pmatrix} \begin{pmatrix}1.8\\0.9\end{pmatrix}
+= 2.5 - (0.15, 0.08) \begin{pmatrix}2.16\\0.63\end{pmatrix}
+= 2.5 - 0.374 = 2.126$$
+
+$$\text{var}_c = 0.80 - (0.15, 0.08) \begin{pmatrix}1.3 & -0.2\\-0.2 & 1.1\end{pmatrix} \begin{pmatrix}0.15\\0.08\end{pmatrix}
+= 0.80 - 0.0326 = 0.767$$
+
+$$\text{stat}_c = 2.126^2 / 0.767 = 5.89, \quad p_c = P(\chi^2_1 > 5.89) \approx 0.015$$
+</div>
+
+</section>
+
+
+<!-- ============================================================
+     SECTION 14: SPARSE GRM AND PCG
+     ============================================================ -->
+<section id="sec-sparse-grm">
+<h2>14. Sparse GRM and Preconditioned Conjugate Gradient (PCG)</h2>
+
+<p>
+When the null model was fitted with a sparse GRM (genetic relationship matrix), the variance
+computation in the score test changes. Instead of using the diagonal approximation
+$P_2 = \tilde{G} \odot \text{mu2} \cdot \tau_0$, the exact variance requires solving
+a linear system involving the sparse covariance matrix $\Sigma$.
+</p>
+
+<h3>Score Test with Sparse GRM</h3>
+
+<p>
+The <code>scoreTest()</code> function in <code>saige_test.cpp</code> handles this path when
+<code>flagSparseGRM_cur = true</code>:
+</p>
+
+<div class="math-block">
+<p><strong>Score (same as standard path):</strong></p>
+$$S = \frac{\tilde{G}^\top \cdot \text{res}}{\tau_0}$$
+
+<p><strong>P2 vector via PCG solve:</strong></p>
+$$\Sigma \cdot P_2 = \tilde{G} \quad \Longrightarrow \quad P_2 = \Sigma^{-1} \tilde{G}$$
+
+<p><strong>Unadjusted variance:</strong></p>
+$$\text{var}_2 = \tilde{G}^\top \cdot P_2$$
+
+<p><strong>Projection correction (when isVarPsadj = true):</strong></p>
+$$\text{var}_2 = \text{var}_2 - \tilde{G}^\top \cdot (\Sigma^{-1} X)(X^\top \Sigma^{-1} X)^{-1} X^\top \cdot P_2$$
+
+<p><strong>VR-adjusted variance:</strong></p>
+$$\text{var}_1 = \text{var}_2 \times \text{VR}_{\text{sparse}}$$
+</div>
+
+<p>Source: <code>scoreTest()</code> in <code>saige_test.cpp</code> lines 125-200.</p>
+
+<pre><code><span class="cm">// Sparse GRM branch in scoreTest()</span>
+<span class="kw">if</span> (!m_flagSparseGRM_cur) {
+    t_P2Vec = t_gtilde % m_mu2 * m_tauvec[<span class="nu">0</span>];      <span class="cm">// diagonal approx</span>
+} <span class="kw">else</span> {
+    t_P2Vec = <span class="fn">getPCG1ofSigmaAndGtilde</span>(t_gtilde, <span class="nu">100</span>, <span class="nu">0.02</span>);  <span class="cm">// PCG solve</span>
+}</code></pre>
+
+<section id="sec-pcg">
+<h3>14a. PCG Iterative Solver</h3>
+
+<p>
+The Preconditioned Conjugate Gradient (PCG) method solves $\Sigma x = b$ iteratively, where
+$\Sigma$ is the sparse covariance matrix (stored as <code>m_spSigmaMat</code>).
+The preconditioner is the diagonal of $\Sigma$ (Jacobi preconditioner).
+</p>
+
+<div class="math-block">
+<p><strong>PCG Algorithm:</strong></p>
+<p>Given: sparse $\Sigma \in \mathbb{R}^{N \times N}$, right-hand side $b \in \mathbb{R}^N$,
+preconditioner $M = \text{diag}(\Sigma)$.</p>
+
+$$x_0 = 0, \quad r_0 = b, \quad z_0 = M^{-1} r_0, \quad p_0 = z_0$$
+
+<p><strong>For $k = 0, 1, 2, \ldots$ until $\|r_k\|^2 < \text{tol}$ or $k \geq \text{maxiter}$:</strong></p>
+$$\alpha_k = \frac{r_k^\top z_k}{p_k^\top (\Sigma \, p_k)}$$
+$$x_{k+1} = x_k + \alpha_k \, p_k$$
+$$r_{k+1} = r_k - \alpha_k \, (\Sigma \, p_k)$$
+$$z_{k+1} = M^{-1} r_{k+1}$$
+$$\beta_k = \frac{z_{k+1}^\top r_{k+1}}{z_k^\top r_k}$$
+$$p_{k+1} = z_{k+1} + \beta_k \, p_k$$
+
+<p>Default: <code>maxiterPCG = 100</code>, <code>tolPCG = 0.02</code>.</p>
+</div>
+
+<p>Source: <code>getPCG1ofSigmaAndGtilde()</code> in <code>saige_test.cpp</code> lines 1079-1110.</p>
+
+<pre><code><span class="ty">arma::vec</span> <span class="fn">SAIGEClass::getPCG1ofSigmaAndGtilde</span>(<span class="ty">arma::vec</span>&amp; bVec,
+                                                <span class="kw">int</span> maxiterPCG, <span class="kw">double</span> tolPCG) {
+    <span class="ty">arma::vec</span> xVec(Nnomissing, <span class="ty">arma::fill::zeros</span>);
+    <span class="ty">arma::vec</span> rVec = bVec;
+    <span class="ty">arma::vec</span> minvVec = <span class="nu">1.0</span> / m_diagSigma;   <span class="cm">// Jacobi preconditioner</span>
+    <span class="ty">arma::vec</span> zVec = minvVec % rVec;
+    <span class="ty">arma::vec</span> pVec = zVec;
+    <span class="kw">while</span> (sumr2 &gt; tolPCG &amp;&amp; iter &lt; maxiterPCG) {
+        <span class="ty">arma::vec</span> ApVec = m_spSigmaMat * pVec;     <span class="cm">// sparse mat-vec</span>
+        <span class="kw">double</span> alpha = <span class="fn">dot</span>(rVec, zVec) / <span class="fn">dot</span>(pVec, ApVec);
+        xVec += alpha * pVec;
+        r1Vec = rVec - alpha * ApVec;
+        z1Vec = minvVec % r1Vec;
+        <span class="kw">double</span> beta = <span class="fn">dot</span>(z1Vec, r1Vec) / <span class="fn">dot</span>(zVec, rVec);
+        pVec = z1Vec + beta * pVec;
+        <span class="cm">// ...</span>
+    }
+    <span class="kw">return</span> xVec;
+}</code></pre>
+
+</section>
+
+<div class="note">
+<strong>Sparse GRM lower triangle issue:</strong> R's <code>dsTMatrix</code> stores only the lower
+triangle of the sparse sigma matrix. Both R SAIGE and our converter pass only these entries to
+<code>arma::sp_mat</code>, creating a non-symmetric matrix. For markers with MAC &leq; 20
+and p &lt; 0.05, both R and C++ enter the PCG (scoreTest) path. The non-symmetry causes
+PCG convergence issues for some markers, resulting in negative variance (p = 1). This
+is a known SAIGE behavior that we replicate faithfully.
+</div>
+
+<h3>Fast Test Re-evaluation</h3>
+
+<p>
+When <code>isFastTest = true</code> (the default for sparse GRM models), markers are first tested
+using <code>scoreTestFast()</code> (the fast algebraic path without PCG). Markers whose fast-path
+p-value falls below <code>pval_cutoff_for_fastTest</code> (default 0.05) are then re-evaluated
+using the full <code>scoreTest()</code> with PCG. This two-pass approach avoids running the
+expensive PCG solver for the vast majority of non-significant markers.
+</p>
+
+<div class="math-block sca-block">
+<p><strong>Re-evaluation criterion:</strong></p>
+$$\text{If } p_{\text{fast}} < 0.05 \text{ and MAC} \in [\text{minMACVec}, \text{maxMACVec}] \text{ for sparse VR: re-run with PCG}$$
+</div>
+
+</section>
+
+
+<!-- ============================================================
+     SECTION 15: LD MATRIX COMPUTATION
+     ============================================================ -->
+<section id="sec-ldmat">
+<h2>15. LD Matrix Computation</h2>
+
+<p>
+The LD matrix module computes the genotype correlation structure ($G^\top G$) between all
+variant pairs in a region. This is used for downstream meta-analysis (e.g., combining
+SAIGE results across cohorts). The computation is performed by <code>LDmatRegionInCPP()</code>
+in <code>ldmat.cpp</code>.
+</p>
+
+<h3>Algorithm</h3>
+
+<div class="math-block mat-block">
+<p><strong>LD matrix definition:</strong></p>
+<p>For $m$ markers passing QC in a region, with genotype vectors $G_1, G_2, \ldots, G_m \in \mathbb{R}^N$:</p>
+$$\Phi_{\text{LD}}[i,j] = G_i^\top G_j$$
+
+<p>This is the unnormalized LD matrix (not the correlation $r^2$ but the raw dosage product).</p>
+
+<p><strong>Chunked computation:</strong></p>
+<p>Markers are processed in chunks of size $m_1$ (default: <code>g_region_maxMarkers_cutoff</code>).
+Each chunk's genotype matrix is stored as a sparse integer matrix $P_{\text{chunk}}$
+($m_{\text{chunk}} \times N$, stored in Armadillo sparse format). The LD matrix is then assembled
+via block multiplication:</p>
+$$\Phi_{\text{LD}}[\text{block}_{ij}] = P_{\text{chunk}_i} \cdot P_{\text{chunk}_j}^\top$$
+
+<p>Only the lower triangle ($i \geq j$) is stored and output.</p>
+</div>
+
+<h3>Output Files</h3>
+
+<table>
+<tr><th>File</th><th>Format</th><th>Contents</th></tr>
+<tr><td><code>{prefix}.marker_info.txt</code></td><td>Tab-separated</td><td>CHR, POS, Alleles, MAC, N, MissingRate per marker</td></tr>
+<tr><td><code>{prefix}.LDmat.txt</code></td><td>COO sparse</td><td>Lower-triangular entries: <code>row col value</code></td></tr>
+<tr><td><code>{prefix}.index.txt</code></td><td>Space-separated</td><td>Start/end row indices per region</td></tr>
+</table>
+
+<p>Source: <code>LDmatRegionInCPP()</code> in <code>ldmat.cpp</code> lines 98-419.</p>
+
+<pre><code><span class="cm">// Chunked LD matrix assembly (from ldmat.cpp)</span>
+<span class="kw">for</span> (<span class="ty">unsigned int</span> index1 = <span class="nu">0</span>; index1 &lt; nchunks; index1++) {
+    P1Mat.<span class="fn">load</span>(P1MatFile);                      <span class="cm">// Load chunk i</span>
+    <span class="kw">for</span> (<span class="ty">unsigned int</span> index2 = <span class="nu">0</span>; index2 &lt; index1; index2++) {
+        P2Mat.<span class="fn">load</span>(P2MatFile);                  <span class="cm">// Load chunk j</span>
+        offVarMat = P1Mat * (P2Mat.<span class="fn">t</span>());       <span class="cm">// Off-diagonal block</span>
+    }
+    diagVarMat = P1Mat * (P1Mat.<span class="fn">t</span>());           <span class="cm">// Diagonal block</span>
+}</code></pre>
+
+<div class="note">
+<strong>Marker QC:</strong> Markers are filtered by the same QC criteria as region testing
+(missing rate, MAF, MAC, imputation info score) before inclusion in the LD matrix.
+Markers failing QC have <code>NaN</code> in the MAC column and are excluded from the output.
+</div>
+
+</section>
+
+
+<!-- ============================================================
+     SECTION 16: VALIDATION SUMMARY
+     ============================================================ -->
+<section id="sec-validation">
+<h2>16. Validation Summary</h2>
+
+<p>
+The C++ standalone implementation was validated against R SAIGE (version 1.5.1) across 12 test
+configurations covering all code paths. The comparison pipeline is in <code>test/run_comparison.sh</code>.
+Both R and C++ use the same null model (extracted from SAIGE's .rda files via
+<code>convert_rda_to_arma.R</code>).
+</p>
+
+<table>
+<tr>
+  <th>Test</th>
+  <th>Configuration</th>
+  <th>Markers</th>
+  <th>Result</th>
+  <th>Notes</th>
+</tr>
+<tr>
+  <td><strong>1</strong></td>
+  <td>Quant + Single-Variant</td>
+  <td>128,868</td>
+  <td style="background:#d4edda; color:#155724"><strong>ALL EXACT</strong></td>
+  <td>644,340/644,340 values, 0 difference</td>
+</tr>
+<tr>
+  <td><strong>2</strong></td>
+  <td>Binary + Single-Variant</td>
+  <td>70</td>
+  <td style="background:#d4edda; color:#155724"><strong>ALL EXACT</strong></td>
+  <td>350/350 values incl. SPA, Firth, ER</td>
+</tr>
+<tr>
+  <td><strong>3</strong></td>
+  <td>Quant + Region</td>
+  <td>2 regions</td>
+  <td style="background:#d4edda; color:#155724"><strong>PASS</strong></td>
+  <td>BURDEN/SKAT pass; SKAT-O ~5% (Liu approx)</td>
+</tr>
+<tr>
+  <td><strong>4</strong></td>
+  <td>Binary + Region</td>
+  <td>2 regions</td>
+  <td style="background:#d4edda; color:#155724"><strong>PASS</strong></td>
+  <td>BURDEN/SKAT pass; SKAT-O ~8.5% (Liu + SPA Phi)</td>
+</tr>
+<tr>
+  <td><strong>5</strong></td>
+  <td>Sparse GRM + Single-Variant</td>
+  <td>128,868</td>
+  <td style="background:#d4edda; color:#155724"><strong>ALL EXACT</strong></td>
+  <td>scoreTestFast + PCG re-evaluation paths</td>
+</tr>
+<tr>
+  <td><strong>6</strong></td>
+  <td>Sparse GRM + noadjCov</td>
+  <td>128,868</td>
+  <td style="background:#d4edda; color:#155724"><strong>ALL EXACT</strong></td>
+  <td>scoreTestFast_noadjCov for 122,021 markers</td>
+</tr>
+<tr>
+  <td><strong>7</strong></td>
+  <td>Conditional Analysis</td>
+  <td>128,865 + 3 cond</td>
+  <td style="background:#d4edda; color:#155724"><strong>ALL EXACT</strong></td>
+  <td>10 columns (5 uncond + 5 cond)</td>
+</tr>
+<tr>
+  <td><strong>8</strong></td>
+  <td>Multi-VR Categories</td>
+  <td>128,868</td>
+  <td style="background:#d4edda; color:#155724"><strong>ALL EXACT</strong></td>
+  <td>2 MAC categories, 18,449 markers used different VR</td>
+</tr>
+<tr>
+  <td><strong>9</strong></td>
+  <td>Efficient Resampling (ER)</td>
+  <td>70</td>
+  <td style="background:#d4edda; color:#155724"><strong>PASS</strong></td>
+  <td>Validated via Test 2 (MAC &leq; 4 markers)</td>
+</tr>
+<tr>
+  <td><strong>10</strong></td>
+  <td>LD Matrix</td>
+  <td>99 (2 genes)</td>
+  <td style="background:#d4edda; color:#155724"><strong>PASS</strong></td>
+  <td>3 output files generated correctly</td>
+</tr>
+<tr>
+  <td><strong>11</strong></td>
+  <td>Survival Trait</td>
+  <td>--</td>
+  <td style="background:#f8d7da; color:#721c24"><strong>NOT IMPL</strong></td>
+  <td>SPA dispatcher throws; niche use case</td>
+</tr>
+<tr>
+  <td><strong>12</strong></td>
+  <td>Non-PLINK Formats</td>
+  <td>128,868 each</td>
+  <td style="background:#d4edda; color:#155724"><strong>ALL EXACT</strong></td>
+  <td>VCF (htslib), BGEN (zstd), PGEN (built-in)</td>
+</tr>
+</table>
+
+<h3>Region Test Detailed Results</h3>
+
+<div class="two-col">
+<div>
+<h4>Test 3: Quant + Region</h4>
+<table>
+<tr><th>Column</th><th>Max Rel Error</th><th>Status</th></tr>
+<tr><td>BETA_Burden</td><td>$6.9 \times 10^{-7}$</td><td>PASS</td></tr>
+<tr><td>Pvalue_Burden</td><td>$4.9 \times 10^{-4}$</td><td>PASS</td></tr>
+<tr><td>Pvalue_SKAT</td><td>$2.8 \times 10^{-3}$</td><td>PASS</td></tr>
+<tr><td>Pvalue_SKAT-O</td><td>$5.2 \times 10^{-2}$</td><td>APPROX</td></tr>
+<tr><td>SE_Burden</td><td>$1.1 \times 10^{-3}$</td><td>CLOSE</td></tr>
+</table>
+</div>
+<div>
+<h4>Test 4: Binary + Region</h4>
+<table>
+<tr><th>Column</th><th>Max Rel Error</th><th>Status</th></tr>
+<tr><td>BETA_Burden</td><td>$3.0 \times 10^{-6}$</td><td>EXACT</td></tr>
+<tr><td>Pvalue_Burden</td><td>$3.2 \times 10^{-4}$</td><td>PASS</td></tr>
+<tr><td>Pvalue_SKAT</td><td>$2.0 \times 10^{-6}$</td><td>EXACT</td></tr>
+<tr><td>Pvalue_SKAT-O</td><td>$8.5 \times 10^{-2}$</td><td>APPROX</td></tr>
+<tr><td>SE_Burden</td><td>$4.9 \times 10^{-4}$</td><td>PASS</td></tr>
+</table>
+</div>
+</div>
+
+<div class="note">
+<strong>SKAT-O approximation error:</strong> The ~5-8% relative error in SKAT-O p-values is due to the
+Liu moment-matching method used to compute quantiles in the SKAT-O integration (Section 10).
+Using exact Davies quantiles was tested but caused a 13x runtime increase for only 0.5% improvement.
+This is an acceptable tradeoff for a practical implementation.
+</div>
+
+<h3>Genotype Format Equivalence</h3>
+
+<p>
+All four supported genotype formats (PLINK, VCF, BGEN, PGEN) produce identical output when reading
+the same underlying genotype data. This was verified by MD5 comparison of output files for 128,868
+markers.
+</p>
+
+<table>
+<tr><th>Format</th><th>Library</th><th>Config Key</th><th>Status</th></tr>
+<tr><td>PLINK (.bed/.bim/.fam)</td><td>Built-in</td><td><code>plinkFile</code></td><td>Reference</td></tr>
+<tr><td>VCF/BCF/VCF.GZ</td><td>htslib</td><td><code>vcfFile</code>, <code>vcfField</code></td><td>EXACT match</td></tr>
+<tr><td>BGEN v1.2</td><td>zstd + zlib</td><td><code>bgenFile</code></td><td>EXACT match</td></tr>
+<tr><td>PGEN (.pgen/.pvar/.psam)</td><td>Built-in</td><td><code>pgenFile</code></td><td>EXACT match</td></tr>
+</table>
+
+</section>
+
+
+<!-- ============================================================
      APPENDIX: COMPLETE VARIABLE REFERENCE
      ============================================================ -->
 <section id="sec-appendix">
@@ -1428,12 +2103,33 @@ typically are, since the variant sets overlap across MAF thresholds). Other comb
 <tr><td><code>m_S_a</code></td><td>$S_a = X^\top r$</td><td>$p$</td><td>saige_test.hpp</td></tr>
 <tr><td><code>m_varRatioVal</code></td><td>VR</td><td>scalar</td><td>saige_test.hpp</td></tr>
 <tr><td><code>m_SPA_Cutoff</code></td><td>SPA threshold</td><td>scalar (default 2)</td><td>saige_test.hpp</td></tr>
+<tr><td><code>m_offset</code></td><td>$\text{offset}$</td><td>$N$</td><td>saige_test.hpp</td></tr>
 <tr><td><code>P1Mat</code></td><td>$\sqrt{\text{VR}} \cdot \tilde{G}^\top$</td><td>$m \times N$</td><td>main.cpp</td></tr>
 <tr><td><code>P2Mat</code></td><td>$\sqrt{\text{VR}} \cdot P_2$</td><td>$N \times m$</td><td>main.cpp</td></tr>
 <tr><td><code>VarMat</code></td><td>$\Phi = P_1 P_2$</td><td>$m \times m$</td><td>main.cpp</td></tr>
 <tr><td><code>Score</code></td><td>$S \odot w$</td><td>$m$</td><td>skat.cpp</td></tr>
 <tr><td><code>Phi</code></td><td>$(ww^\top) \odot \Phi$</td><td>$m \times m$</td><td>skat.cpp</td></tr>
 <tr><td><code>r_corr</code></td><td>$\rho$ grid</td><td>11</td><td>skat.cpp</td></tr>
+<tr><td colspan="4" style="background:#34495e; color:white; font-weight:600">Conditional Analysis Variables</td></tr>
+<tr><td><code>m_condition_genoIndex</code></td><td>--</td><td>$c$ (vector of marker indices)</td><td>saige_test.hpp</td></tr>
+<tr><td><code>m_P2Mat_cond</code></td><td>$P_2$ of conditioning markers</td><td>$N \times c$</td><td>saige_test.hpp</td></tr>
+<tr><td><code>m_VarInvMat_cond</code></td><td>$\Phi_{\text{cond}}^{-1}$</td><td>$c \times c$</td><td>saige_test.hpp</td></tr>
+<tr><td><code>m_VarMat_cond</code></td><td>$\Phi_{\text{cond}}$</td><td>$c \times c$</td><td>saige_test.hpp</td></tr>
+<tr><td><code>m_Tstat_cond</code></td><td>$S_{\text{cond}}$</td><td>$c$</td><td>saige_test.hpp</td></tr>
+<tr><td><code>m_G2_Weight_cond</code></td><td>weights for cond. markers</td><td>$c$</td><td>saige_test.hpp</td></tr>
+<tr><td colspan="4" style="background:#34495e; color:white; font-weight:600">Sparse GRM Variables</td></tr>
+<tr><td><code>m_spSigmaMat</code></td><td>$\Sigma$ (sparse)</td><td>$N \times N$ (sparse)</td><td>saige_test.hpp</td></tr>
+<tr><td><code>m_SigmaMat_sp</code></td><td>$\Sigma$ (alt. ref)</td><td>$N \times N$ (sparse)</td><td>saige_test.hpp</td></tr>
+<tr><td><code>m_diagSigma</code></td><td>$\text{diag}(\Sigma)$</td><td>$N$</td><td>saige_test.hpp</td></tr>
+<tr><td><code>m_flagSparseGRM</code></td><td>--</td><td>bool</td><td>saige_test.hpp</td></tr>
+<tr><td><code>m_flagSparseGRM_cur</code></td><td>--</td><td>bool (per-marker toggle)</td><td>saige_test.hpp</td></tr>
+<tr><td colspan="4" style="background:#34495e; color:white; font-weight:600">Genotype Format Variables</td></tr>
+<tr><td><code>genoType</code></td><td>--</td><td>string: plink/vcf/bgen/pgen</td><td>main.cpp</td></tr>
+<tr><td><code>plinkFile</code></td><td>--</td><td>PLINK prefix (.bed/.bim/.fam)</td><td>genotype_reader.hpp</td></tr>
+<tr><td><code>vcfFile</code></td><td>--</td><td>VCF/BCF/VCF.GZ path</td><td>genotype_reader.hpp</td></tr>
+<tr><td><code>vcfField</code></td><td>--</td><td>GT or DS</td><td>genotype_reader.hpp</td></tr>
+<tr><td><code>bgenFile</code></td><td>--</td><td>BGEN v1.2 path</td><td>genotype_reader.hpp</td></tr>
+<tr><td><code>pgenFile</code></td><td>--</td><td>PGEN prefix (.pgen/.pvar/.psam)</td><td>genotype_reader.hpp</td></tr>
 </table>
 
 </section>

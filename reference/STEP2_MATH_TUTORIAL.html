@@ -1,0 +1,2185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SAIGE Step 2: Math Tutorial</title>
+
+<!-- KaTeX CDN for math rendering -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {
+    delimiters: [
+      {left: '$$', right: '$$', display: true},
+      {left: '$', right: '$', display: false}
+    ],
+    throwOnError: false
+  });"></script>
+
+<style>
+/* ============================================================
+   CSS Variables & Reset
+   ============================================================ */
+:root {
+  --color-vector: #3498db;
+  --color-matrix: #27ae60;
+  --color-scalar: #e74c3c;
+  --color-test: #8e44ad;
+  --color-bg: #ffffff;
+  --color-sidebar-bg: #1a1a2e;
+  --color-sidebar-text: #c8c8e0;
+  --color-sidebar-active: #e94560;
+  --color-code-bg: #1e1e2e;
+  --color-code-text: #cdd6f4;
+  --color-border: #e0e0e0;
+  --color-section-bg: #f8f9fa;
+  --color-heading: #2c3e50;
+  --color-note-bg: #fff3cd;
+  --color-note-border: #ffc107;
+  --sidebar-width: 260px;
+  --content-max-width: 900px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  line-height: 1.7;
+  color: #333;
+  background: var(--color-bg);
+}
+
+/* ============================================================
+   Sidebar Navigation
+   ============================================================ */
+#sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: var(--sidebar-width);
+  height: 100vh;
+  background: var(--color-sidebar-bg);
+  color: var(--color-sidebar-text);
+  overflow-y: auto;
+  z-index: 1000;
+  padding: 20px 0;
+  border-right: 3px solid var(--color-sidebar-active);
+}
+
+#sidebar h2 {
+  color: #fff;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  padding: 0 20px 15px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  margin-bottom: 10px;
+}
+
+#sidebar nav a {
+  display: block;
+  color: var(--color-sidebar-text);
+  text-decoration: none;
+  padding: 8px 20px;
+  font-size: 13px;
+  transition: all 0.2s ease;
+  border-left: 3px solid transparent;
+}
+
+#sidebar nav a:hover {
+  background: rgba(255,255,255,0.05);
+  color: #fff;
+}
+
+#sidebar nav a.active {
+  color: #fff;
+  background: rgba(233,69,96,0.15);
+  border-left-color: var(--color-sidebar-active);
+  font-weight: 600;
+}
+
+#sidebar nav a.sub {
+  padding-left: 36px;
+  font-size: 12px;
+}
+
+/* ============================================================
+   Main Content
+   ============================================================ */
+#content {
+  margin-left: var(--sidebar-width);
+  padding: 40px 50px;
+  max-width: calc(var(--content-max-width) + 100px + var(--sidebar-width));
+}
+
+h1 {
+  font-size: 2.2em;
+  color: var(--color-heading);
+  border-bottom: 3px solid var(--color-sidebar-active);
+  padding-bottom: 15px;
+  margin-bottom: 30px;
+}
+
+h2 {
+  font-size: 1.6em;
+  color: var(--color-heading);
+  margin-top: 50px;
+  margin-bottom: 20px;
+  padding-top: 15px;
+  border-top: 2px solid var(--color-border);
+}
+
+h2:first-of-type { border-top: none; margin-top: 20px; }
+
+h3 {
+  font-size: 1.25em;
+  color: #444;
+  margin-top: 30px;
+  margin-bottom: 12px;
+}
+
+h4 {
+  font-size: 1.05em;
+  color: #555;
+  margin-top: 20px;
+  margin-bottom: 8px;
+}
+
+p { margin-bottom: 14px; }
+
+section { scroll-margin-top: 20px; }
+
+/* ============================================================
+   Color-coded spans for variable types
+   ============================================================ */
+.vec { color: var(--color-vector); font-weight: 600; }
+.mat { color: var(--color-matrix); font-weight: 600; }
+.sca { color: var(--color-scalar); font-weight: 600; }
+.tst { color: var(--color-test); font-weight: 600; }
+
+.legend {
+  display: flex;
+  gap: 24px;
+  margin: 15px 0 25px;
+  padding: 12px 18px;
+  background: #f0f0f0;
+  border-radius: 6px;
+  font-size: 14px;
+  flex-wrap: wrap;
+}
+
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend .dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+/* ============================================================
+   Math display blocks
+   ============================================================ */
+.math-block {
+  background: #f7f7ff;
+  border: 1px solid #d0d0e0;
+  border-left: 4px solid var(--color-test);
+  padding: 18px 22px;
+  margin: 18px 0;
+  border-radius: 0 6px 6px 0;
+  overflow-x: auto;
+}
+
+.math-block.vec-block { border-left-color: var(--color-vector); }
+.math-block.mat-block { border-left-color: var(--color-matrix); }
+.math-block.sca-block { border-left-color: var(--color-scalar); }
+
+/* ============================================================
+   Collapsible details sections
+   ============================================================ */
+details {
+  margin: 18px 0;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+details summary {
+  padding: 12px 18px;
+  background: #f0f4f8;
+  cursor: pointer;
+  font-weight: 600;
+  color: #444;
+  user-select: none;
+  transition: background 0.2s;
+}
+
+details summary:hover { background: #e4eaf0; }
+
+details[open] summary { border-bottom: 1px solid var(--color-border); }
+
+details .detail-content {
+  padding: 18px 22px;
+}
+
+/* ============================================================
+   Tables
+   ============================================================ */
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 18px 0;
+  font-size: 14px;
+}
+
+th, td {
+  border: 1px solid #ddd;
+  padding: 10px 14px;
+  text-align: left;
+}
+
+th {
+  background: #34495e;
+  color: white;
+  font-weight: 600;
+}
+
+tr:nth-child(even) { background: #f9f9f9; }
+tr:hover { background: #f0f4f8; }
+
+/* ============================================================
+   Note/callout boxes
+   ============================================================ */
+.note {
+  background: var(--color-note-bg);
+  border: 1px solid var(--color-note-border);
+  border-left: 4px solid var(--color-note-border);
+  padding: 14px 18px;
+  border-radius: 0 6px 6px 0;
+  margin: 16px 0;
+  font-size: 14px;
+}
+
+.note strong { color: #856404; }
+
+.insight {
+  background: #d4edda;
+  border: 1px solid #28a745;
+  border-left: 4px solid #28a745;
+  padding: 14px 18px;
+  border-radius: 0 6px 6px 0;
+  margin: 16px 0;
+  font-size: 14px;
+}
+
+.insight strong { color: #155724; }
+
+/* ============================================================
+   Two-column layout
+   ============================================================ */
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin: 16px 0;
+}
+
+.two-col > div {
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 16px;
+}
+
+/* ============================================================
+   Numerical example boxes
+   ============================================================ */
+.example {
+  background: #eef6ff;
+  border: 1px solid #b0d4f1;
+  border-left: 4px solid var(--color-vector);
+  padding: 18px 22px;
+  border-radius: 0 6px 6px 0;
+  margin: 18px 0;
+}
+
+.example h4 {
+  color: var(--color-vector);
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+/* ============================================================
+   Pipeline SVG
+   ============================================================ */
+.pipeline-container {
+  width: 100%;
+  overflow-x: auto;
+  margin: 20px 0 30px;
+}
+
+.pipeline-container svg {
+  display: block;
+  margin: 0 auto;
+}
+
+/* ============================================================
+   Ordered/Unordered Lists
+   ============================================================ */
+ol, ul {
+  margin: 10px 0 14px 24px;
+}
+li {
+  margin-bottom: 6px;
+}
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+@media (max-width: 1000px) {
+  #sidebar { display: none; }
+  #content { margin-left: 0; padding: 20px; }
+  .two-col { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     SIDEBAR NAVIGATION
+     ============================================================ -->
+<div id="sidebar">
+  <h2>Math Tutorial</h2>
+  <nav>
+    <a href="#sec-overview">1. What Step 2 Does</a>
+    <a href="#sec-null-model">2. The Null Model</a>
+    <a href="#sec-null-binary" class="sub">2a. Binary vs Quantitative</a>
+    <a href="#sec-null-precomputed" class="sub">2b. Precomputed Matrices</a>
+    <a href="#sec-score-test">3. Score Test</a>
+    <a href="#sec-score-projection" class="sub">3a. Covariate Projection</a>
+    <a href="#sec-score-paths" class="sub">3b. Three Paths</a>
+    <a href="#sec-variance-ratio">4. Variance Ratio</a>
+    <a href="#sec-spa">5. Saddlepoint Approx</a>
+    <a href="#sec-spa-cgf" class="sub">5a. The CGF</a>
+    <a href="#sec-spa-nr" class="sub">5b. Newton-Raphson</a>
+    <a href="#sec-spa-lr" class="sub">5c. Lugannani-Rice</a>
+    <a href="#sec-firth">6. Firth Correction</a>
+    <a href="#sec-region">7. Region Testing</a>
+    <a href="#sec-region-p1p2" class="sub">7a. P1/P2 Matrices</a>
+    <a href="#sec-region-urv" class="sub">7b. URV Collapsing</a>
+    <a href="#sec-region-weights" class="sub">7c. Weights</a>
+    <a href="#sec-region-phi" class="sub">7d. SPA Phi Adjust</a>
+    <a href="#sec-burden">8. BURDEN Test</a>
+    <a href="#sec-skat">9. SKAT Test</a>
+    <a href="#sec-skat-davies" class="sub">9a. Davies Method</a>
+    <a href="#sec-skat-liu" class="sub">9b. Liu Fallback</a>
+    <a href="#sec-skato">10. SKAT-O</a>
+    <a href="#sec-cct">11. CCT</a>
+    <a href="#sec-er">12. Efficient Resampling</a>
+    <a href="#sec-conditional">13. Conditional Analysis</a>
+    <a href="#sec-sparse-grm">14. Sparse GRM &amp; PCG</a>
+  </nav>
+</div>
+
+<!-- ============================================================
+     MAIN CONTENT
+     ============================================================ -->
+<div id="content">
+
+<h1>SAIGE Step 2: A Mathematical Tutorial</h1>
+
+<p>
+This tutorial walks through every mathematical idea behind SAIGE Step 2 &mdash; the gene-level
+and single-variant association testing engine used in large-scale biobank studies. We assume you
+know basic statistics (linear regression, the chi-squared distribution, p-values) but nothing
+about GWAS-specific methods. Every concept is illustrated with concrete numerical examples
+using small, hand-traceable matrices.
+</p>
+
+<div class="legend">
+  <span><span class="dot" style="background:var(--color-vector)"></span> <span class="vec">Vectors [N&times;1]</span></span>
+  <span><span class="dot" style="background:var(--color-matrix)"></span> <span class="mat">Matrices [N&times;p]</span></span>
+  <span><span class="dot" style="background:var(--color-scalar)"></span> <span class="sca">Scalars</span></span>
+  <span><span class="dot" style="background:var(--color-test)"></span> <span class="tst">Test Statistics</span></span>
+</div>
+
+<div class="note">
+<strong>Notation used throughout:</strong>
+$N$ = number of individuals (samples); $p$ = number of covariates including the intercept;
+$m$ = number of variants in a gene/region; $c$ = number of conditioning markers.
+Superscript $^\top$ means transpose. The symbol $\odot$ means element-wise (Hadamard) multiplication.
+</div>
+
+
+<!-- ============================================================
+     SECTION 1: OVERVIEW
+     ============================================================ -->
+<section id="sec-overview">
+<h2>1. What SAIGE Step 2 Does</h2>
+
+<div class="insight">
+<strong>The big question:</strong> We have measured a phenotype (e.g., blood pressure or disease status) and
+genotypes at hundreds of thousands of genetic variants for thousands of people. For each variant (or
+group of variants), we want to ask: <em>does this variant influence the phenotype?</em>
+</div>
+
+<p>
+SAIGE performs genome-wide association testing in two stages. <strong>Step 1</strong> fits a "null model" &mdash;
+a regression of phenotype on covariates (age, sex, principal components) plus a random effect that
+captures genetic relatedness. This null model assumes <em>no specific variant matters</em>. <strong>Step 2</strong>
+then takes this null model and, for each variant in the genome, asks: "Does including this variant improve
+the model beyond what the covariates explain?"
+</p>
+
+<p>Concretely, Step 2 has two modes:</p>
+<ol>
+  <li><strong>Single-variant testing:</strong> Test each variant one at a time. Output a p-value per variant.</li>
+  <li><strong>Region/gene-based testing:</strong> Group variants by gene and test the group collectively using BURDEN, SKAT, and SKAT-O.</li>
+</ol>
+
+<div class="example">
+<h4>Running Example Setup</h4>
+<p>
+Imagine a study with $N = 1{,}000$ individuals. We measure their height (a quantitative phenotype)
+and record $p = 3$ covariates: an intercept (always 1), age, and sex. We genotype 100,000 variants.
+</p>
+<p>
+Step 1 fits: $\text{height}_i = \beta_0 + \beta_1 \cdot \text{age}_i + \beta_2 \cdot \text{sex}_i + \epsilon_i$ and
+produces residuals $r_i = \text{height}_i - \hat{\text{height}}_i$ for each person.
+</p>
+<p>
+Step 2 then asks, for each of the 100,000 variants: "Are the residuals (the leftover variation in height
+not explained by age and sex) correlated with this variant's genotype?"
+</p>
+</div>
+
+<h3>Step 2 Inputs and Outputs</h3>
+
+<table>
+<tr><th>Input</th><th>Description</th><th>Example Dimensions</th></tr>
+<tr><td>Null model</td><td>Vectors and matrices from Step 1 (see Section 2)</td><td>Vectors of length $N$, matrices up to $N \times p$</td></tr>
+<tr><td>Variance ratios</td><td>Correction factors by MAC category (see Section 4)</td><td>1-3 scalars</td></tr>
+<tr><td>Genotype file</td><td>Genotypes for all variants (PLINK, VCF, BGEN, or PGEN)</td><td>$N \times (\text{num variants})$</td></tr>
+<tr><td>Group file (region mode)</td><td>Gene definitions: which variants belong to each gene</td><td>Text file</td></tr>
+</table>
+
+<table>
+<tr><th>Output</th><th>Contents</th></tr>
+<tr><td>Single-variant results</td><td>Per-variant: chromosome, position, alleles, allele freq, MAC, $\hat\beta$, SE, p-value</td></tr>
+<tr><td>Region results</td><td>Per-gene: BURDEN p-value, SKAT p-value, SKAT-O p-value, CCT combined p-value</td></tr>
+</table>
+
+</section>
+
+
+<!-- ============================================================
+     SECTION 2: NULL MODEL
+     ============================================================ -->
+<section id="sec-null-model">
+<h2>2. The Null Model &mdash; What Step 1 Gives Us</h2>
+
+<div class="insight">
+<strong>Why do we need a null model?</strong> Before testing any specific variant, we need a baseline
+that accounts for covariates and population structure. The null model gives us the "expected"
+phenotype for each person. The residual (actual minus expected) is what we correlate with genotypes.
+</div>
+
+<p>
+Step 1 fits a generalized linear mixed model (GLMM) of phenotype on covariates. It produces
+several vectors and matrices that Step 2 needs. Let us build intuition with a tiny example.
+</p>
+
+<div class="example">
+<h4>Running Example: N=5 individuals, p=2 covariates</h4>
+<p>
+Five people. Two covariates: an intercept (column of 1s) and one real covariate (e.g., age, centered).
+The phenotype is binary (1 = case, 0 = control).
+</p>
+
+$$\text{Phenotype: } y = \begin{pmatrix} 1 \\ 0 \\ 1 \\ 0 \\ 0 \end{pmatrix}, \qquad
+\text{Design matrix: } X = \begin{pmatrix} 1 & 0.5 \\ 1 & -0.3 \\ 1 & 0.8 \\ 1 & -0.6 \\ 1 & 0.1 \end{pmatrix}$$
+
+<p>Step 1 fits logistic regression (for binary traits) and produces fitted probabilities:</p>
+
+$$\mu = \begin{pmatrix} 0.55 \\ 0.35 \\ 0.60 \\ 0.25 \\ 0.42 \end{pmatrix}$$
+
+<p>These are the estimated $P(\text{case})$ for each person, based on their covariates alone (no specific variant).</p>
+
+<p>The <strong>residuals</strong> are simply:</p>
+$$\text{res} = y - \mu = \begin{pmatrix} 1 - 0.55 \\ 0 - 0.35 \\ 1 - 0.60 \\ 0 - 0.25 \\ 0 - 0.42 \end{pmatrix}
+= \begin{pmatrix} 0.45 \\ -0.35 \\ 0.40 \\ -0.25 \\ -0.42 \end{pmatrix}$$
+
+<p>If a variant has no effect, its genotype should be uncorrelated with these residuals. That is the core idea of the score test (Section 3).</p>
+</div>
+
+<h3>Complete List of Null Model Components</h3>
+
+<table>
+<tr><th>Symbol</th><th>Dimension</th><th>Description</th></tr>
+<tr><td><span class="vec">y</span></td><td>$N \times 1$</td><td>Phenotype values (0/1 for binary, continuous for quantitative)</td></tr>
+<tr><td><span class="vec">$\mu$</span></td><td>$N \times 1$</td><td>Fitted values from null model: $\hat\mu_i = E[y_i \mid X_i]$</td></tr>
+<tr><td><span class="vec">res</span></td><td>$N \times 1$</td><td>Residuals: $r_i = y_i - \hat\mu_i$</td></tr>
+<tr><td><span class="mat">X</span></td><td>$N \times p$</td><td>Design matrix (intercept + covariates)</td></tr>
+<tr><td><span class="vec">$\tau$</span></td><td>$2 \times 1$</td><td>Variance components $[\tau_0, \tau_1]$ from GLMM</td></tr>
+<tr><td><span class="vec">$S_a$</span></td><td>$p \times 1$</td><td>Score vector: $S_a = X^\top r$</td></tr>
+</table>
+
+<section id="sec-null-binary">
+<h3>2a. Binary vs. Quantitative Traits</h3>
+
+<p>
+The null model differs depending on the trait type, and the key difference is in the <strong>variance weight</strong> vector:
+</p>
+
+<div class="two-col">
+<div>
+<h4>Binary trait (e.g., disease status)</h4>
+<p>$y_i \in \{0, 1\}$, logistic regression.</p>
+<p>$\mu_i$ = estimated $P(\text{case} \mid X_i)$</p>
+<p>Variance weight:</p>
+$$\texttt{mu2}_i = \mu_i(1 - \mu_i)$$
+<p>This is the Bernoulli variance. For our example:</p>
+<p>Applying the formula $\texttt{mu2}_i = \mu_i(1 - \mu_i)$ for each individual:</p>
+$$\texttt{mu2} = \begin{pmatrix} \mu_1(1-\mu_1) \\ \mu_2(1-\mu_2) \\ \mu_3(1-\mu_3) \\ \mu_4(1-\mu_4) \\ \mu_5(1-\mu_5) \end{pmatrix} = \begin{pmatrix} 0.55 \times (1 - 0.55) \\ 0.35 \times (1 - 0.35) \\ 0.60 \times (1 - 0.60) \\ 0.25 \times (1 - 0.25) \\ 0.42 \times (1 - 0.42) \end{pmatrix} = \begin{pmatrix} 0.55 \times 0.45 \\ 0.35 \times 0.65 \\ 0.60 \times 0.40 \\ 0.25 \times 0.75 \\ 0.42 \times 0.58 \end{pmatrix} = \begin{pmatrix} 0.2475 \\ 0.2275 \\ 0.2400 \\ 0.1875 \\ 0.2436 \end{pmatrix}$$
+</div>
+<div>
+<h4>Quantitative trait (e.g., height)</h4>
+<p>$y_i \in \mathbb{R}$, linear regression.</p>
+<p>$\mu_i$ = predicted value from covariates</p>
+<p>Variance weight:</p>
+$$\texttt{mu2}_i = \frac{1}{\tau_0}$$
+<p>This is constant for all individuals. $\tau_0$ is the residual variance component from the GLMM.</p>
+<p>For example, if $\tau_0 = 0.8$:</p>
+$$\texttt{mu2}_i = \frac{1}{0.8} = 1.25 \quad \forall\, i$$
+</div>
+</div>
+
+<p>
+Intuitively, <span class="vec">mu2</span> captures how much "information" each individual contributes to the variance
+of the score test. For binary traits, individuals with $\mu_i \approx 0.5$ contribute the most (highest
+variance), while individuals with extreme $\mu_i$ near 0 or 1 contribute less.
+</p>
+</section>
+
+<section id="sec-null-precomputed">
+<h3>2b. Why Precompute All These Matrices?</h3>
+
+<p>
+Step 2 tests hundreds of thousands of variants. For each variant, we need to project the genotype
+vector onto the space orthogonal to the covariates. This projection involves multiplying by matrices
+that depend only on $X$ and $\mu$ &mdash; which are the same for every variant. So Step 1 precomputes
+them once.
+</p>
+
+<p>Let $V = \text{diag}(\texttt{mu2})$ be the diagonal weight matrix. The key precomputed quantities are:</p>
+
+<div class="math-block mat-block">
+$$\text{XVX} = X^\top V X \qquad [p \times p]$$
+$$\text{XV} = X^\top V \qquad [p \times N]$$
+$$\text{XXVX\_inv} = X (X^\top V X)^{-1} \qquad [N \times p]$$
+$$\text{XVX\_inv\_XV} = (X^\top V X)^{-1} X^\top V \qquad [p \times N]$$
+</div>
+
+<div class="example">
+<h4>Computing the Precomputed Matrices (N=5, p=2, Binary)</h4>
+
+<p>Using our example with $X$ and $\texttt{mu2}$ from above. First, form the weight matrix:</p>
+$$V = \text{diag}(0.2475,\; 0.2275,\; 0.2400,\; 0.1875,\; 0.2436)$$
+
+<p>Then compute $XV = X^\top V$ (multiply each column of $X^\top$ by the corresponding weight):</p>
+$$XV = \begin{pmatrix} 1 & 1 & 1 & 1 & 1 \\ 0.5 & -0.3 & 0.8 & -0.6 & 0.1 \end{pmatrix}
+\begin{pmatrix} 0.2475 & 0 & 0 & 0 & 0 \\ 0 & 0.2275 & 0 & 0 & 0 \\ 0 & 0 & 0.2400 & 0 & 0 \\ 0 & 0 & 0 & 0.1875 & 0 \\ 0 & 0 & 0 & 0 & 0.2436 \end{pmatrix}$$
+$$= \begin{pmatrix} 0.2475 & 0.2275 & 0.2400 & 0.1875 & 0.2436 \\ 0.1238 & -0.0683 & 0.1920 & -0.1125 & 0.0244 \end{pmatrix}$$
+
+<p>Then $XVX = XV \cdot X = (X^\top V) \cdot X$. We multiply the $[2 \times 5]$ matrix $XV$ by the $[5 \times 2]$ matrix $X$. Each entry $XVX_{ab} = \sum_{i=1}^5 XV_{a,i} \cdot X_{i,b}$:</p>
+
+$$XVX_{11} = \sum_{i=1}^5 XV_{1,i} \cdot X_{i,1} = 0.2475 \cdot 1 + 0.2275 \cdot 1 + 0.2400 \cdot 1 + 0.1875 \cdot 1 + 0.2436 \cdot 1 = 1.1461$$
+
+$$XVX_{12} = \sum_{i=1}^5 XV_{1,i} \cdot X_{i,2} = 0.2475 \cdot 0.5 + 0.2275 \cdot (-0.3) + 0.2400 \cdot 0.8 + 0.1875 \cdot (-0.6) + 0.2436 \cdot 0.1$$
+$$= 0.1238 - 0.0683 + 0.1920 - 0.1125 + 0.0244 = 0.1594$$
+
+<p>For $XVX_{22}$, we need the second row of $XV$ (the weighted covariate row). From the definition $XV = X^\top V$, the second row is:</p>
+$$XV_{2,\bullet} = (x_{1,2} \cdot V_{11},\; x_{2,2} \cdot V_{22},\; x_{3,2} \cdot V_{33},\; x_{4,2} \cdot V_{44},\; x_{5,2} \cdot V_{55})$$
+$$= (0.5 \times 0.2475,\; -0.3 \times 0.2275,\; 0.8 \times 0.2400,\; -0.6 \times 0.1875,\; 0.1 \times 0.2436)$$
+$$= (0.1238,\; -0.0683,\; 0.1920,\; -0.1125,\; 0.0244)$$
+
+<p>Then:</p>
+$$XVX_{22} = \sum_{i=1}^5 XV_{2,i} \cdot X_{i,2} = 0.1238 \cdot 0.5 + (-0.0683) \cdot (-0.3) + 0.1920 \cdot 0.8 + (-0.1125) \cdot (-0.6) + 0.0244 \cdot 0.1$$
+$$= 0.0619 + 0.0205 + 0.1536 + 0.0675 + 0.0024 = 0.3059$$
+
+<p>Therefore:</p>
+$$XVX = X^\top V X = \begin{pmatrix} 1.1461 & 0.1594 \\ 0.1594 & 0.3059 \end{pmatrix}$$
+
+<p>Now we invert this $2 \times 2$ matrix. For a symmetric $2 \times 2$ matrix $\begin{pmatrix} a & b \\ b & d \end{pmatrix}$, the inverse is $\frac{1}{ad - b^2}\begin{pmatrix} d & -b \\ -b & a \end{pmatrix}$:</p>
+$$\det(XVX) = 1.1461 \times 0.3059 - 0.1594^2 = 0.3506 - 0.0254 = 0.3252$$
+$$XVX^{-1} = \frac{1}{0.3252}\begin{pmatrix} 0.3059 & -0.1594 \\ -0.1594 & 1.1461 \end{pmatrix} = \begin{pmatrix} 0.9407 & -0.4901 \\ -0.4901 & 3.5237 \end{pmatrix}$$
+
+<p>From this, the other precomputed matrices follow by matrix multiplication:</p>
+$$XXVX\_inv = X \cdot XVX^{-1} \quad [N \times p] = [5 \times 2]$$
+$$XVX\_inv\_XV = XVX^{-1} \cdot XV \quad [p \times N] = [2 \times 5]$$
+
+<p>
+The point is: all of this is computed <em>once</em>
+in Step 1, stored to disk, and loaded by Step 2. For each of the 100,000 variants, Step 2 only needs a
+few matrix-vector multiplications, not a full matrix inversion.
+</p>
+</div>
+
+<p>
+The <strong>score vector</strong> $S_a = X^\top r$ is also precomputed. It captures how well the covariates
+explain the phenotype, and is used in the efficient "fast" score test path.
+</p>
+
+</section>
+</section>
+
+
+<!-- ============================================================
+     SECTION 3: SCORE TEST
+     ============================================================ -->
+<section id="sec-score-test">
+<h2>3. The Score Test &mdash; The Core Idea</h2>
+
+<div class="insight">
+<strong>Intuition:</strong> If a variant has no effect on the phenotype, then the genotype vector should
+be uncorrelated with the residuals. The score test quantifies exactly this: it measures how much the
+genotype "lines up" with the residuals, scaled by the expected variance under the null.
+</div>
+
+<p>
+For each variant, we have a <strong>genotype vector</strong> $G \in \{0, 1, 2\}^N$, where $G_i$ counts the
+number of copies of the alternate allele that individual $i$ carries. The score test proceeds in four steps.
+</p>
+
+<section id="sec-score-projection">
+<h3>3a. Step 1: Project Out the Covariates</h3>
+
+<p>
+We cannot simply correlate $G$ with the residuals, because $G$ might be correlated with the covariates
+(e.g., age might correlate with a variant due to population structure). We first <strong>adjust</strong> $G$
+by removing any component that can be explained by $X$:
+</p>
+
+<div class="math-block mat-block">
+<strong>Adjusted genotype:</strong>
+$$\tilde{G} = G - X(X^\top V X)^{-1}(X^\top V \cdot G) = G - \text{XXVX\_inv} \cdot (\text{XV} \cdot G)$$
+</div>
+
+<p>
+This is a weighted least-squares projection. It asks: "What part of $G$ is not explainable by the covariates?"
+After adjustment, $\tilde{G}$ is orthogonal to the column space of $X$ (in the $V$-weighted inner product).
+</p>
+
+<div class="example">
+<h4>Example: Adjusting the Genotype (N=5, p=2)</h4>
+
+<p>Suppose variant $j$ has genotypes:</p>
+$$G = \begin{pmatrix} 0 \\ 1 \\ 0 \\ 2 \\ 0 \end{pmatrix}$$
+
+<p>Recall the adjustment formula: $\tilde{G} = G - X(X^\top V X)^{-1}(X^\top V \cdot G) = G - \text{XXVX\_inv} \cdot (\text{XV} \cdot G)$. We compute this in three sub-steps.</p>
+
+<p>Sub-step 1: Compute $XV \cdot G = (X^\top V) \cdot G$ (a $p \times 1$ vector). Using $XV$ from Section 2b, only indices where $G_i \neq 0$ contribute (here $G_2 = 1$ and $G_4 = 2$):</p>
+$$XV \cdot G = \begin{pmatrix} XV_{1,2} \cdot G_2 + XV_{1,4} \cdot G_4 \\ XV_{2,2} \cdot G_2 + XV_{2,4} \cdot G_4 \end{pmatrix}
+= \begin{pmatrix} 0.2275 \cdot 1 + 0.1875 \cdot 2 \\ -0.0683 \cdot 1 + (-0.1125) \cdot 2 \end{pmatrix}
+= \begin{pmatrix} 0.6025 \\ -0.2933 \end{pmatrix}$$
+
+<p>Sub-step 2: Multiply by $XXVX\_inv = X \cdot (X^\top V X)^{-1}$ (an $N \times p$ matrix) to get the covariate-predicted component of $G$. This gives $\hat{G} = \text{XXVX\_inv} \cdot (XV \cdot G)$:</p>
+$$\hat{G} = \text{XXVX\_inv} \cdot \begin{pmatrix} 0.6025 \\ -0.2933 \end{pmatrix} = \begin{pmatrix} c_1 \\ c_2 \\ c_3 \\ c_4 \\ c_5 \end{pmatrix}$$
+
+<p>(The exact numbers depend on the entries of $\text{XXVX\_inv}$, which we derived from $X \cdot XVX^{-1}$ in Section 2b. Suppose these corrections are small, around 0.05-0.15, because the genotype is not strongly correlated with the covariates.)</p>
+
+<p>Sub-step 3: Subtract the predicted component from the raw genotype:</p>
+$$\tilde{G} = G - \hat{G} = G - \text{XXVX\_inv} \cdot (\text{XV} \cdot G) \approx \begin{pmatrix} 0 - 0.10 \\ 1 - 0.13 \\ 0 - 0.12 \\ 2 - 0.24 \\ 0 - 0.08 \end{pmatrix} = \begin{pmatrix} -0.10 \\ 0.87 \\ -0.12 \\ 1.76 \\ -0.08 \end{pmatrix}$$
+
+<p>
+The adjusted genotype $\tilde{G}$ no longer has any component along the covariate directions. The corrections
+are small here because the variant is not strongly correlated with the intercept or age.
+</p>
+</div>
+
+<h3>Step 2: Compute the Score Statistic</h3>
+
+<p>
+The score statistic measures the inner product of the adjusted genotype with the residuals:
+</p>
+
+<div class="math-block">
+$$\color{#8e44ad}{S} = \frac{\tilde{G}^\top \cdot \text{res}}{\tau_0}$$
+</div>
+
+<p>
+Under the null hypothesis (no variant effect), $S$ should be close to zero. If $S$ is large
+(positive or negative), it suggests the variant is associated with the phenotype.
+</p>
+
+<div class="example">
+<h4>Example: Computing the Score (continuing)</h4>
+
+<p>We have the formula $S = \tilde{G}^\top \cdot \text{res} / \tau_0$. Substituting our values of $\tilde{G}$ (from the projection step) and $\text{res} = y - \mu$:</p>
+
+$$S = \frac{\tilde{G}^\top \cdot \text{res}}{\tau_0} = \frac{\sum_{i=1}^{N} \tilde{G}_i \cdot \text{res}_i}{\tau_0}$$
+$$= \frac{(-0.10)(0.45) + (0.87)(-0.35) + (-0.12)(0.40) + (1.76)(-0.25) + (-0.08)(-0.42)}{1.0}$$
+$$= \frac{-0.045 - 0.305 - 0.048 - 0.440 + 0.034}{1.0} = \frac{-0.804}{1.0} = -0.804$$
+</div>
+
+<h3>Step 3: Compute the Variance</h3>
+
+<p>
+To assess whether $S = -0.804$ is "unusually large," we need to know its variance under the null.
+For a binary trait:
+</p>
+
+<div class="math-block sca-block">
+$$\text{var}_2 = \sum_{i=1}^{N} \texttt{mu2}_i \cdot \tilde{G}_i^2$$
+</div>
+
+<div class="example">
+<h4>Example: Computing the Variance</h4>
+
+<p>The formula says $\text{var}_2 = \sum_{i=1}^{N} \texttt{mu2}_i \cdot \tilde{G}_i^2$. Substituting the values of $\texttt{mu2}$ (from Section 2a) and $\tilde{G}$ (from Section 3a):</p>
+
+$$\text{var}_2 = \sum_{i=1}^{N} \texttt{mu2}_i \cdot \tilde{G}_i^2 = \texttt{mu2}_1 \cdot \tilde{G}_1^2 + \texttt{mu2}_2 \cdot \tilde{G}_2^2 + \cdots + \texttt{mu2}_5 \cdot \tilde{G}_5^2$$
+$$= 0.2475 \cdot (-0.10)^2 + 0.2275 \cdot (0.87)^2 + 0.2400 \cdot (-0.12)^2 + 0.1875 \cdot (1.76)^2 + 0.2436 \cdot (-0.08)^2$$
+$$= 0.2475 \cdot 0.0100 + 0.2275 \cdot 0.7569 + 0.2400 \cdot 0.0144 + 0.1875 \cdot 3.0976 + 0.2436 \cdot 0.0064$$
+$$= 0.0025 + 0.1722 + 0.0035 + 0.5808 + 0.0016 = 0.7606$$
+
+<p>This is then adjusted by the <strong>variance ratio</strong> (Section 4). Recall $\text{var}_1 = \text{var}_2 \times \text{VR}$, where VR is the pre-computed correction factor:</p>
+$$\text{var}_1 = \text{var}_2 \times \text{VR} = 0.7606 \times 1.02 = 0.7758$$
+</div>
+
+<h3>Step 4: Test Statistic and P-value</h3>
+
+<div class="math-block">
+$$\text{stat} = \frac{S^2}{\text{var}_1} \sim \chi^2_1 \quad \text{under } H_0$$
+$$p = P(\chi^2_1 > \text{stat})$$
+</div>
+
+<p>
+Under the null, $S$ is approximately normally distributed with mean 0 and variance $\text{var}_1$.
+So $S^2 / \text{var}_1 \sim \chi^2_1$.
+</p>
+
+<div class="example">
+<h4>Example: P-value Calculation</h4>
+
+<p>From the formula $\text{stat} = S^2 / \text{var}_1$, substituting $S = -0.804$ and $\text{var}_1 = 0.7758$:</p>
+$$\text{stat} = \frac{S^2}{\text{var}_1} = \frac{(-0.804)^2}{0.7758} = \frac{0.6464}{0.7758} = 0.8334$$
+
+<p>Since $\text{stat} \sim \chi^2_1$ under the null, the p-value is the upper-tail probability:</p>
+$$p = P(\chi^2_1 > \text{stat}) = P(\chi^2_1 > 0.8334) \approx 0.361$$
+<p>Not significant. This variant does not appear to affect the phenotype.</p>
+
+<p>The effect size estimate is defined as $\hat\beta = S / \text{var}_1$ and its standard error is derived from the test statistic:</p>
+$$\hat\beta = \frac{S}{\text{var}_1} = \frac{-0.804}{0.7758} = -1.036$$
+$$\text{SE}(\hat\beta) = \frac{|\hat\beta|}{\sqrt{\text{stat}}} = \frac{|S / \text{var}_1|}{\sqrt{S^2 / \text{var}_1}} = \frac{|S / \text{var}_1|}{|S| / \sqrt{\text{var}_1}} = \frac{1}{\sqrt{\text{var}_1}} = \frac{1}{\sqrt{0.7758}} = 1.135$$
+
+<p>(Equivalently, $\text{SE} = 1.036 / \sqrt{0.8334} = 1.036 / 0.913 = 1.135$.)</p>
+</div>
+</section>
+
+<section id="sec-score-paths">
+<h3>3b. Three Score Test Paths</h3>
+
+<p>
+SAIGE implements three variants of the score test that produce identical results but differ in
+computational efficiency:
+</p>
+
+<table>
+<tr><th>Path</th><th>When Used</th><th>Key Idea</th></tr>
+<tr>
+  <td><strong>scoreTest</strong></td>
+  <td>Sparse GRM active (needs PCG solver)</td>
+  <td>Computes with full $N$-vectors; used only for significant markers in re-evaluation</td>
+</tr>
+<tr>
+  <td><strong>scoreTestFast</strong></td>
+  <td>Default (no sparse GRM, with covariate adjustment)</td>
+  <td>Exploits genotype sparsity: most $G_i = 0$, so only compute on non-zero indices</td>
+</tr>
+<tr>
+  <td><strong>scoreTestFast_noadjCov</strong></td>
+  <td>No covariate adjustment flag set</td>
+  <td>Simplest: no projection needed, just center by allele frequency</td>
+</tr>
+</table>
+
+<div class="insight">
+<strong>Why three paths?</strong> In a typical GWAS, most variants are rare: for a variant with 1% allele frequency
+in $N = 100{,}000$ individuals, about 98,000 genotypes are 0. The "fast" path only loops over the ~2,000
+non-zero entries, making it ~50x faster than computing with all $N$ entries.
+</div>
+
+<p>
+The <strong>scoreTestFast</strong> path works by defining $I$ as the set of non-zero genotype indices. It
+computes partial sums only over $I$, then uses the precomputed $S_a$ vector to recover the full result:
+</p>
+
+<div class="math-block">
+<strong>Score (two-part, fast path):</strong>
+<p>Let $I$ = set of indices where $G_i \neq 0$, and define $G_1 = G[I]$, $X_1 = X[I, :]$, $\text{res}_1 = \text{res}[I]$. Also define $Z = (\text{XVX\_inv\_XV}[:, I])^\top G_1$ (the covariate projection, but computed only from the non-zero entries).</p>
+
+<p>The full score $S = \tilde{G}^\top \text{res} / \tau_0$ is algebraically equivalent to two partial sums over $I$:</p>
+$$S_1 = \text{res}_1^\top G_1 \qquad (\text{raw dot product of residuals and genotypes at non-zero indices})$$
+$$S_2 = -(S_a - \text{res}_1^\top X_1)^\top Z \qquad (\text{covariate correction using precomputed } S_a = X^\top \text{res})$$
+$$S = \frac{S_1 + S_2}{\tau_0}$$
+
+<p>The key insight: $S_a = X^\top \text{res}$ was precomputed over all $N$ individuals, but we can write $X^\top \text{res} = \text{res}[I]^\top X[I, :] + \text{res}[\bar{I}]^\top X[\bar{I}, :]$ and rearrange to avoid summing over the large set $\bar{I}$ (where $G_i = 0$).</p>
+</div>
+
+<p>
+The <strong>noadjCov</strong> path skips the projection entirely. Instead of projecting $G$ orthogonal
+to $X$, it simply centers the genotype by subtracting $2f$ (twice the allele frequency), where
+$f$ is computed from the data.
+</p>
+
+</section>
+</section>
+
+
+<!-- ============================================================
+     SECTION 4: VARIANCE RATIO
+     ============================================================ -->
+<section id="sec-variance-ratio">
+<h2>4. The Variance Ratio &mdash; Why We Need It</h2>
+
+<div class="insight">
+<strong>Intuition:</strong> The score test variance we computed in Section 3 is an approximation. The true
+variance involves the full genetic relationship matrix (GRM), which is $N \times N$ and too expensive
+to use for every variant. The variance ratio (VR) is a pre-computed correction factor that makes
+the approximation accurate.
+</div>
+
+<p>
+In Step 1, SAIGE computes the exact variance for a random sample of markers (using the full or sparse GRM)
+and the approximate variance (without the GRM). Their ratio is the VR:
+</p>
+
+<div class="math-block sca-block">
+$$\text{VR} = \frac{\text{Var}_{\text{exact}}(S)}{\text{Var}_{\text{approx}}(S)}$$
+</div>
+
+<p>
+In Step 2, we compute the approximate variance $\text{var}_2 = \sum_i \texttt{mu2}_i \cdot \tilde{G}_i^2$ (from Section 3, Step 3), which uses only the diagonal weight approximation. To get the corrected variance that accounts for the GRM, we simply multiply by VR:
+</p>
+
+$$\text{var}_1 = \text{var}_2 \times \text{VR} = \left(\sum_{i=1}^N \texttt{mu2}_i \cdot \tilde{G}_i^2\right) \times \frac{\text{Var}_{\text{exact}}(S)}{\text{Var}_{\text{approx}}(S)}$$
+
+<h3>Multiple MAC Categories</h3>
+
+<p>
+The VR depends on the minor allele count (MAC) of the variant. Very rare variants (MAC = 1-10) may
+need a different VR than common variants (MAC > 20). SAIGE allows multiple VR values, each assigned
+to a MAC range:
+</p>
+
+<div class="example">
+<h4>Example: Two-Category VR</h4>
+<table>
+<tr><th>MAC Range</th><th>VR Value</th></tr>
+<tr><td>MAC $\leq$ 20</td><td>1.05</td></tr>
+<tr><td>MAC $> 20$</td><td>1.02</td></tr>
+</table>
+<p>
+For a variant with MAC = 8 (very rare), we use $\text{VR} = 1.05$. For a variant with MAC = 500
+(common), we use $\text{VR} = 1.02$.
+</p>
+<p>
+The VR is typically close to 1.0. Values significantly above 1.0 indicate that the GRM contributes
+meaningful additional variance beyond the diagonal approximation.
+</p>
+</div>
+
+<div class="note">
+<strong>Why does VR differ by MAC?</strong> Rare variants have sparser genotype vectors, which interact
+differently with the GRM structure. The GRM captures shared ancestry, and its effect on variance
+depends on how many individuals carry the variant. Step 1 computes VR separately for each MAC
+category to account for this.
+</div>
+
+</section>
+
+
+<!-- ============================================================
+     SECTION 5: SPA
+     ============================================================ -->
+<section id="sec-spa">
+<h2>5. Saddlepoint Approximation (SPA) &mdash; Fixing the P-value for Binary Traits</h2>
+
+<div class="insight">
+<strong>Intuition:</strong> For binary traits (especially with case-control imbalance, like 1% disease prevalence),
+the chi-squared(1) approximation to the score test statistic breaks down in the tails. Variants with apparently
+small p-values may be false positives. SPA uses the exact cumulant generating function (CGF) to compute
+much more accurate tail probabilities.
+</div>
+
+<p>
+SPA is applied only for <strong>binary traits</strong> and only when the test statistic exceeds a threshold:
+$|Z| > \text{SPA\_cutoff}$ (default: 2), where $Z = S / \sqrt{\text{var}_1}$. For most variants,
+$|Z|$ is small and the normal approximation is fine.
+</p>
+
+<section id="sec-spa-cgf">
+<h3>5a. The Cumulant Generating Function (CGF)</h3>
+
+<p>
+The score statistic $S = G^\top y$ is a sum of independent Bernoulli-weighted terms (since each
+$y_i$ is independently Bernoulli($\mu_i$) under the null). For such a sum, we can write down the
+<em>exact</em> CGF:
+</p>
+
+<div class="math-block">
+$$K(t) = \sum_{i=1}^N \log\bigl(1 - \mu_i + \mu_i \, e^{g_i t}\bigr)$$
+</div>
+
+<p>
+The CGF is the logarithm of the moment generating function. Its first derivative gives the mean,
+its second derivative gives the variance:
+</p>
+
+<div class="math-block">
+$$K'(t) = \sum_{i=1}^N \frac{\mu_i \, g_i}{(1 - \mu_i) e^{-g_i t} + \mu_i}$$
+$$K''(t) = \sum_{i=1}^N \frac{(1-\mu_i)\,\mu_i\,g_i^2\,e^{-g_i t}}{\bigl[(1-\mu_i)e^{-g_i t}+\mu_i\bigr]^2}$$
+</div>
+
+<div class="example">
+<h4>Example: CGF for N=5</h4>
+<p>Using our example with $G = (0, 1, 0, 2, 0)^\top$ and $\mu = (0.55, 0.35, 0.60, 0.25, 0.42)^\top$.</p>
+<p>At $t = 0$, the exponentials $e^{g_i t}$ all equal 1, so the CGF and its derivatives simplify greatly:</p>
+
+$$K(0) = \sum_{i=1}^5 \log(1 - \mu_i + \mu_i \cdot e^{g_i \cdot 0}) = \sum_{i=1}^5 \log(1 - \mu_i + \mu_i \cdot 1) = \sum_{i=1}^5 \log(1) = 0$$
+
+<p>For $K'(0)$, the general formula $K'(t) = \sum_i \frac{\mu_i g_i}{(1-\mu_i)e^{-g_i t} + \mu_i}$ at $t=0$ simplifies because $e^{-g_i \cdot 0} = 1$:</p>
+
+$$K'(0) = \sum_{i=1}^5 \frac{\mu_i g_i}{(1-\mu_i) \cdot 1 + \mu_i} = \sum_{i=1}^5 \frac{\mu_i g_i}{1} = \sum_{i=1}^5 \mu_i g_i$$
+
+<p>Only terms with $g_i \neq 0$ contribute (person 2 has $g_2 = 1$, person 4 has $g_4 = 2$):</p>
+
+$$K'(0) = \mu_2 g_2 + \mu_4 g_4 = 0.35 \times 1 + 0.25 \times 2 = 0.35 + 0.50 = 0.85$$
+
+<p>Similarly, $K''(0)$ at $t = 0$ simplifies. The general formula is $K''(t) = \sum_i \frac{(1-\mu_i)\mu_i g_i^2 e^{-g_i t}}{[(1-\mu_i)e^{-g_i t}+\mu_i]^2}$. At $t = 0$:</p>
+
+$$K''(0) = \sum_{i=1}^5 \frac{(1-\mu_i)\mu_i g_i^2 \cdot 1}{[(1-\mu_i)+\mu_i]^2} = \sum_{i=1}^5 (1-\mu_i)\mu_i g_i^2 = \sum_{i=1}^5 \texttt{mu2}_i \cdot g_i^2$$
+
+<p>Again, only non-zero $g_i$ terms contribute:</p>
+
+$$K''(0) = \texttt{mu2}_2 \cdot g_2^2 + \texttt{mu2}_4 \cdot g_4^2 = \mu_2(1-\mu_2) \cdot 1^2 + \mu_4(1-\mu_4) \cdot 2^2$$
+$$= 0.35 \times 0.65 \times 1 + 0.25 \times 0.75 \times 4 = 0.2275 \times 1 + 0.1875 \times 4 = 0.2275 + 0.7500 = 0.9775$$
+
+<p>
+So under the null, $E[S] = K'(0) = 0.85$ and $\text{Var}(S) = K''(0) = 0.9775$.
+These are the exact mean and variance of $S = G^\top y$.
+</p>
+</div>
+
+<details>
+<summary>Why does the CGF have this form?</summary>
+<div class="detail-content">
+<p>
+Each $y_i$ is Bernoulli($\mu_i$), so the moment generating function of $g_i y_i$ is:
+</p>
+$$M_{g_i y_i}(t) = E[e^{t g_i y_i}] = (1 - \mu_i) e^0 + \mu_i e^{g_i t} = 1 - \mu_i + \mu_i e^{g_i t}$$
+<p>
+Since $S = \sum_i g_i y_i$ is a sum of independent terms, the MGF of $S$ is the product:
+</p>
+$$M_S(t) = \prod_i (1 - \mu_i + \mu_i e^{g_i t})$$
+<p>Taking the log gives $K(t) = \log M_S(t) = \sum_i \log(1 - \mu_i + \mu_i e^{g_i t})$.</p>
+</div>
+</details>
+
+</section>
+
+<section id="sec-spa-nr">
+<h3>5b. Newton-Raphson Root Finding</h3>
+
+<p>
+The saddlepoint approximation requires finding the value $\hat\zeta$ where $K'(\hat\zeta) = q$,
+where $q$ is the observed value of the test statistic (after appropriate scaling). This is
+solved by Newton-Raphson iteration:
+</p>
+
+<div class="math-block">
+$$\hat\zeta_{\text{new}} = \hat\zeta - \frac{K'(\hat\zeta) - q}{K''(\hat\zeta)}$$
+<p>Iterate until $|\hat\zeta_{\text{new}} - \hat\zeta| < \epsilon^{0.25} \approx 1.22 \times 10^{-4}$.</p>
+</div>
+
+<div class="example">
+<h4>Example: Finding the Saddlepoint</h4>
+<p>Suppose $q = 2.5$ (the observed score, after scaling). We need $K'(\hat\zeta) = 2.5$.</p>
+<p>Start at $\hat\zeta_0 = 0$. We know $K'(0) = 0.85 < 2.5$, so we need $\hat\zeta > 0$.</p>
+
+<p>Iteration 1: Apply the Newton-Raphson update formula $\hat\zeta_{\text{new}} = \hat\zeta - \frac{K'(\hat\zeta) - q}{K''(\hat\zeta)}$ with $\hat\zeta_0 = 0$, $K'(0) = 0.85$, $K''(0) = 0.9775$:</p>
+$$\hat\zeta_1 = \hat\zeta_0 - \frac{K'(\hat\zeta_0) - q}{K''(\hat\zeta_0)} = 0 - \frac{0.85 - 2.5}{0.9775} = 0 - \frac{-1.65}{0.9775} = \frac{1.65}{0.9775} = 1.688$$
+
+<p>Iteration 2: Evaluate $K'(1.688)$ and $K''(1.688)$ using the CGF derivative formulas from Section 5a (now with $t = 1.688$ instead of $t = 0$), then apply the same update formula. Continue until $|\hat\zeta_{\text{new}} - \hat\zeta| < \epsilon^{0.25} \approx 1.22 \times 10^{-4}$.</p>
+<p>
+If Newton-Raphson overshoots (the sign of $K'(\hat\zeta) - q$ flips), a bisection safeguard
+halves the step size to ensure convergence.
+</p>
+</div>
+
+</section>
+
+<section id="sec-spa-lr">
+<h3>5c. Lugannani-Rice Formula</h3>
+
+<p>
+Once we have the saddlepoint $\hat\zeta$, the tail probability $P(S > q)$ is computed using the
+Lugannani-Rice formula, which provides much better accuracy than the normal approximation:
+</p>
+
+<div class="math-block">
+$$w = \text{sign}(\hat\zeta) \cdot \sqrt{2(\hat\zeta \cdot q - K(\hat\zeta))}$$
+$$v = \hat\zeta \cdot \sqrt{K''(\hat\zeta)}$$
+$$Z_{\text{test}} = w + \frac{1}{w} \ln\!\left(\frac{v}{w}\right)$$
+$$p_{\text{upper}} = \Phi(-Z_{\text{test}})$$
+</div>
+
+<p>
+where $\Phi$ is the standard normal CDF.
+</p>
+
+<h4>Two-Sided P-Value</h4>
+
+<p>
+SAIGE computes two-sided p-values by finding saddlepoints for both the observed $q$ and its
+reflection about the mean $m_1 = \mu^\top \tilde{G}$:
+</p>
+
+<div class="math-block">
+$$q_{\text{inv}} = 2 m_1 - q \quad (\text{reflection of } q \text{ about } m_1)$$
+$$p_{\text{SPA}} = |p_{\text{upper}}(q)| + |p_{\text{lower}}(q_{\text{inv}})|$$
+</div>
+
+<div class="example">
+<h4>Example: SPA Two-Sided P-value</h4>
+
+<p>Recall $m_1 = K'(0) = \mu^\top G = 0.85$ (the mean of $S$ under the null, computed in Section 5a). Suppose the observed score is $q = 2.5$.</p>
+
+<p><strong>Step 1: Reflection.</strong> Compute the reflected value using $q_{\text{inv}} = 2m_1 - q$:</p>
+$$q_{\text{inv}} = 2 m_1 - q = 2(0.85) - 2.5 = 1.70 - 2.5 = -0.80$$
+
+<p><strong>Step 2: Upper tail.</strong> Find the saddlepoint $\hat\zeta$ such that $K'(\hat\zeta) = q = 2.5$ (using Newton-Raphson from Section 5b). Then apply the Lugannani-Rice formulas:</p>
+$$w = \text{sign}(\hat\zeta) \cdot \sqrt{2(\hat\zeta \cdot q - K(\hat\zeta))}, \quad v = \hat\zeta \cdot \sqrt{K''(\hat\zeta)}$$
+$$Z_{\text{test}} = w + \frac{1}{w}\ln\!\left(\frac{v}{w}\right), \quad p_1 = \Phi(-Z_{\text{test}})$$
+
+<p><strong>Step 3: Lower tail.</strong> Repeat the same procedure for $q_{\text{inv}} = -0.80$: find a new saddlepoint $\hat\zeta'$ such that $K'(\hat\zeta') = -0.80$, compute $w'$, $v'$, $Z'_{\text{test}}$, and get $p_2 = \Phi(-Z'_{\text{test}})$.</p>
+
+<p><strong>Step 4: Combine.</strong> The two-sided SPA p-value sums both tails:</p>
+$$p_{\text{SPA}} = |p_1| + |p_2|$$
+</div>
+
+<h4>Fast SPA Variant</h4>
+
+<p>
+When most genotype entries are zero (more than 50%), the CGF can be split into an exact part
+(for non-zero genotypes) and a normal approximation (for zero genotypes):
+</p>
+
+<div class="math-block">
+$$K_{\text{fast}}(t) = \underbrace{\sum_{i: g_i \neq 0} \log(1 - \mu_i + \mu_i e^{g_i t})}_{\text{exact for non-zero}}
++ \underbrace{\text{NAmu} \cdot t + \tfrac{1}{2}\text{NAsigma} \cdot t^2}_{\text{normal approx for zero}}$$
+</div>
+
+<p>
+where $\text{NAmu}$ and $\text{NAsigma}$ are the mean and variance contributions from the zero-genotype individuals. They are computed by subtracting the non-zero contributions from the totals:
+</p>
+$$\text{NAmu} = m_1 - \sum_{i: g_i \neq 0} g_i \mu_i = K'(0) - \sum_{i: g_i \neq 0} g_i \mu_i$$
+$$\text{NAsigma} = \text{var}_2 - \sum_{i: g_i \neq 0} \mu_i(1-\mu_i) g_i^2 = K''(0) - \sum_{i: g_i \neq 0} \mu_i(1-\mu_i) g_i^2$$
+<p>
+In our N=5 example with $g = (0, 1, 0, 2, 0)^\top$: $K'(0) = 0.85$ and $\sum_{i: g_i \neq 0} g_i \mu_i = 0.35 + 0.50 = 0.85$, so $\text{NAmu} = 0.85 - 0.85 = 0$. This is because all individuals with $g_i = 0$ contribute nothing to the mean. In general, when most genotypes are zero, NAmu and NAsigma capture the small residual contribution from those zero entries (which is exactly zero for the mean, and relates to the $\mu_i(1-\mu_i) \cdot 0^2 = 0$ terms for the variance). The key speedup comes from evaluating the exact CGF sum over only 2 terms instead of 5 (or, in practice, over ~2,000 instead of ~100,000).
+</p>
+
+</section>
+</section>
+
+
+<!-- ============================================================
+     SECTION 6: FIRTH CORRECTION
+     ============================================================ -->
+<section id="sec-firth">
+<h2>6. Firth Correction &mdash; Better Effect Estimates for Rare Variants</h2>
+
+<div class="insight">
+<strong>Intuition:</strong> For very rare variants in binary traits, the maximum likelihood estimate of the
+effect size $\hat\beta$ is biased away from zero (it tends to be too large). Firth's penalized logistic
+regression adds a small penalty that shrinks $\hat\beta$ toward zero, reducing this bias.
+</div>
+
+<p>
+The Firth correction is applied after SPA when the SPA p-value is below a threshold (default $p < 0.05$).
+It <strong>only adjusts the effect size</strong> ($\hat\beta$); the p-value still comes from SPA.
+</p>
+
+<h3>Penalized Score Equation</h3>
+
+<p>
+Standard logistic regression maximizes the log-likelihood $\ell(\beta)$. Firth instead maximizes the
+<em>penalized</em> log-likelihood:
+</p>
+
+<div class="math-block">
+$$\ell^*(\beta) = \ell(\beta) + \frac{1}{2} \log \det \mathcal{I}(\beta)$$
+</div>
+
+<p>
+where $\mathcal{I}(\beta)$ is the Fisher information matrix. This penalty is Jeffreys' invariant prior
+and ensures finite estimates even when perfect or quasi-complete separation occurs.
+</p>
+
+<p>The penalized score equation is:</p>
+
+<div class="math-block">
+$$U^*(\beta) = X^\top \left[(y - \pi) + h \odot (0.5 - \pi)\right] = 0$$
+</div>
+
+<p>
+where $\pi_i = \text{logit}^{-1}(x_i^\top \beta + \text{offset}_i)$ is the predicted probability,
+$h_i$ is the $i$-th diagonal element of the hat matrix $H = W^{1/2} X (X^\top W X)^{-1} X^\top W^{1/2}$,
+and $W = \text{diag}(\pi(1-\pi))$.
+</p>
+
+<div class="example">
+<h4>Example: Why Firth Matters</h4>
+<p>
+Consider a variant with MAC = 1 in a study with $N = 10{,}000$ and 500 cases. Only one person carries
+the alternate allele. If that person is a case, the ML estimate $\hat\beta \to +\infty$ (perfect separation).
+Firth's penalty prevents this by adding a correction term proportional to the hat matrix diagonal,
+yielding a finite $\hat\beta$.
+</p>
+<p>
+The SE is then back-calculated from the SPA p-value in two steps. First, convert the SPA p-value to a Z-score using the normal quantile function $\Phi^{-1}$:
+</p>
+$$z = \Phi^{-1}(1 - p_{\text{SPA}}/2)$$
+<p>Then the SE is the ratio of the Firth effect size to this Z-score:</p>
+$$\text{SE} = \frac{|\hat\beta_{\text{Firth}}|}{|z|}$$
+<p>This ensures that $(\hat\beta_{\text{Firth}} / \text{SE})^2$ yields a test statistic consistent with $p_{\text{SPA}}$.</p>
+</div>
+
+<div class="note">
+<strong>Newton-Raphson with step limiting:</strong> The Firth-penalized logistic regression is solved
+iteratively via Newton-Raphson: $\beta_{\text{new}} = \beta + \mathcal{I}^{-1} U^*$. To ensure stability,
+the step size is limited: $\|\delta\|_\infty \leq \text{maxstep}$ (default 5). If any component exceeds
+this, the entire step is scaled down proportionally.
+</div>
+
+</section>
+
+
+<!-- ============================================================
+     SECTION 7: REGION TESTING
+     ============================================================ -->
+<section id="sec-region">
+<h2>7. Region/Gene-Based Testing &mdash; Testing Groups of Variants Together</h2>
+
+<div class="insight">
+<strong>Intuition:</strong> Individual rare variants are often too rare to detect alone. If a gene harbors
+many rare damaging variants that each increase disease risk, testing them individually would have no
+power. Region-based tests group variants by gene and ask: "Is the collective set of rare variants in
+this gene associated with the phenotype?"
+</div>
+
+<p>
+The region testing pipeline processes one gene at a time. For each gene, it:
+</p>
+<ol>
+  <li>Reads all variants assigned to the gene from the group file</li>
+  <li>Applies QC filters (MAC, MAF, missing rate)</li>
+  <li>Computes the score test for each variant individually</li>
+  <li>Builds the variance-covariance matrix across all variants in the gene</li>
+  <li>Applies weights and optional SPA adjustments</li>
+  <li>Runs BURDEN, SKAT, and SKAT-O tests</li>
+</ol>
+
+<section id="sec-region-p1p2">
+<h3>7a. Building the Score Vector and Variance-Covariance Matrix</h3>
+
+<p>
+Suppose a gene has $m$ variants that pass QC. For each variant $j$, we already have:
+</p>
+<ul>
+  <li>Score statistic $S_j$ (from the single-variant score test)</li>
+  <li>Adjusted genotype vector $\tilde{G}_j$ [$N \times 1$]</li>
+  <li>P2 vector: $P2_j = \tilde{G}_j \odot \texttt{mu2} \cdot \tau_0$ [$N \times 1$]</li>
+  <li>Variance ratio $\text{VR}_j$</li>
+</ul>
+
+<p>
+We assemble these into two matrices:
+</p>
+
+<div class="math-block mat-block">
+$$\text{P1Mat} \;[m \times N]: \quad \text{row } j = \sqrt{\text{VR}_j} \cdot \tilde{G}_j^\top$$
+$$\text{P2Mat} \;[N \times m]: \quad \text{col } j = \sqrt{\text{VR}_j} \cdot P2_j$$
+</div>
+
+<p>
+The <strong>variance-covariance matrix</strong> $\Phi$ captures how the variants' scores co-vary under the null:
+</p>
+
+<div class="math-block mat-block">
+$$\Phi = \text{P1Mat} \cdot \text{P2Mat} \qquad [m \times m]$$
+</div>
+
+<p>
+Entry $\Phi_{jk}$ measures the covariance between the score statistics of variants $j$ and $k$.
+The diagonal $\Phi_{jj}$ is the variance of variant $j$'s score.
+</p>
+
+<div class="example">
+<h4>Example: Building $\Phi$ for m=3 Variants (N=5)</h4>
+
+<p>Three variants in a gene, with adjusted genotypes and mu2 from our running example:</p>
+
+$$\tilde{G}_1 = \begin{pmatrix} 0 \\ 1 \\ 0 \\ 0 \\ 0 \end{pmatrix}, \quad
+\tilde{G}_2 = \begin{pmatrix} 0 \\ 0 \\ 1 \\ 1 \\ 0 \end{pmatrix}, \quad
+\tilde{G}_3 = \begin{pmatrix} 1 \\ 0 \\ 0 \\ 0 \\ 1 \end{pmatrix}$$
+
+$$\texttt{mu2} = \begin{pmatrix} 0.2475 \\ 0.2275 \\ 0.2400 \\ 0.1875 \\ 0.2436 \end{pmatrix}, \quad \tau_0 = 1, \quad \text{VR}_j = 1.0 \;\forall j$$
+
+<p>Compute P2 vectors using the formula $P2_j = \tilde{G}_j \odot \texttt{mu2} \cdot \tau_0$. Since $\tau_0 = 1$, this is element-wise: $(P2_j)_i = \tilde{G}_{j,i} \times \texttt{mu2}_i$. For example, for variant 1:</p>
+$$P2_1 = \tilde{G}_1 \odot \texttt{mu2} \cdot \tau_0 = \begin{pmatrix} 0 \times 0.2475 \\ 1 \times 0.2275 \\ 0 \times 0.2400 \\ 0 \times 0.1875 \\ 0 \times 0.2436 \end{pmatrix} \cdot 1 = \begin{pmatrix} 0 \\ 0.2275 \\ 0 \\ 0 \\ 0 \end{pmatrix}$$
+<p>Similarly:</p>
+$$P2_2 = \tilde{G}_2 \odot \texttt{mu2} = (0, 0, 0.2400, 0.1875, 0)^\top, \quad P2_3 = \tilde{G}_3 \odot \texttt{mu2} = (0.2475, 0, 0, 0, 0.2436)^\top$$
+
+<p>Assemble P1Mat: each row $j$ is $\sqrt{\text{VR}_j} \cdot \tilde{G}_j^\top$. Since $\text{VR}_j = 1.0$ for all $j$, row $j = \tilde{G}_j^\top$:</p>
+$$\text{P1Mat} = \begin{pmatrix} \tilde{G}_1^\top \\ \tilde{G}_2^\top \\ \tilde{G}_3^\top \end{pmatrix} = \begin{pmatrix} 0 & 1 & 0 & 0 & 0 \\ 0 & 0 & 1 & 1 & 0 \\ 1 & 0 & 0 & 0 & 1 \end{pmatrix}$$
+
+<p>Assemble P2Mat: each column $j$ is $\sqrt{\text{VR}_j} \cdot P2_j$. Since $\text{VR}_j = 1.0$, column $j = P2_j$:</p>
+$$\text{P2Mat} = \begin{pmatrix} P2_1 & P2_2 & P2_3 \end{pmatrix} = \begin{pmatrix} 0 & 0 & 0.2475 \\ 0.2275 & 0 & 0 \\ 0 & 0.2400 & 0 \\ 0 & 0.1875 & 0 \\ 0 & 0 & 0.2436 \end{pmatrix}$$
+
+<p>Now compute $\Phi = \text{P1Mat} \cdot \text{P2Mat}$, which is an $[m \times m] = [3 \times 3]$ matrix. Entry $\Phi_{jk}$ is the dot product of row $j$ of P1Mat with column $k$ of P2Mat, i.e., $\Phi_{jk} = \sqrt{\text{VR}_j} \cdot \tilde{G}_j^\top \cdot \sqrt{\text{VR}_k} \cdot P2_k$:</p>
+
+$$\Phi_{11} = \text{P1Mat}_{1,\bullet} \cdot \text{P2Mat}_{\bullet,1} = (0)(0) + (1)(0.2275) + (0)(0) + (0)(0) + (0)(0) = 0.2275$$
+$$\Phi_{12} = \text{P1Mat}_{1,\bullet} \cdot \text{P2Mat}_{\bullet,2} = (0)(0) + (1)(0) + (0)(0.2400) + (0)(0.1875) + (0)(0) = 0$$
+$$\Phi_{22} = \text{P1Mat}_{2,\bullet} \cdot \text{P2Mat}_{\bullet,2} = (0)(0) + (0)(0) + (1)(0.2400) + (1)(0.1875) + (0)(0) = 0.4275$$
+$$\Phi_{33} = \text{P1Mat}_{3,\bullet} \cdot \text{P2Mat}_{\bullet,3} = (1)(0.2475) + (0)(0) + (0)(0) + (0)(0) + (1)(0.2436) = 0.4911$$
+<p>All off-diagonal entries are zero (no individuals share non-zero genotypes across variants), so:</p>
+$$\Phi = \text{P1Mat} \cdot \text{P2Mat} = \begin{pmatrix}
+0.2275 & 0 & 0 \\
+0 & 0.4275 & 0 \\
+0 & 0 & 0.4911
+\end{pmatrix}$$
+
+<p>
+In this example, $\Phi$ is diagonal because no two variants share non-zero genotypes at the same
+individual. In real data, variants in the same gene often have correlated genotypes, so $\Phi$ has
+non-zero off-diagonal entries.
+</p>
+</div>
+
+</section>
+
+<section id="sec-region-urv">
+<h3>7b. Ultra-Rare Variant (URV) Collapsing</h3>
+
+<p>
+Variants with very low MAC ($\leq 10$ by default) are too rare to contribute meaningfully as
+individual variants. They are "collapsed" into a single pseudo-variant per annotation/MAF stratum.
+</p>
+
+<div class="math-block">
+<strong>Collapsing rule (method = "max"):</strong>
+$$\text{genoURV}_i = \max_{k \in \text{URVs}} G_{i,k}$$
+</div>
+
+<p>
+For each individual $i$, the collapsed genotype is the maximum dosage across all ultra-rare variants
+in the stratum. This preserves the "carries at least one rare variant" signal.
+</p>
+
+<div class="example">
+<h4>Example: URV Collapsing</h4>
+<p>Suppose a gene has 5 variants, 3 of which have MAC $\leq 10$ (ultra-rare):</p>
+$$G_{\text{URV1}} = (0, 0, 1, 0, 0)^\top, \quad G_{\text{URV2}} = (0, 0, 0, 0, 1)^\top, \quad G_{\text{URV3}} = (0, 1, 0, 0, 0)^\top$$
+
+<p>Collapsed pseudo-variant (element-wise max):</p>
+$$G_{\text{collapsed}} = (0, 1, 1, 0, 1)^\top$$
+
+<p>
+This single collapsed variant is then scored and included in the gene test alongside the 2 non-URV variants,
+giving $m = 3$ variants total for the BURDEN/SKAT/SKAT-O tests.
+</p>
+</div>
+
+</section>
+
+<section id="sec-region-weights">
+<h3>7c. Variant Weights</h3>
+
+<p>
+Not all variants should contribute equally. Rarer variants are more likely to be functional (common
+variants have already been purged by natural selection), so they are upweighted using the Beta density:
+</p>
+
+<div class="math-block sca-block">
+$$w_j = f_{\text{Beta}}(\text{MAF}_j;\; 1, 25) = 25(1 - \text{MAF}_j)^{24}$$
+</div>
+
+<div class="example">
+<h4>Example: Beta(1, 25) Weights</h4>
+<table>
+<tr><th>MAF</th><th>Weight $w = 25(1-\text{MAF})^{24}$</th><th>Interpretation</th></tr>
+<tr><td>0.0001</td><td>24.94</td><td>Ultra-rare: nearly full weight</td></tr>
+<tr><td>0.001</td><td>24.41</td><td>Very rare: high weight</td></tr>
+<tr><td>0.01</td><td>19.37</td><td>Rare: strong weight</td></tr>
+<tr><td>0.05</td><td>7.14</td><td>Low frequency: moderate</td></tr>
+<tr><td>0.10</td><td>1.94</td><td>Common: weak weight</td></tr>
+<tr><td>0.50</td><td>$\approx 0$</td><td>Very common: essentially zero</td></tr>
+</table>
+</div>
+
+<p>
+The weighted score and variance-covariance are:
+</p>
+
+<div class="math-block">
+<p>Each score $S_j$ is multiplied by its weight $w_j$:</p>
+$$S_{\text{weighted},j} = w_j \cdot S_j \quad \Longleftrightarrow \quad S_{\text{weighted}} = S \odot w \qquad (\text{element-wise})$$
+
+<p>The variance-covariance matrix is scaled by the product of the corresponding weights. Entry $(j,k)$ of $\Phi$ gets multiplied by $w_j \cdot w_k$. This is equivalent to the element-wise (Hadamard) product of $\Phi$ with the outer product $w w^\top$:</p>
+$$\Phi_{\text{weighted},jk} = w_j \cdot w_k \cdot \Phi_{jk} \quad \Longleftrightarrow \quad \Phi_{\text{weighted}} = (w w^\top) \odot \Phi$$
+
+<p>For example, if $w = (24.94, 19.37, 7.14)^\top$ and $\Phi_{12} = 0.02$, then $\Phi_{\text{weighted},12} = 24.94 \times 19.37 \times 0.02 = 9.66$.</p>
+</div>
+
+</section>
+
+<section id="sec-region-phi">
+<h3>7d. SPA $\Phi$ Adjustment (Binary Traits)</h3>
+
+<p>
+For binary traits, the normal-approximation-based $\Phi$ matrix may be inaccurate (same reason SPA
+is needed for single variants). The adjustment rescales $\Phi$ using the SPA p-values:
+</p>
+
+<div class="math-block">
+<strong>Step 1: Per-variant scale factor</strong>
+<p>For each variant $j$, compute the "SPA-implied variance." The idea: SPA gave us $p_{\text{SPA},j}$, and we know $S_j$. If $p_{\text{SPA},j}$ were computed as $P(\chi^2_1 > S_j^2 / \text{Var})$, what variance $\text{Var}$ would produce that p-value? We invert: $\text{Var} = S_j^2 / F^{-1}_{\chi^2_1}(1 - p_{\text{SPA},j})$, where $F^{-1}_{\chi^2_1}(\cdot)$ is the chi-squared(1) quantile function:</p>
+$$\text{VarS}_{\text{new},j} = \frac{S_j^2}{F^{-1}_{\chi^2_1}(1 - p_{\text{SPA},j})}$$
+
+<p>Then the scale factor is the ratio of the SPA-implied standard deviation to the normal-approximation standard deviation $\sqrt{\Phi_{jj}}$:</p>
+$$\text{scaleFactor}_j = \sqrt{\frac{\text{VarS}_{\text{new},j}}{\Phi_{jj}}}$$
+
+<p>This rescales the variance of each variant to match what SPA says it should be.</p>
+
+<strong>Step 2: Burden-based global correction</strong>
+<p>Apply the per-variant scale factors to the entire $\Phi$ matrix. The outer product $\text{scaleFactor} \cdot \text{scaleFactor}^\top$ produces an $[m \times m]$ matrix of pairwise products, which is applied element-wise:</p>
+$$\Phi_{\text{adj},jk} = \text{scaleFactor}_j \cdot \text{scaleFactor}_k \cdot \Phi_{jk} \quad \Longleftrightarrow \quad \Phi_{\text{adj}} = (\text{scaleFactor} \cdot \text{scaleFactor}^\top) \odot \Phi$$
+
+<p>Then compute the ratio $r$ that ensures the total (burden) variance in $\Phi_{\text{adj}}$ matches what SPA says the burden variance should be. The SPA-implied burden variance is $(\sum_j S_j)^2 / F^{-1}_{\chi^2_1}(1 - p_{\text{burden,SPA}})$:</p>
+$$r = \min\!\left(1, \;\frac{\sum_{i,j} \Phi_{\text{adj},ij}}{(\sum_j S_j)^2 \;/\; F^{-1}_{\chi^2_1}(1 - p_{\text{burden,SPA}})}\right)$$
+
+<p>Finally, divide by $r$ so that the burden test using $\Phi_{\text{final}}$ gives the same p-value as SPA:</p>
+$$\Phi_{\text{final}} = \frac{\Phi_{\text{adj}}}{r}$$
+</div>
+
+<details>
+<summary>Why adjust Phi?</summary>
+<div class="detail-content">
+<p>
+The $\Phi$ matrix was built using the normal approximation for the score test variance. But SPA showed
+that the actual variance is different (especially in the tails for imbalanced binary traits). The
+adjustment ensures that:
+</p>
+<ol>
+  <li>Each diagonal entry $\Phi_{jj}$ matches the SPA-corrected variance for variant $j$</li>
+  <li>The total burden variance matches the SPA-corrected burden test</li>
+</ol>
+<p>
+Without this adjustment, the SKAT and SKAT-O tests would use an inconsistent variance matrix,
+leading to incorrect p-values.
+</p>
+</div>
+</details>
+
+</section>
+</section>
+
+
+<!-- ============================================================
+     SECTION 8: BURDEN TEST
+     ============================================================ -->
+<section id="sec-burden">
+<h2>8. The BURDEN Test &mdash; Collapse and Test</h2>
+
+<div class="insight">
+<strong>Intuition:</strong> The BURDEN test collapses all variants in a gene into a single aggregate signal
+by summing their scores. It is most powerful when all causal variants have effects in the <em>same
+direction</em> (all increase risk, or all decrease risk). Think of it as: "Do carriers of any rare
+variant in this gene tend to have higher (or lower) phenotype values?"
+</div>
+
+<p>
+Given the weighted score vector $S = (S_1, \ldots, S_m)^\top$ and the weighted variance-covariance
+matrix $\Phi$ $[m \times m]$:
+</p>
+
+<div class="math-block">
+<strong>BURDEN test statistic:</strong>
+$$T_{\text{Burden}} = \left(\sum_{j=1}^m S_j\right)^2 = (\mathbf{1}^\top S)^2$$
+
+<strong>Variance under the null:</strong>
+$$\text{Var}_{\text{Burden}} = \mathbf{1}^\top \Phi \, \mathbf{1} = \sum_{i=1}^m \sum_{j=1}^m \Phi_{ij}$$
+
+<strong>P-value:</strong>
+$$\frac{T_{\text{Burden}}}{\text{Var}_{\text{Burden}}} \sim \chi^2_1 \quad \Longrightarrow \quad p = P\!\left(\chi^2_1 > \frac{T_{\text{Burden}}}{\text{Var}_{\text{Burden}}}\right)$$
+</div>
+
+<div class="example">
+<h4>Numerical Example: BURDEN Test with m=3 Variants</h4>
+<p>Scores and variance-covariance matrix:</p>
+$$S = \begin{pmatrix} 1.2 \\ 0.8 \\ 0.5 \end{pmatrix}, \quad
+\Phi = \begin{pmatrix} 0.10 & 0.02 & 0.01 \\ 0.02 & 0.15 & 0.03 \\ 0.01 & 0.03 & 0.08 \end{pmatrix}$$
+
+<p><strong>Step 1:</strong> Sum of scores. From the BURDEN formula, $T_{\text{Burden}} = (\mathbf{1}^\top S)^2$, so we first compute $\mathbf{1}^\top S = \sum_{j=1}^m S_j$:</p>
+$$\mathbf{1}^\top S = \sum_{j=1}^m S_j = S_1 + S_2 + S_3 = 1.2 + 0.8 + 0.5 = 2.5$$
+
+<p><strong>Step 2:</strong> BURDEN test statistic $T_{\text{Burden}} = (\mathbf{1}^\top S)^2$:</p>
+$$T_{\text{Burden}} = (\mathbf{1}^\top S)^2 = (2.5)^2 = 6.25$$
+
+<p><strong>Step 3:</strong> Variance under the null. From the formula $\text{Var}_{\text{Burden}} = \mathbf{1}^\top \Phi \, \mathbf{1} = \sum_{i=1}^m \sum_{j=1}^m \Phi_{ij}$ (the sum of ALL entries in $\Phi$):</p>
+$$\text{Var}_{\text{Burden}} = \mathbf{1}^\top \Phi \, \mathbf{1} = \sum_{i,j} \Phi_{ij}$$
+$$= (\Phi_{11} + \Phi_{12} + \Phi_{13}) + (\Phi_{21} + \Phi_{22} + \Phi_{23}) + (\Phi_{31} + \Phi_{32} + \Phi_{33})$$
+$$= (0.10 + 0.02 + 0.01) + (0.02 + 0.15 + 0.03) + (0.01 + 0.03 + 0.08)$$
+$$= 0.13 + 0.20 + 0.12 = 0.45$$
+
+<p><strong>Step 4:</strong> Test statistic and p-value. From the formula $T_{\text{Burden}} / \text{Var}_{\text{Burden}} \sim \chi^2_1$:</p>
+$$\text{stat} = \frac{T_{\text{Burden}}}{\text{Var}_{\text{Burden}}} = \frac{6.25}{0.45} = 13.89$$
+$$p = P(\chi^2_1 > \text{stat}) = P(\chi^2_1 > 13.89) \approx 1.9 \times 10^{-4}$$
+
+<p><strong>Effect size:</strong> The BURDEN effect size is the ratio of the aggregate score to the sum of diagonal variances:</p>
+$$\hat\beta_{\text{Burden}} = \frac{\sum_{j=1}^m S_j}{\sum_{j=1}^m \Phi_{jj}} = \frac{\mathbf{1}^\top S}{\text{tr}_{\text{diag}}(\Phi)} = \frac{2.5}{\Phi_{11} + \Phi_{22} + \Phi_{33}} = \frac{2.5}{0.10 + 0.15 + 0.08} = \frac{2.5}{0.33} = 7.58$$
+</div>
+
+<div class="note">
+<strong>BURDEN is a special case:</strong> The BURDEN test is equivalent to SKAT-O with $\rho = 1$
+(Section 10). It is the optimal test when all variants have effects in the same direction.
+When effects have mixed directions (some increase risk, some decrease it), the positive and negative
+scores cancel, and BURDEN loses power.
+</div>
+
+</section>
+
+
+<!-- ============================================================
+     SECTION 9: SKAT TEST
+     ============================================================ -->
+<section id="sec-skat">
+<h2>9. The SKAT Test &mdash; Preserving Individual Variant Contributions</h2>
+
+<div class="insight">
+<strong>Intuition:</strong> Unlike BURDEN, SKAT squares each variant's score before summing, so
+positive and negative effects do not cancel. It is more powerful than BURDEN when variants have
+<em>mixed effect directions</em>.
+</div>
+
+<div class="math-block">
+<strong>SKAT test statistic:</strong>
+$$Q_{\text{SKAT}} = S^\top S = \sum_{j=1}^m S_j^2$$
+
+<strong>Null distribution:</strong>
+$$Q_{\text{SKAT}} \sim \sum_{j=1}^m \lambda_j \, \chi^2_{1,j}$$
+</div>
+
+<p>
+where $\lambda_1 \geq \lambda_2 \geq \cdots \geq \lambda_m$ are the eigenvalues of $\Phi$,
+and the $\chi^2_{1,j}$ are independent chi-squared(1) random variables. This is called a
+<strong>mixture of chi-squareds</strong>.
+</p>
+
+<div class="example">
+<h4>Why Eigenvalues? An Intuitive Explanation</h4>
+<p>
+The score vector $S$ has mean zero and covariance $\Phi$ under the null. We can rotate $S$ into
+an orthogonal coordinate system aligned with the eigenvectors of $\Phi$. In this rotated space,
+the components $Z_j$ are independent with $Z_j \sim N(0, \lambda_j)$. Then:
+</p>
+$$Q = S^\top S = Z^\top Z = \sum_j Z_j^2 = \sum_j \lambda_j \left(\frac{Z_j}{\sqrt{\lambda_j}}\right)^2 = \sum_j \lambda_j \chi^2_{1,j}$$
+<p>
+So the null distribution of $Q$ is a weighted sum of chi-squared(1) variables, where the weights
+are the eigenvalues of $\Phi$.
+</p>
+</div>
+
+<div class="example">
+<h4>Numerical Example: SKAT Test with m=3 Variants</h4>
+
+$$S = \begin{pmatrix} 1.5 \\ -0.8 \\ 0.3 \end{pmatrix}, \quad
+\Phi = \begin{pmatrix} 0.10 & 0.02 & 0.01 \\ 0.02 & 0.15 & 0.03 \\ 0.01 & 0.03 & 0.08 \end{pmatrix}$$
+
+<p><strong>Step 1:</strong> SKAT statistic. From the formula $Q_{\text{SKAT}} = S^\top S = \sum_{j=1}^m S_j^2$:</p>
+$$Q_{\text{SKAT}} = S^\top S = S_1^2 + S_2^2 + S_3^2 = 1.5^2 + (-0.8)^2 + 0.3^2 = 2.25 + 0.64 + 0.09 = 2.98$$
+
+<p><strong>Step 2:</strong> Eigenvalue decomposition of $\Phi$. The null distribution is $Q_{\text{SKAT}} \sim \sum_{j=1}^m \lambda_j \chi^2_{1,j}$ where $\lambda_j$ are the eigenvalues of $\Phi$. For this $\Phi$:</p>
+$$\det(\Phi - \lambda I) = 0 \quad \Longrightarrow \quad \lambda = (0.174, \; 0.093, \; 0.063)$$
+
+<p><strong>Step 3:</strong> Compute the p-value. We need to find $P\bigl(\sum_j \lambda_j \chi^2_{1,j} > Q_{\text{SKAT}}\bigr)$, substituting our eigenvalues and observed $Q$:</p>
+$$p = P(\lambda_1 \chi^2_{1,1} + \lambda_2 \chi^2_{1,2} + \lambda_3 \chi^2_{1,3} > Q) = P(0.174 \chi^2_{1,1} + 0.093 \chi^2_{1,2} + 0.063 \chi^2_{1,3} > 2.98)$$
+
+<p>This has no closed-form solution because it is a weighted sum of independent $\chi^2_1$ variables with different weights. SAIGE uses two numerical methods: Davies (primary, Section 9a) and Liu (fallback, Section 9b).</p>
+
+<p>Note: For BURDEN (Section 8), the same scores gave $\sum S_j = 1.5 + (-0.8) + 0.3 = 1.0$ and $T_{\text{Burden}} = 1.0^2 = 1.0$.
+But SKAT gives $Q = 2.98$ because it squares each $S_j$ first then sums, preserving the $(-0.8)^2 = 0.64$ contribution
+that BURDEN's direct summation partially cancelled ($-0.8$ reduced the sum from $1.8$ to $1.0$).</p>
+</div>
+
+<section id="sec-skat-davies">
+<h3>9a. Davies Method &mdash; Characteristic Function Inversion</h3>
+
+<p>
+The Davies method computes $P(Q > q)$ by numerically inverting the characteristic function (Fourier
+transform) of $Q$. For our mixture $Q = \sum_j \lambda_j \chi^2_1$:
+</p>
+
+<div class="math-block">
+<strong>Characteristic function:</strong>
+$$\phi_Q(t) = \prod_{j=1}^m (1 - 2it\lambda_j)^{-1/2}$$
+
+<strong>Tail probability:</strong>
+$$P(Q > c) = \frac{1}{2} - \frac{1}{\pi} \int_0^\infty \frac{\text{Im}[\phi_Q(t) \cdot e^{-itc}]}{t}\,dt$$
+</div>
+
+<p>
+In polar form, the integrand becomes:
+</p>
+
+$$f(t) = \frac{\exp(\text{log\_amp}) \cdot \sin(\text{phase})}{t}$$
+
+<p>where:</p>
+$$\text{log\_amp} = -\frac{1}{4} \sum_{j=1}^m \log(1 + 4t^2\lambda_j^2)$$
+$$\text{phase} = \frac{1}{2}\sum_{j=1}^m \arctan(2t\lambda_j) - tc$$
+
+<p>
+The integral is evaluated by the trapezoidal rule with step size $h \leq \pi / (4 \lambda_{\max})$
+to satisfy the Nyquist condition. Typically 1,000-10,000 evaluations are needed.
+</p>
+
+<div class="example">
+<h4>Example: Davies Integration Sketch</h4>
+<p>For $\lambda = (0.174, 0.093, 0.063)$ and $c = Q = 2.98$:</p>
+<p>Step size (Nyquist condition): $h \leq \pi / (4 \lambda_{\max}) = \pi / (4 \times 0.174) = 4.51$. Use $h \approx 1.0$.</p>
+
+<p>At $t = 1$, evaluate the polar-form integrand. First, the log-amplitude using the formula $\text{log\_amp} = -\frac{1}{4}\sum_j \log(1 + 4t^2\lambda_j^2)$:</p>
+$$\text{log\_amp} = -\frac{1}{4}\sum_{j=1}^3 \log(1 + 4t^2\lambda_j^2) = -\frac{1}{4}\bigl[\log(1 + 4 \cdot 1^2 \cdot 0.174^2) + \log(1 + 4 \cdot 1^2 \cdot 0.093^2) + \log(1 + 4 \cdot 1^2 \cdot 0.063^2)\bigr]$$
+$$= -\frac{1}{4}\bigl[\log(1 + 4 \times 0.0303) + \log(1 + 4 \times 0.00865) + \log(1 + 4 \times 0.00397)\bigr]$$
+$$= -\frac{1}{4}\bigl[\log(1.121) + \log(1.035) + \log(1.016)\bigr] = -\frac{1}{4}(0.114 + 0.034 + 0.016) = -\frac{0.164}{4} = -0.041$$
+
+<p>Next, the phase using the formula $\text{phase} = \frac{1}{2}\sum_j \arctan(2t\lambda_j) - tc$:</p>
+$$\text{phase} = \frac{1}{2}\sum_{j=1}^3 \arctan(2t\lambda_j) - tc = \frac{1}{2}\bigl[\arctan(2 \cdot 1 \cdot 0.174) + \arctan(2 \cdot 1 \cdot 0.093) + \arctan(2 \cdot 1 \cdot 0.063)\bigr] - 1 \cdot 2.98$$
+$$= \frac{1}{2}\bigl[\arctan(0.348) + \arctan(0.186) + \arctan(0.126)\bigr] - 2.98$$
+$$= \frac{1}{2}(0.335 + 0.184 + 0.125) - 2.98 = \frac{0.644}{2} - 2.98 = 0.322 - 2.98 = -2.658$$
+
+<p>Finally, the integrand value using $f(t) = \frac{\exp(\text{log\_amp}) \cdot \sin(\text{phase})}{t}$:</p>
+$$f(1) = \frac{e^{\text{log\_amp}} \cdot \sin(\text{phase})}{t} = \frac{e^{-0.041} \cdot \sin(-2.658)}{1} = 0.960 \times (-0.442) = -0.424$$
+
+<p>The integral accumulates contributions from $t = h, 2h, 3h, \ldots$ until convergence.</p>
+</div>
+
+</section>
+
+<section id="sec-skat-liu">
+<h3>9b. Liu Moment-Matching Method &mdash; The Fallback</h3>
+
+<p>
+When Davies fails to converge (or returns an invalid result), SAIGE falls back to the Liu method.
+This approximates the mixture of chi-squareds by a single (possibly non-central) chi-squared
+distribution, matched by the first four cumulants.
+</p>
+
+<div class="math-block">
+<strong>Cumulant sums from eigenvalues:</strong>
+$$c_k = \sum_{j=1}^m \lambda_j^k \qquad \text{for } k = 1, 2, 3, 4$$
+
+<strong>Derived quantities:</strong>
+$$\mu_Q = c_1, \quad \sigma_Q = \sqrt{2 c_2}$$
+$$s_1 = \frac{c_3}{c_2^{3/2}}, \quad s_2 = \frac{c_4}{c_2^2}$$
+
+<strong>If $s_1^2 > s_2$:</strong> Non-central chi-squared
+$$a = \frac{1}{s_1 - \sqrt{s_1^2 - s_2}}, \quad \delta = s_1 a^3 - a^2, \quad \ell = a^2 - 2\delta$$
+
+<strong>If $s_1^2 \leq s_2$:</strong> Central chi-squared
+$$\delta = 0, \quad \ell = 1/s_2$$
+
+<strong>Normalized statistic:</strong>
+$$Q_{\text{norm}} = \frac{Q - \mu_Q}{\sigma_Q} \sqrt{2\ell + 4\delta} + \ell + \delta$$
+
+<strong>P-value:</strong>
+$$p = P(\chi^2_\ell(\delta) > Q_{\text{norm}})$$
+</div>
+
+<div class="example">
+<h4>Example: Liu Method for $\lambda = (0.174, 0.093, 0.063)$, $Q = 2.98$</h4>
+
+<p><strong>Step 1:</strong> Compute the cumulant sums from the formula $c_k = \sum_{j=1}^m \lambda_j^k$:</p>
+$$c_1 = \sum_j \lambda_j = \lambda_1 + \lambda_2 + \lambda_3 = 0.174 + 0.093 + 0.063 = 0.330$$
+$$c_2 = \sum_j \lambda_j^2 = 0.174^2 + 0.093^2 + 0.063^2 = 0.03028 + 0.00865 + 0.00397 = 0.0429$$
+$$c_3 = \sum_j \lambda_j^3 = 0.174^3 + 0.093^3 + 0.063^3 = 0.005268 + 0.000804 + 0.000250 = 0.00632$$
+$$c_4 = \sum_j \lambda_j^4 = 0.174^4 + 0.093^4 + 0.063^4 = 0.000917 + 0.0000748 + 0.0000158 = 0.00101$$
+
+<p><strong>Step 2:</strong> Compute the derived quantities from the formulas $\mu_Q = c_1$, $\sigma_Q = \sqrt{2c_2}$, $s_1 = c_3 / c_2^{3/2}$, $s_2 = c_4 / c_2^2$:</p>
+$$\mu_Q = c_1 = 0.330$$
+$$\sigma_Q = \sqrt{2 c_2} = \sqrt{2 \times 0.0429} = \sqrt{0.0858} = 0.293$$
+$$s_1 = \frac{c_3}{c_2^{3/2}} = \frac{0.00632}{(0.0429)^{3/2}} = \frac{0.00632}{0.00889} = 0.711$$
+$$s_2 = \frac{c_4}{c_2^2} = \frac{0.00101}{(0.0429)^2} = \frac{0.00101}{0.00184} = 0.549$$
+
+<p><strong>Step 3:</strong> Choose central vs. non-central chi-squared. Check whether $s_1^2 > s_2$:</p>
+$$s_1^2 = 0.711^2 = 0.505 \quad \text{vs.} \quad s_2 = 0.549$$
+<p>Since $s_1^2 = 0.505 \leq s_2 = 0.549$: use central chi-squared. From the formula: $\delta = 0$, $\ell = 1/s_2$:</p>
+$$\ell = \frac{1}{s_2} = \frac{1}{0.549} = 1.82, \quad \delta = 0$$
+
+<p><strong>Step 4:</strong> Normalize $Q$ using the formula $Q_{\text{norm}} = \frac{Q - \mu_Q}{\sigma_Q}\sqrt{2\ell + 4\delta} + \ell + \delta$:</p>
+$$Q_{\text{norm}} = \frac{Q - \mu_Q}{\sigma_Q}\sqrt{2\ell + 4\delta} + \ell + \delta = \frac{2.98 - 0.330}{0.293}\sqrt{2(1.82) + 4(0)} + 1.82 + 0$$
+$$= \frac{2.65}{0.293} \times \sqrt{3.64} + 1.82 = 9.044 \times 1.908 + 1.82 = 17.26 + 1.82 = 19.08$$
+
+<p><strong>Step 5:</strong> P-value from the formula $p = P(\chi^2_\ell(\delta) > Q_{\text{norm}})$. Since $\delta = 0$, this is a central chi-squared with $\ell = 1.82$ degrees of freedom:</p>
+$$p = P(\chi^2_{1.82} > Q_{\text{norm}}) = P(\chi^2_{1.82} > 19.08) \approx 3.3 \times 10^{-5}$$
+</div>
+
+</section>
+</section>
+
+
+<!-- ============================================================
+     SECTION 10: SKAT-O
+     ============================================================ -->
+<section id="sec-skato">
+<h2>10. SKAT-O &mdash; The Best of Both Worlds</h2>
+
+<div class="insight">
+<strong>Intuition:</strong> BURDEN is best when all variants have same-direction effects. SKAT is best when
+effects are mixed. SKAT-O asks: "What is the optimal blend of BURDEN and SKAT for this gene?" It searches
+over a grid of mixing parameters and reports the p-value adjusted for the search.
+</div>
+
+<p>
+SKAT-O defines a family of test statistics parameterized by $\rho \in [0, 1]$:
+</p>
+
+<div class="math-block">
+$$Q(\rho) = (1-\rho) \underbrace{S^\top S}_{Q_{\text{SKAT}}} + \rho \underbrace{(\mathbf{1}^\top S)^2}_{Q_{\text{Burden}}}$$
+</div>
+
+<p>
+At $\rho = 0$, this is pure SKAT. At $\rho = 1$, this is pure BURDEN. The grid of $\rho$ values is:
+</p>
+
+$$\rho \in \{0, \; 0.01, \; 0.04, \; 0.09, \; 0.16, \; 0.25, \; 0.36, \; 0.49, \; 0.64, \; 0.81, \; 1\}$$
+
+<p>(These are $\{0, 0.1^2, 0.2^2, \ldots, 0.9^2, 1\}$ &mdash; 11 points.)</p>
+
+<h3>Algorithm</h3>
+
+<ol>
+  <li>For each $\rho_k$ in the grid, compute $Q(\rho_k)$</li>
+  <li>Compute the null distribution of $Q(\rho_k)$: it is a mixture of chi-squareds with eigenvalues from $R_\rho^{1/2} \Phi R_\rho^{1/2}$ where $R_\rho = (1-\rho)I + \rho \mathbf{1}\mathbf{1}^\top$</li>
+  <li>Compute $p_k = P(Q(\rho_k) > q_k \mid H_0)$ using Davies or Liu</li>
+  <li>Find $T_{\min} = \min_k p_k$ (the smallest p-value across the grid)</li>
+  <li>Compute the SKAT-O p-value: $P(\min_k p(\rho_k) < T_{\min})$ via numerical integration</li>
+</ol>
+
+<div class="example">
+<h4>Example: SKAT-O with m=3, Two Grid Points</h4>
+
+<p>Using $S = (1.5, -0.8, 0.3)^\top$, and the SKAT-O formula $Q(\rho) = (1-\rho) \cdot S^\top S + \rho \cdot (\mathbf{1}^\top S)^2$:</p>
+
+<p>First, compute the two endpoint statistics. At $\rho = 0$ (pure SKAT), $Q(0) = (1-0) \cdot S^\top S + 0 \cdot (\mathbf{1}^\top S)^2 = S^\top S$:</p>
+$$Q_{\text{SKAT}} = Q(\rho=0) = S^\top S = 1.5^2 + (-0.8)^2 + 0.3^2 = 2.25 + 0.64 + 0.09 = 2.98$$
+
+<p>At $\rho = 1$ (pure BURDEN), $Q(1) = (1-1) \cdot S^\top S + 1 \cdot (\mathbf{1}^\top S)^2 = (\mathbf{1}^\top S)^2$:</p>
+$$Q_{\text{Burden}} = Q(\rho=1) = (\mathbf{1}^\top S)^2 = (S_1 + S_2 + S_3)^2 = (1.5 + (-0.8) + 0.3)^2 = (1.0)^2 = 1.0$$
+
+<p>At an intermediate $\rho = 0.5$, substitute into the formula:</p>
+$$Q(0.5) = (1-0.5) \cdot S^\top S + 0.5 \cdot (\mathbf{1}^\top S)^2 = 0.5 \times Q_{\text{SKAT}} + 0.5 \times Q_{\text{Burden}} = 0.5 \times 2.98 + 0.5 \times 1.0 = 1.49 + 0.50 = 1.99$$
+
+<p>
+Each $Q(\rho_k)$ gets its own p-value from the corresponding eigenvalue distribution. Suppose:
+$p(\rho=0) = 3.3 \times 10^{-5}$, $p(\rho=0.5) = 0.012$, $p(\rho=1) = 0.137$.
+</p>
+<p>
+Then $T_{\min} = 3.3 \times 10^{-5}$, achieved at $\rho = 0$ (pure SKAT). The SKAT-O p-value
+adjusts for searching 11 grid points and is slightly larger than $3.3 \times 10^{-5}$.
+</p>
+</div>
+
+<details>
+<summary>How is the SKAT-O p-value computed? (Integration over chi-squared density)</summary>
+<div class="detail-content">
+<p>
+The key idea: decompose each $Q(\rho_k)$ into a leading eigenvalue component $\lambda_{\max,k} Z$ (where
+$Z \sim \chi^2_1$) and a remainder. The SKAT-O p-value is:
+</p>
+$$p_{\text{SKAT-O}} = \int_0^\infty \max_k P(Q_{\text{remain},k} > \tau_k - \lambda_{\max,k} z) \cdot f_{\chi^2_1}(z)\,dz$$
+<p>
+where $\tau_k$ is the threshold such that $P(Q(\rho_k) > \tau_k) = T_{\min}$ (determined by the Liu
+approximation), and $f_{\chi^2_1}$ is the chi-squared(1) density.
+</p>
+<p>
+The integral is evaluated on a grid from 0 to 40 with step $\Delta x = 0.05$ (800 points), using
+chi-squared(1) CDF differences as quadrature weights.
+</p>
+</div>
+</details>
+
+<div class="note">
+<strong>Why is SKAT-O the most commonly used test?</strong> In practice, we rarely know in advance whether
+all causal variants in a gene have the same effect direction. SKAT-O adapts to the data: if all effects
+are same-direction, it effectively reduces to BURDEN; if effects are mixed, it effectively reduces to
+SKAT. The price is a small loss of power (due to the multiple testing correction across the $\rho$ grid),
+but this is usually worth the robustness.
+</div>
+
+</section>
+
+
+<!-- ============================================================
+     SECTION 11: CCT
+     ============================================================ -->
+<section id="sec-cct">
+<h2>11. Cauchy Combination Test (CCT) &mdash; Combining P-values</h2>
+
+<div class="insight">
+<strong>Intuition:</strong> SAIGE tests each gene under multiple annotation masks (e.g., loss-of-function only,
+missense + LoF) and multiple MAF thresholds (e.g., MAF < 0.01, MAF < 0.001). This produces many p-values
+per gene. CCT combines them into a single omnibus p-value that is valid even when the tests are correlated.
+</div>
+
+<p>
+The Cauchy Combination Test transforms each p-value into a Cauchy-distributed variable, sums them, and
+converts back:
+</p>
+
+<div class="math-block">
+<strong>CCT statistic:</strong>
+$$T_{\text{CCT}} = \frac{1}{k}\sum_{i=1}^k \tan\!\bigl((0.5 - p_i)\pi\bigr)$$
+
+<strong>CCT p-value:</strong>
+$$p_{\text{CCT}} = \frac{1}{2} - \frac{1}{\pi}\arctan(T_{\text{CCT}})$$
+</div>
+
+<p>
+For very small p-values ($p_i < 10^{-16}$), the tangent function overflows. In this case, the
+approximation $\tan((0.5 - p)\pi) \approx 1/(p\pi)$ is used instead. Similarly, for very large
+$T_{\text{CCT}}$ ($> 10^{15}$), $p_{\text{CCT}} \approx 1/(T_{\text{CCT}} \cdot \pi)$.
+</p>
+
+<div class="example">
+<h4>Numerical Example: CCT with k=3 P-values</h4>
+<p>Suppose a gene was tested with three annotation/MAF combinations, yielding:</p>
+$$p_1 = 0.002, \quad p_2 = 0.05, \quad p_3 = 0.30$$
+
+<p><strong>Step 1:</strong> Transform each p-value using the formula $\tan\!\bigl((0.5 - p_i)\pi\bigr)$. This maps $p_i$ values near 0 to large positive numbers, and $p_i = 0.5$ to zero:</p>
+$$\tan\!\bigl((0.5 - p_1)\pi\bigr) = \tan\!\bigl((0.5 - 0.002)\pi\bigr) = \tan(0.498\pi) = \tan(89.64^\circ) \approx 159.15$$
+$$\tan\!\bigl((0.5 - p_2)\pi\bigr) = \tan\!\bigl((0.5 - 0.05)\pi\bigr) = \tan(0.45\pi) = \tan(81^\circ) \approx 6.314$$
+$$\tan\!\bigl((0.5 - p_3)\pi\bigr) = \tan\!\bigl((0.5 - 0.30)\pi\bigr) = \tan(0.20\pi) = \tan(36^\circ) \approx 0.727$$
+
+<p><strong>Step 2:</strong> Average using the formula $T_{\text{CCT}} = \frac{1}{k}\sum_{i=1}^k \tan\!\bigl((0.5 - p_i)\pi\bigr)$ with $k = 3$:</p>
+$$T_{\text{CCT}} = \frac{1}{k}\sum_{i=1}^k \tan\!\bigl((0.5 - p_i)\pi\bigr) = \frac{159.15 + 6.314 + 0.727}{3} = \frac{166.19}{3} = 55.40$$
+
+<p><strong>Step 3:</strong> Convert back to a p-value using the formula $p_{\text{CCT}} = \frac{1}{2} - \frac{1}{\pi}\arctan(T_{\text{CCT}})$:</p>
+$$p_{\text{CCT}} = \frac{1}{2} - \frac{1}{\pi}\arctan(T_{\text{CCT}}) = \frac{1}{2} - \frac{1}{\pi}\arctan(55.40) = \frac{1}{2} - \frac{1.553}{\pi} = 0.500 - 0.494 = 0.00575$$
+
+<p>(Note: $\arctan(55.40) = 1.553$ radians, which is very close to $\pi/2 = 1.571$, so $1.553/\pi = 0.494$.)</p>
+
+<p>
+The combined p-value is 0.0058, driven primarily by the strongest signal ($p_1 = 0.002$).
+CCT is dominated by the smallest p-value, which is appropriate when we expect only one of the
+annotation/MAF strata to capture the true signal.
+</p>
+</div>
+
+<div class="insight">
+<strong>Why Cauchy?</strong> If each $p_i$ is uniformly distributed on $[0,1]$ under the null, then
+$\tan((0.5 - p_i)\pi)$ has a standard Cauchy distribution. The sum of independent standard Cauchy
+variables divided by $k$ is also standard Cauchy. Crucially, this holds even when the underlying test
+statistics are correlated (the tests share overlapping variant sets). Other combination methods (Fisher,
+Tippett) require independence.
+</div>
+
+<h3>Edge Cases</h3>
+<ul>
+  <li><strong>Any $p_i = 0$:</strong> $T_{\text{CCT}} = +\infty$, so $p_{\text{CCT}} = 0$</li>
+  <li><strong>Any $p_i = 1$:</strong> $\tan((0.5-1)\pi) = \tan(-\pi/2) = -\infty$. In this case, SAIGE falls back to Bonferroni: $p_{\text{CCT}} = \min(1, k \cdot p_{\min})$</li>
+</ul>
+
+</section>
+
+
+<!-- ============================================================
+     SECTION 12: EFFICIENT RESAMPLING
+     ============================================================ -->
+<section id="sec-er">
+<h2>12. Efficient Resampling (ER) &mdash; Exact P-values for Ultra-Rare Variants</h2>
+
+<div class="insight">
+<strong>Intuition:</strong> When MAC $\leq 4$ for a binary trait, the score statistic can take on only
+a handful of distinct values. The SPA, which approximates a smooth distribution, is unreliable here.
+Instead, ER enumerates all possible assignments of cases among carriers and computes the exact p-value.
+</div>
+
+<p>
+Consider a variant with MAC = 2 (two copies of the alternate allele in the entire cohort, perhaps one
+heterozygote carrier or one homozygote). There are only a few possible outcomes:
+</p>
+<ul>
+  <li>Both carriers are controls</li>
+  <li>One carrier is a case, one is a control (and which one matters)</li>
+  <li>Both carriers are cases</li>
+</ul>
+
+<p>
+ER enumerates every such possibility, computes the test statistic for each, and weights them by their
+probability under the null model.
+</p>
+
+<h3>The ER Algorithm</h3>
+
+<div class="math-block">
+<p>Given $k$ carriers (positions where $G_i > 0$), $n_{\text{case}}$ total cases, and null probabilities $\mu_i$:</p>
+
+<p><strong>1. Hypergeometric distribution:</strong> Compute $P(j \text{ of the } k \text{ carriers are cases})$ for $j = 0, 1, \ldots, k$, weighted by the individual $\mu_i$ values.</p>
+
+<p><strong>2. Enumeration:</strong> For each $j$, enumerate all $\binom{k}{j}$ ways to choose which $j$ carriers are cases.</p>
+
+<p><strong>3. Test statistic:</strong> For each assignment, compute:</p>
+$$Q = \sum_{l=1}^m Z_{\text{test},l}^2$$
+<p>where $Z_{\text{test}}$ depends on which carriers are cases vs. controls.</p>
+
+<p><strong>4. Fisher weighting:</strong> Each assignment gets weight proportional to the product of odds for the carriers who are assigned as cases. The odds for individual $i$ are $\mu_i / (1 - \mu_i)$:</p>
+$$w_r = \prod_{i \in \text{case carriers in assignment } r} \frac{\mu_i}{1 - \mu_i}$$
+<p>(The baseline assignment where no carriers are cases has $w = 1$.)</p>
+
+<p><strong>5. P-value:</strong> Sum the normalized weights of all assignments whose test statistic meets or exceeds the observed value, with a mid-p correction (subtract half the weight of ties):</p>
+$$p_{\text{ER}} = \sum_{\{r : Q_r \geq Q_{\text{obs}}\}} w_r - \frac{1}{2}\sum_{\{r : Q_r = Q_{\text{obs}}\}} w_r$$
+<p>(All weights are normalized so that $\sum_r w_r = 1$ within each hypergeometric class.)</p>
+</div>
+
+<div class="example">
+<h4>Numerical Example: ER with MAC = 2</h4>
+<p>
+Two carriers at positions 3 and 7 in a study with $N = 100$, $n_{\text{case}} = 20$.
+Null probabilities: $\mu_3 = 0.15$, $\mu_7 = 0.25$.
+</p>
+
+<p>Odds for each carrier, using $o_i = \mu_i / (1 - \mu_i)$:</p>
+$$o_3 = \frac{\mu_3}{1 - \mu_3} = \frac{0.15}{1 - 0.15} = \frac{0.15}{0.85} = 0.176$$
+$$o_7 = \frac{\mu_7}{1 - \mu_7} = \frac{0.25}{1 - 0.25} = \frac{0.25}{0.75} = 0.333$$
+
+<p>Total combinations: $2^2 = 4$ (since $k = 2$):</p>
+
+<table>
+<tr><th>$j$ (cases)</th><th>Assignment</th><th>Fisher Prob</th><th>$Q$</th></tr>
+<tr><td>0</td><td>Both controls</td><td>$1.0$ (baseline)</td><td>$Q_0$</td></tr>
+<tr><td>1</td><td>Carrier 3 = case</td><td>$0.176$</td><td>$Q_1$</td></tr>
+<tr><td>1</td><td>Carrier 7 = case</td><td>$0.333$</td><td>$Q_2$</td></tr>
+<tr><td>2</td><td>Both cases</td><td>$0.176 \times 0.333 = 0.059$</td><td>$Q_3$</td></tr>
+</table>
+
+<p>
+Normalize the Fisher probabilities to sum to 1 (within each $j$ class, weighted by the hypergeometric
+probability of that $j$). Then compare each $Q_r$ to the observed $Q_{\text{obs}}$ and sum the weights
+of assignments with $Q_r \geq Q_{\text{obs}}$.
+</p>
+</div>
+
+<div class="note">
+<strong>Computational feasibility:</strong> For MAC = 1, there are $2^1 = 2$ combinations. For MAC = 4,
+there are $2^4 = 16$. This is trivially enumerable. When the total number of combinations exceeds
+10,000 (not possible for MAC $\leq$ 4 in practice), SAIGE switches to Monte Carlo resampling.
+</div>
+
+</section>
+
+
+<!-- ============================================================
+     SECTION 13: CONDITIONAL ANALYSIS
+     ============================================================ -->
+<section id="sec-conditional">
+<h2>13. Conditional Analysis &mdash; Testing Independent Effects</h2>
+
+<div class="insight">
+<strong>Intuition:</strong> Suppose a region has a known strong signal at variant A. When we test variant B
+nearby, it might appear significant simply because it is in linkage disequilibrium (LD) with A. Conditional
+analysis asks: "Does variant B have an independent effect after accounting for A?" It projects out the
+contribution of conditioning markers from the score and variance.
+</div>
+
+<p>
+Let $c$ be the number of conditioning markers, with pre-computed statistics:
+</p>
+<ul>
+  <li>$T_{\text{cond}}$ [$c \times 1$]: score statistics of the conditioning markers</li>
+  <li>$\Phi_{\text{cond}}$ [$c \times c$]: their variance-covariance matrix</li>
+  <li>$\Phi_{\text{cond}}^{-1}$ [$c \times c$]: the inverse</li>
+  <li>$\text{P2Mat\_cond}$ [$N \times c$]: their P2 vectors</li>
+</ul>
+
+<h3>Conditional Score and Variance</h3>
+
+<p>
+For a test marker with unconditional score $S$ and variance $\text{var}_1$, the conditional statistics
+project out the conditioning markers:
+</p>
+
+<div class="math-block">
+<strong>Cross-covariance:</strong>
+$$\text{G1P2} = \sqrt{\text{VR}} \cdot \tilde{G}^\top \cdot \text{P2Mat\_cond} \qquad [1 \times c]$$
+
+<strong>Conditional score:</strong>
+$$S_c = S - \text{G1P2} \cdot \Phi_{\text{cond}}^{-1} \cdot T_{\text{cond}}$$
+
+<strong>Conditional variance:</strong>
+$$\text{var}_c = \text{var}_1 - \text{G1P2} \cdot \Phi_{\text{cond}}^{-1} \cdot \text{G1P2}^\top$$
+
+<strong>Conditional p-value:</strong>
+$$\text{stat}_c = \frac{S_c^2}{\text{var}_c} \sim \chi^2_1, \qquad p_c = P(\chi^2_1 > \text{stat}_c)$$
+</div>
+
+<div class="example">
+<h4>Numerical Example: Conditioning on 1 Marker</h4>
+<p>
+Test marker: $S = 3.0$, $\text{var}_1 = 1.2$.<br>
+Conditioning marker: $T_{\text{cond}} = 2.5$, $\Phi_{\text{cond}} = (0.9)$ (a $1 \times 1$ matrix), so $\Phi_{\text{cond}}^{-1} = (1/0.9) = (1.111)$.<br>
+Cross-covariance: $\text{G1P2} = 0.6$.
+</p>
+
+<p><strong>Conditional score:</strong> From the formula $S_c = S - \text{G1P2} \cdot \Phi_{\text{cond}}^{-1} \cdot T_{\text{cond}}$, substituting $S = 3.0$, $\text{G1P2} = 0.6$, $\Phi_{\text{cond}}^{-1} = 1.111$, $T_{\text{cond}} = 2.5$:</p>
+$$S_c = S - \text{G1P2} \cdot \Phi_{\text{cond}}^{-1} \cdot T_{\text{cond}} = 3.0 - 0.6 \times 1.111 \times 2.5 = 3.0 - 1.667 = 1.333$$
+
+<p><strong>Conditional variance:</strong> From the formula $\text{var}_c = \text{var}_1 - \text{G1P2} \cdot \Phi_{\text{cond}}^{-1} \cdot \text{G1P2}^\top$, substituting $\text{var}_1 = 1.2$, $\text{G1P2} = 0.6$, $\Phi_{\text{cond}}^{-1} = 1.111$:</p>
+$$\text{var}_c = \text{var}_1 - \text{G1P2} \cdot \Phi_{\text{cond}}^{-1} \cdot \text{G1P2}^\top = 1.2 - 0.6 \times 1.111 \times 0.6 = 1.2 - 0.400 = 0.800$$
+
+<p><strong>Conditional test:</strong> From $\text{stat}_c = S_c^2 / \text{var}_c$:</p>
+$$\text{stat}_c = \frac{S_c^2}{\text{var}_c} = \frac{1.333^2}{0.800} = \frac{1.777}{0.800} = 2.221$$
+$$p_c = P(\chi^2_1 > \text{stat}_c) = P(\chi^2_1 > 2.221) \approx 0.136$$
+
+<p><strong>Comparison:</strong> Without conditioning, the test statistic and p-value use the unconditional formulas $\text{stat} = S^2 / \text{var}_1$ and $p = P(\chi^2_1 > \text{stat})$:</p>
+$$\text{stat} = \frac{S^2}{\text{var}_1} = \frac{3.0^2}{1.2} = \frac{9.0}{1.2} = 7.5, \quad p = P(\chi^2_1 > 7.5) = 0.0062 \text{ (highly significant)}$$
+<p>After conditioning: $p_c = 0.136$ (not significant). This suggests the test marker's signal was
+largely driven by LD with the conditioning marker.</p>
+</div>
+
+<div class="note">
+<strong>Self-conditioning:</strong> If a test marker is also a conditioning marker, $\text{G1P2}$ becomes
+proportional to a column of $\Phi_{\text{cond}}$, and $\text{var}_c$ approaches zero. Both R SAIGE and
+the C++ implementation output $p_c = 1.0$ for such markers.
+</div>
+
+</section>
+
+
+<!-- ============================================================
+     SECTION 14: SPARSE GRM & PCG
+     ============================================================ -->
+<section id="sec-sparse-grm">
+<h2>14. Sparse GRM and PCG &mdash; Accounting for Relatedness</h2>
+
+<div class="insight">
+<strong>Intuition:</strong> When the study includes related individuals (e.g., a biobank with families), the
+score test variance needs to account for shared genetics. The Genetic Relationship Matrix (GRM) captures
+pairwise relatedness. Since the full GRM is $N \times N$ and too large to store or invert, SAIGE uses a
+sparse GRM (only close relatives have nonzero entries) and solves the resulting linear system iteratively
+using the Preconditioned Conjugate Gradient (PCG) method.
+</div>
+
+<h3>How the Sparse GRM Changes the Variance</h3>
+
+<p>
+Without the sparse GRM, the P2 vector uses the diagonal approximation:
+</p>
+$$P2 = \tilde{G} \odot \texttt{mu2} \cdot \tau_0$$
+
+<p>
+With the sparse GRM, the P2 vector requires solving a linear system:
+</p>
+
+<div class="math-block">
+$$\Sigma \cdot P2 = \tilde{G} \qquad \Longrightarrow \qquad P2 = \Sigma^{-1} \tilde{G}$$
+</div>
+
+<p>
+where $\Sigma$ is the sparse covariance matrix (derived from the GRM). Substituting $P2 = \Sigma^{-1}\tilde{G}$ into the variance formula:
+$$\text{var}_2 = \tilde{G}^\top P2 = \tilde{G}^\top \Sigma^{-1} \tilde{G}$$
+This is the quadratic form of $\tilde{G}$ with respect to the precision matrix $\Sigma^{-1}$. Compare with the diagonal approximation $\text{var}_2 = \sum_i \texttt{mu2}_i \tilde{G}_i^2 = \tilde{G}^\top \text{diag}(\texttt{mu2} \cdot \tau_0) \tilde{G}$, which replaces $\Sigma^{-1}$ with a diagonal matrix.
+</p>
+
+<h3>The PCG Algorithm</h3>
+
+<p>
+PCG is an iterative method to solve $\Sigma x = b$ without explicitly forming $\Sigma^{-1}$.
+It uses the diagonal of $\Sigma$ as a preconditioner (Jacobi preconditioner):
+</p>
+
+<div class="math-block">
+<p>Initialize: $x_0 = 0$, $r_0 = b$, $z_0 = M^{-1} r_0$, $p_0 = z_0$, where $M = \text{diag}(\Sigma)$.</p>
+
+<p>For $k = 0, 1, 2, \ldots$:</p>
+$$\alpha_k = \frac{r_k^\top z_k}{p_k^\top \Sigma p_k}$$
+$$x_{k+1} = x_k + \alpha_k p_k$$
+$$r_{k+1} = r_k - \alpha_k \Sigma p_k$$
+$$z_{k+1} = M^{-1} r_{k+1}$$
+$$\beta_k = \frac{z_{k+1}^\top r_{k+1}}{z_k^\top r_k}$$
+$$p_{k+1} = z_{k+1} + \beta_k p_k$$
+
+<p>Stop when $\|r_k\|^2 < \text{tol}$ (default 0.02) or $k \geq \text{maxiter}$ (default 100).</p>
+</div>
+
+<div class="example">
+<h4>Example: PCG Intuition (N=3, Dense for Illustration)</h4>
+<p>Suppose $\Sigma$ and $b$ are:</p>
+$$\Sigma = \begin{pmatrix} 2 & 0.5 & 0 \\ 0.5 & 3 & 0.5 \\ 0 & 0.5 & 2 \end{pmatrix}, \quad b = \begin{pmatrix} 1 \\ 0 \\ -1 \end{pmatrix}$$
+
+<p>Preconditioner: $M = \text{diag}(2, 3, 2)$, so $M^{-1} = \text{diag}(0.5, 0.333, 0.5)$.</p>
+
+<p>Iteration 0:</p>
+$$r_0 = b = (1, 0, -1)^\top, \quad z_0 = M^{-1} r_0 = (0.5, 0, -0.5)^\top, \quad p_0 = z_0$$
+
+<p>Compute $\Sigma p_0$ (matrix-vector product). Row by row:</p>
+$$(\Sigma p_0)_1 = 2 \cdot 0.5 + 0.5 \cdot 0 + 0 \cdot (-0.5) = 1.0$$
+$$(\Sigma p_0)_2 = 0.5 \cdot 0.5 + 3 \cdot 0 + 0.5 \cdot (-0.5) = 0.25 + 0 - 0.25 = 0$$
+$$(\Sigma p_0)_3 = 0 \cdot 0.5 + 0.5 \cdot 0 + 2 \cdot (-0.5) = -1.0$$
+<p>So $\Sigma p_0 = (1, 0, -1)^\top$.</p>
+
+<p>Compute $\alpha_0$ from the formula $\alpha_k = \frac{r_k^\top z_k}{p_k^\top \Sigma p_k}$:</p>
+$$\alpha_0 = \frac{r_0^\top z_0}{p_0^\top \Sigma p_0} = \frac{(1)(0.5) + (0)(0) + (-1)(-0.5)}{(0.5)(1) + (0)(0) + (-0.5)(-1)} = \frac{0.5 + 0 + 0.5}{0.5 + 0 + 0.5} = \frac{1.0}{1.0} = 1.0$$
+
+<p>Update $x$ and $r$ using the formulas $x_{k+1} = x_k + \alpha_k p_k$ and $r_{k+1} = r_k - \alpha_k \Sigma p_k$:</p>
+$$x_1 = x_0 + \alpha_0 p_0 = (0,0,0)^\top + 1.0 \cdot (0.5, 0, -0.5)^\top = (0.5, 0, -0.5)^\top$$
+$$r_1 = r_0 - \alpha_0 \Sigma p_0 = (1, 0, -1)^\top - 1.0 \cdot (1, 0, -1)^\top = (0, 0, 0)^\top$$
+
+<p>Converged in 1 iteration! The exact solution is $x = (0.5, 0, -0.5)^\top$.</p>
+<p>(In practice, convergence takes more iterations because $\Sigma$ is larger and less well-conditioned.)</p>
+</div>
+
+<h3>Fast Test with Re-evaluation</h3>
+
+<p>
+Running PCG for every variant would be expensive. Instead, SAIGE uses a two-pass strategy:
+</p>
+
+<ol>
+  <li><strong>Fast pass:</strong> Test all variants using the cheap diagonal approximation (scoreTestFast)</li>
+  <li><strong>Re-evaluation:</strong> For variants with $p < 0.05$ and MAC in a sparse-VR category, re-test using full PCG (scoreTest)</li>
+</ol>
+
+<p>
+Since the vast majority of variants are not significant, only a small fraction need the expensive PCG pass.
+</p>
+
+<div class="note">
+<strong>Known issue:</strong> R's sparse matrix format stores only the lower triangle of $\Sigma$, creating
+a non-symmetric matrix. For some markers entering the PCG path, this causes convergence failures and
+negative variance estimates (p = 1.0). This is a known SAIGE behavior that affects about 49 markers out
+of 128,868 in the test dataset, and the C++ implementation faithfully replicates this behavior.
+</div>
+
+</section>
+
+
+<!-- ============================================================
+     SUMMARY
+     ============================================================ -->
+<section id="sec-summary">
+<h2>Summary: The Complete Step 2 Pipeline</h2>
+
+<p>
+Let us trace the complete path for one variant in a binary-trait GWAS with $N = 100{,}000$:
+</p>
+
+<ol>
+  <li><strong>Load null model</strong> (Section 2): Read $\mu$, res, $X$, precomputed matrices from Step 1</li>
+  <li><strong>Read genotype</strong>: Get $G \in \{0,1,2\}^N$ for this variant from the genotype file</li>
+  <li><strong>QC check</strong>: MAC $\geq$ threshold? Missing rate $\leq$ cutoff?</li>
+  <li><strong>Project</strong> (Section 3a): $\tilde{G} = G - \text{XXVX\_inv} \cdot (\text{XV} \cdot G)$</li>
+  <li><strong>Score test</strong> (Section 3): Compute $S$, $\text{var}_2$, apply VR (Section 4) to get $\text{var}_1$, then $Z = S / \sqrt{\text{var}_1}$</li>
+  <li><strong>If $|Z| > 2$ and binary trait</strong>: Apply SPA (Section 5) for accurate tail probability</li>
+  <li><strong>If MAC $\leq 4$ and binary trait</strong>: Use ER instead of SPA (Section 12)</li>
+  <li><strong>If $p < 0.05$ and binary trait</strong>: Apply Firth correction for $\hat\beta$ (Section 6)</li>
+  <li><strong>If conditioning markers specified</strong>: Compute conditional statistics (Section 13)</li>
+  <li><strong>Output</strong>: CHR, POS, REF, ALT, AF, MAC, $\hat\beta$, SE, p-value</li>
+</ol>
+
+<p>For region-based testing, the flow adds:</p>
+
+<ol start="11">
+  <li><strong>Group variants by gene</strong> (Section 7): Read group file, classify variants</li>
+  <li><strong>Build P1Mat and P2Mat</strong> (Section 7a)</li>
+  <li><strong>Collapse URVs</strong> (Section 7b), apply weights (Section 7c), adjust $\Phi$ for SPA (Section 7d)</li>
+  <li><strong>Run BURDEN</strong> (Section 8): $T = (\sum S_j)^2 / (\mathbf{1}^\top \Phi \mathbf{1})$</li>
+  <li><strong>Run SKAT</strong> (Section 9): $Q = S^\top S$, p-value via Davies or Liu</li>
+  <li><strong>Run SKAT-O</strong> (Section 10): Grid search over $\rho$</li>
+  <li><strong>Combine with CCT</strong> (Section 11): Across annotation/MAF strata</li>
+</ol>
+
+<div class="insight">
+<strong>Key takeaway:</strong> SAIGE Step 2 is fundamentally a score test with three layers of refinement:
+(1) variance ratio correction for computational efficiency, (2) saddlepoint approximation for accurate
+p-values with binary traits, and (3) grouping strategies (BURDEN, SKAT, SKAT-O) to aggregate rare variants
+by gene. Each layer addresses a specific statistical or computational challenge in large-scale genetic
+association testing.
+</div>
+
+</section>
+
+
+</div> <!-- end #content -->
+
+
+<!-- ============================================================
+     SCROLL-SPY JAVASCRIPT
+     ============================================================ -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const links = document.querySelectorAll('#sidebar nav a');
+  const sections = [];
+
+  links.forEach(function(link) {
+    const href = link.getAttribute('href');
+    if (href && href.startsWith('#')) {
+      const section = document.querySelector(href);
+      if (section) {
+        sections.push({ el: section, link: link });
+      }
+    }
+  });
+
+  function onScroll() {
+    const scrollPos = window.scrollY + 80;
+    let current = null;
+
+    for (let i = sections.length - 1; i >= 0; i--) {
+      if (sections[i].el.offsetTop <= scrollPos) {
+        current = sections[i];
+        break;
+      }
+    }
+
+    links.forEach(function(l) { l.classList.remove('active'); });
+    if (current) {
+      current.link.classList.add('active');
+    }
+  }
+
+  window.addEventListener('scroll', onScroll);
+  onScroll();
+
+  // Smooth scroll for sidebar links
+  links.forEach(function(link) {
+    link.addEventListener('click', function(e) {
+      e.preventDefault();
+      const target = document.querySelector(link.getAttribute('href'));
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  });
+});
+</script>
+
+</body>
+</html>

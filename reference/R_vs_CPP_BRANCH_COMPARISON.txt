@@ -1,0 +1,245 @@
+================================================================================
+R vs C++ Branching Logic Comparison Report — SAIGE Step 2
+Generated: 2026-02-23
+================================================================================
+
+This report cross-compares the 8 critical decision points in the SAIGE Step 2
+branching logic between the original R/Rcpp code and the C++ standalone port.
+
+FILES COMPARED:
+  R/Rcpp:
+    /SAIGE/src/SAIGE_test.cpp  (getMarkerPval, lines 480-760)
+    /SAIGE/src/Main.cpp        (mainMarkerInCPP lines 410-560, mainRegionInCPP lines 1280-1490)
+    /SAIGE/R/SAIGE_Test_main.R (SPAGMMATtest defaults, lines 62-121)
+    /SAIGE/R/readInGLMM.R      (Get_Variance_Ratio, lines 370-477)
+  C++:
+    code_copy/cpp_standalone/saige_test.cpp  (getMarkerPval, lines 430-670)
+    code_copy/cpp_standalone/main.cpp        (mainMarkerInCPP lines 780-960, mainRegionInCPP lines 1850-2000)
+    code_copy/cpp_standalone/null_model_loader.cpp (loadVarianceRatios, lines 76-235)
+
+================================================================================
+DECISION POINT TABLE
+================================================================================
+
++---+------------------------------+----------------------------+----------------------------+-------+-------------------------------------------+
+| # | Decision Point               | R Location                 | C++ Location               | Match | Notes                                     |
++---+------------------------------+----------------------------+----------------------------+-------+-------------------------------------------+
+| 1 | Score test selection:        | SAIGE_test.cpp:503-518     | saige_test.cpp:436-449     | YES   | Identical 3-way branch:                   |
+|   |   noadjCov / sparseGRM /     |                            |                            |       |   if(!sparseGRM && noadjCov) -> Fast_noadj |
+|   |   fast                       |                            |                            |       |   elif(sparseGRM)           -> scoreTest   |
+|   |                              |                            |                            |       |   else                      -> scoreTestFast|
++---+------------------------------+----------------------------+----------------------------+-------+-------------------------------------------+
+| 2 | ER activation:               | SAIGE_test.cpp:545-549     | saige_test.cpp:470-474     | YES   | Condition is identical:                   |
+|   |   (StdStat>SPA_Cutoff ||     |                            |                            |       |   (StdStat > m_SPA_Cutoff || isnan) &&    |
+|   |    isnan) && !quant && isER  |                            |                            |       |   traitType != "quantitative" && t_isER   |
++---+------------------------------+----------------------------+----------------------------+-------+-------------------------------------------+
+| 3 | SPA trigger:                 | SAIGE_test.cpp:556         | saige_test.cpp:480         | YES   | Condition is identical:                   |
+|   |   !isnan(StdStat) &&         |                            |                            |       |   !isnan && StdStat > SPA_Cutoff &&       |
+|   |   StdStat > SPA_Cutoff &&   |                            |                            |       |   traitType != "quantitative"             |
+|   |   !quantitative              |                            |                            |       |                                           |
++---+------------------------------+----------------------------+----------------------------+-------+-------------------------------------------+
+| 4 | SPA_fast vs SPA:             | SAIGE_test.cpp:646-652     | saige_test.cpp:524-529     | YES   | Identical condition:                      |
+|   |   p_iIndexComVecSize >= 0.5  |                            |                            |       |   if(zeros_frac >= 0.5 && !sparseGRM)     |
+|   |   && !sparseGRM              |                            |                            |       |     -> SPA_fast (optimized path)          |
+|   |                              |                            |                            |       |   else -> SPA (full path)                 |
++---+------------------------------+----------------------------+----------------------------+-------+-------------------------------------------+
+| 5 | MAC cutoff for ER dispatch:  | Main.cpp:492               | main.cpp:871               | YES   | Identical:                                |
+|   |   MAC <= g_MACCutoffforER    |                            |                            |       |   if(MAC <= MACCutoffforER &&             |
+|   |   && binary                  |                            |                            |       |      traitType == "binary")               |
+|   |                              |                            |                            |       |     -> call with t_isER=true              |
+|   |                              |                            |                            |       |   Default: MACCutoffforER = 4             |
++---+------------------------------+----------------------------+----------------------------+-------+-------------------------------------------+
+| 6 | Fast test re-evaluation:     | Main.cpp:518-557           | main.cpp:919-958           | YES   | Identical structure:                      |
+|   |   isFastTest && pval < cutoff|                            |                            |       |   Guard: (binary && MAC > ER_cutoff) ||   |
+|   |   -> re-run with sparse GRM |                            |                            |       |           !binary                         |
+|   |                              |                            |                            |       |   Then: if isFastTest && pval < 0.05 ->   |
+|   |                              |                            |                            |       |     reassign VR + flagSparseGRM_cur,      |
+|   |                              |                            |                            |       |     re-call Unified_getMarkerPval         |
++---+------------------------------+----------------------------+----------------------------+-------+-------------------------------------------+
+| 7 | URV collapsing in region:    | Main.cpp:1299/1453         | main.cpp:1857/1964         | YES   | Same pivot: MAC > g_region_minMAC_cutoff  |
+|   |   MAC > minMAC -> non-URV    |                            |                            |       |   indicatorVec=1: normal per-variant test |
+|   |   MAC <= minMAC -> URV       |                            |                            |       |   indicatorVec=2: URV max-collapse        |
+|   |                              |                            |                            |       |   Default: MACCutoff_to_CollapseUltraRare |
+|   |                              |                            |                            |       |   = 10                                    |
++---+------------------------------+----------------------------+----------------------------+-------+-------------------------------------------+
+| 8 | Firth correction trigger:    | SAIGE_test.cpp:702-714     | saige_test.cpp:592-613     | YES*  | Same condition:                           |
+|   |   binary && is_Firth_beta && |                            |                            |       |   if(is_Firth_beta && pval <= cutoff)     |
+|   |   pval <= pCutoffforFirth    |                            |                            |       | *C++ replaces R::qnorm with              |
+|   |                              |                            |                            |       |   boost::math::quantile(complement(...))  |
+|   |                              |                            |                            |       |   using exp(log_p/2) for log-scale path   |
++---+------------------------------+----------------------------+----------------------------+-------+-------------------------------------------+
+
+VERDICT: All 8 decision points match between R and C++.
+
+================================================================================
+DETAILED NOTES ON EACH DECISION POINT
+================================================================================
+
+1. SCORE TEST SELECTION (3-way branch)
+   Both R and C++ use the exact same priority:
+     (a) !flagSparseGRM_cur && isnoadjCov  -> scoreTestFast_noadjCov
+     (b) flagSparseGRM_cur                  -> scoreTest (PCG-based, produces gtilde)
+     (c) else                               -> scoreTestFast (standard fast path)
+   No differences in logic.
+
+2. ER ACTIVATION GATE
+   The ER flag (t_isER) is passed into getMarkerPval from the caller. Inside
+   getMarkerPval, it is refined: ER is only activated if the test statistic is
+   large enough to warrant SPA (|Z| > SPA_Cutoff or NaN) AND the trait is
+   non-quantitative. If the marker does not need SPA, ER is turned off even if
+   t_isER was true. Both R and C++ implement this identically.
+
+3. SPA TRIGGER
+   The SPA path fires only when !isnan(StdStat) && StdStat > SPA_Cutoff &&
+   trait is non-quantitative. This is distinct from the ER gate: ER catches
+   the NaN case, while the SPA path excludes NaN. Identical in both.
+
+4. SPA_FAST vs SPA
+   When >50% of genotype entries are zero (p_iIndexComVecSize >= 0.5) and no
+   sparse GRM is in use, the optimized SPA_fast path is taken. Otherwise, the
+   full SPA path is used. Identical in both.
+
+5. MAC CUTOFF FOR ER
+   In mainMarkerInCPP, R dispatches ER via `MAC <= g_MACCutoffforER && binary`.
+   C++ uses the same condition. Default is 4 (from R's SPAGMMATtest default
+   max_MAC_use_ER=4, passed via YAML config MACCutoffforER in C++).
+   R also prints a warning if max_MAC_use_ER > 4 (line 298-299).
+
+6. FAST TEST RE-EVALUATION
+   Both guard the re-evaluation with the same condition:
+     (binary && MAC > MACCutoffforER) || !binary
+   This ensures ER-handled markers are NOT re-evaluated (they already got their
+   exact p-value). Inside the guard:
+     - Check MAC vs cateVarRatioMinMACVecExclude.back() to set flagSparseGRM_cur
+     - Reassign VR for the new flag state
+     - Set isnoadjCov_cur = false (always standard adjustment for re-eval)
+     - Re-call Unified_getMarkerPval with t_isER=false
+   Both are identical.
+
+7. URV COLLAPSING IN REGION TESTS
+   The threshold MAC > g_region_minMAC_cutoff separates non-URV (indicator=1)
+   from URV (indicator=2). URV variants are collapsed per anno-MAF bin using
+   element-wise max. With custom weights, both weighted and unweighted matrices
+   are maintained. Both R and C++ use identical collapsing logic.
+
+8. FIRTH CORRECTION
+   Triggered when m_is_Firth_beta && pval <= m_pCutoffforFirth (default 0.01).
+   Both handle the ispvallog (log-scale p-value) case separately.
+   The only difference is the qnorm implementation:
+     R:   R::qnorm(pval/2, 0, 1, false, ispvallog)
+     C++: boost::math::quantile(complement(ns, exp(pval/2)))  [log path]
+          boost::math::quantile(complement(ns, pval/2))       [linear path]
+   These are mathematically equivalent. Validated to produce exact matches.
+
+================================================================================
+MAC BINS AND MULTIPLE VARIANCE RATIOS
+================================================================================
+
+What are MAC bins?
+  SAIGE estimates variance ratios (VR) by simulating markers at various minor
+  allele count (MAC) levels. For rare variants, the VR can differ substantially
+  from common variants because the projection matrix P operates differently on
+  sparse vs dense genotype vectors. SAIGE therefore supports "categorical" VR:
+  different VR values for different MAC ranges.
+
+  Example with 2 categories (the R default for single-VR label format):
+    Category 1: MAC in (10.5, 20.5]  -> VR = 0.998
+    Category 2: MAC in (20.5, +inf)  -> VR = 1.001
+
+  The boundary values come from cateVarRatioMinMACVecExclude = c(10.5, 20.5)
+  and cateVarRatioMaxMACVecInclude = c(20.5).
+
+Why multiple variance ratios?
+  - Ultra-rare variants (MAC < ~10) have very different score test variance
+    properties than common variants (MAC > 100).
+  - A single VR calibrated on common variants would under- or over-correct the
+    variance for rare variants, leading to inflated or deflated test statistics.
+  - SAIGE >= 1.0.6 estimates VR at multiple MAC levels and applies the
+    appropriate VR at test time based on the marker's observed MAC.
+
+How VR assignment works (both R and C++):
+  For each marker with observed MAC:
+    1. If isSingleVarianceRatio (only 1 VR value): use that VR for all markers
+    2. Otherwise: find the MAC bin where
+         cateVarRatioMinMACVecExclude[i] < MAC <= cateVarRatioMaxMACVecInclude[i]
+       and use the corresponding VR value.
+  The VR also depends on whether the sparse GRM path is active (different VR
+  for "sparse" vs "null" types).
+
+================================================================================
+VARIANCE RATIO FILE FORMAT
+================================================================================
+
+SAIGE supports two VR file formats, auto-detected by both R and C++:
+
+1. LABEL FORMAT (SAIGE >= 1.0.6)
+   Three columns: value, type, nMarkers
+   Example:
+     0.998123  sparse        500
+     1.001456  null          500
+     0.997890  null_noXadj   500
+
+   Type can be:
+     "sparse"      - VR for sparse GRM path (scoreTest with PCG)
+     "null"        - VR for standard path (scoreTestFast)
+     "null_noXadj" - VR for no-covariate-adjustment path (scoreTestFast_noadjCov)
+
+   Multiple rows per type indicate categorical VR (one per MAC bin).
+
+2. NUMERIC FORMAT (SAIGE < 1.0.6, legacy)
+   One or two columns of numeric values.
+   - 1 column:  single VR value(s), assumed "null" type
+   - 2 columns: col1=VR_null, col2=VR_sparse
+
+   If multiple rows: categorical VR, bins inferred from context or defaults.
+
+R handling (readInGLMM.R:Get_Variance_Ratio):
+  - Detects 3-col format via ncol(varRatioData) == 3
+  - Splits rows by type label into ratioVec_sparse, ratioVec_null, ratioVec_null_noXadj
+  - For legacy format: assigns based on whether isSparseGRM is TRUE
+  - Validates: nrv must match length(cateVarRatioMinMACVecExclude)
+  - MAC bin boundaries come from SPAGMMATtest function defaults:
+      cateVarRatioMinMACVecExclude = c(10.5, 20.5)
+      cateVarRatioMaxMACVecInclude = c(20.5)
+
+C++ handling (null_model_loader.cpp:loadVarianceRatios):
+  - Auto-detects format by checking if second token is "sparse"/"null"/"null_noXadj"
+  - For label format with single VR: replicates R's default 2-category behavior
+    by duplicating the VR value and using MAC boundaries 10.5 and 20.5
+  - For multi-category label format: uses provided boundaries
+  - For numeric format: parses 1-5 columns adaptively
+
+Both R and C++ produce identical VR assignments for all tested configurations.
+
+================================================================================
+R-ONLY LOGIC NOT PORTED TO C++
+================================================================================
+
+1. SURVIVAL TRAIT SPA: R supports m_traitType == "survival" in the SPA path
+   (different q/qinv formulas without the +m1 offset). C++ throws
+   "not yet implemented" for survival traits in the SPA dispatcher. This is
+   documented as an intentional omission (very niche use case).
+
+2. is_output_moreDetails: R computes N_case_hom, N_case_het, N_ctrl_hom,
+   N_ctrl_het genotype counts for detailed output. C++ does not implement this
+   output mode. No impact on p-values.
+
+3. X_PAR region handling: R has logic for X chromosome pseudo-autosomal region
+   rewriting for males (is_rewrite_XnonPAR_forMales). Not ported to C++.
+
+================================================================================
+C++-ONLY LOGIC NOT IN R
+================================================================================
+
+1. Checkpoint writing: C++ writes intermediate checkpoint files for debugging
+   (ckpt_09, ckpt_10, etc.) when g_writeCheckpoints is true. R has no
+   equivalent. Does not affect computation.
+
+2. ER resout guard: C++ checks m_resout.n_elem > 0 before constructing the
+   resout_er matrix (saige_test.cpp:627-630). R directly copies m_resout
+   without checking. In practice both behave identically because m_resout
+   is always populated when ER is active (binary trait with set_resout called).
+
+================================================================================
+END OF REPORT
+================================================================================
