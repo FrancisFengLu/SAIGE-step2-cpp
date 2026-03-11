@@ -314,27 +314,24 @@ Key requirement: Both R and C++ must use the **same null model**. The .rda has
 LOCO=TRUE (per-chromosome models). The converter extracts chr 1 LOCO values.
 R must also run with LOCO=TRUE so it uses the same chr 1 model.
 
-### Region/Gene-Based Testing: VALIDATED (Feb 20, 2026; updated Mar 6, 2026)
+### Region/Gene-Based Testing: VALIDATED (Feb 20, 2026; updated Mar 11, 2026)
 
-**Test 3 (Quant + Region)**: BURDEN/SKAT/SE all EXACT, SKAT-O ~1.15% max (1 row, Liu approx)
-**Test 4 (Binary + Region)**: BURDEN/SKAT/SE all EXACT, SKAT-O ~0.03% max
+**Test 3 (Quant + Region)**: ALL EXACT (62/62 values, max rel diff 3.4e-14)
+**Test 4 (Binary + Region)**: ALL EXACT (62/62 values, max rel diff 9.0e-15)
 
-SKAT-O improvements (Mar 6, 2026 — down from ~5%/~8.5%):
+SKAT-O fixes (chronological):
 - Fixed per-rho Liu params in `SKATO_optimal_pvalue()` (was using shared MuQ/VarQ)
 - Fixed `liu_params()`/`liu_pvalue()`: `1/s2` in else branch (was `1/(s1*s1)`)
 - Upgraded quadrature from G7/K15 to G10/K21 (21-point Gauss-Kronrod, matching R's QUADPACK)
 - Replaced recursive bisection with full QUADPACK `rdqagse` port (Wynn epsilon extrapolation)
 - Fixed Liu fallback integrand to use central chi-squared with `Df = sum(lambda^2)^2/sum(lambda^4)`
   and shared `VarQ` (includes W3.3.item cross-term), matching R's `SKAT_Optimal_Integrate_Func_Liu`
-
-Fixed Davies fallback bug (Mar 11, 2026): `davies_pvalue()` silently fell back to
-`liu_pvalue()` when ifault!=0, so `davies_failed_in_integrand` was never set. In R,
-`stop()` causes `try(integrate(...))` to fail entirely, triggering pure Liu fallback.
-Added `davies_pvalue_strict()` which returns NaN on failure, matching R's abort behavior.
-Test 4 improved from ~0.1% to ~0.03%. Most Test 3 rows now EXACT or < 0.15%.
-Remaining 1.15% on Test 3 GENE2/missense;lof/0.01 is from Liu moment-matching
-approximation differences (both R and C++ use pure Liu for this case).
-All non-SKAT-O columns match EXACTLY.
+- Fixed Davies fallback bug: `davies_pvalue()` silently fell back to `liu_pvalue()` when
+  ifault!=0. Added `davies_pvalue_strict()` which returns NaN on failure.
+- Fixed rho grid: was using 11-point `(k/10)^2` grid, R uses 7-point grid from
+  `SKAT_Check_Method("optimal.adj", 0)`: {0, 0.01, 0.04, 0.09, 0.25, 0.5, 1}
+- Fixed per-rho p-values: for method="optimal.adj", R overrides Liu moment-matching
+  with Davies (via `Get_PValue.Lambda`) in `SKAT_Optimal_Each_Q`. C++ now matches.
 
 ### Binary Single-Variant Testing: VALIDATED (Feb 20, 2026)
 
@@ -403,6 +400,8 @@ This is a known SAIGE behavior that we replicate faithfully.
 16. **SKAT-O Liu fallback integrand**: When Davies fails, R falls back to Liu's method using central chi-squared with `Df = sum(lambda^2)^2 / sum(lambda^4)` and `VarQ` from shared params (which includes the W3.3.item cross-term), not `sigmaQ^2` from per-rho Liu params.
 17. **SKAT-O Davies fallback bug**: `davies_pvalue()` silently returns `liu_pvalue()` when `ifault!=0`. In the SKAT-O integrand, this meant `davies_failed_in_integrand` was never set, so C++ used mixed Davies/Liu while R used pure Liu. Fixed by adding `davies_pvalue_strict()` that returns NaN on failure, letting the integrand detect it and trigger the Liu fallback path (matching R's `stop()` → `try(integrate(...))` failure → `SKAT_Optimal_PValue_Liu`).
 18. **Burden p-value rho=0.999 convention**: R's SKAT caps rho=1 to rho=0.999 and reports the eigenvalue-based Davies p-value (not the exact chi²(1) formula). C++ must do the same: Cholesky of `R_M=0.001*I+0.999*11'`, eigenvalues of `L*(Phi/2)*L'`, then Davies. This makes Burden p-value and SE_Burden EXACT.
+19. **SKAT-O rho grid**: R's `SKAT_Check_Method("optimal.adj", 0)` returns `{0, 0.01, 0.04, 0.09, 0.25, 0.5, 1}` (7 values), NOT the 11-point `(k/10)^2` grid. The C++ must use this same 7-point grid to match R exactly.
+20. **SKAT-O per-rho p-values with method="optimal.adj"**: R's `SKAT_Optimal_Each_Q` overrides Liu moment-matching p-values with Davies p-values (via `Get_PValue.Lambda`) when `method="optimal.adj"`. The C++ must do the same inside `SKATO_optimal_pvalue`.
 
 ## Remaining Unimplemented
 

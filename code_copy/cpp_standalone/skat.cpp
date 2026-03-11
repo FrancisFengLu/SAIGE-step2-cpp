@@ -1547,16 +1547,22 @@ double SKATO_optimal_pvalue(const arma::vec& Score,
             continue;
         }
 
-        // Liu params from per-rho eigenvalues
+        // Liu params from per-rho eigenvalues (needed for pmin_q mapping)
         liu_rho_vec[k] = liu_params(lambda_temp);
 
-        // P-value via Davies with Liu fallback (method="optimal.adj" uses Davies)
-        // Get_PValue.Lambda(lambda_temp, Q.all[,i])$p.value
-        double pv = davies_pvalue(Q_all(k), lambda_temp);
-        if (std::isnan(pv) || pv < 0.0 || pv > 1.0) {
-            pv = liu_pvalue(Q_all(k), lambda_temp);
+        // Per-rho p-value via Davies (with Liu fallback).
+        // SAIGE uses method="optimal.adj", which triggers:
+        //   pval[, i] <- Get_PValue.Lambda(lambda.temp, Q)$p.value
+        // Get_PValue.Lambda uses Davies (acc=1e-6) with Liu fallback when
+        // ifault != 0 or p-value out of (0,1].
+        {
+            double pv = davies_pvalue(Q_all(k), lambda_temp);
+            if (std::isnan(pv) || pv <= 0.0 || pv > 1.0) {
+                pv = liu_pvalue(Q_all(k), lambda_temp);
+            }
+            if (std::isnan(pv) || pv < 0.0) pv = 1.0;
+            pval_rho(k) = pv;
         }
-        pval_rho(k) = pv;
     }
 
     // pmin = min(pval_rho)
@@ -1942,12 +1948,13 @@ SKATResult get_SKAT_pvalue(const arma::vec& Score,
             result.pvalue_SKATO = result.pvalue_SKAT;
         } else {
 
-        // Default rho grid: {0, 0.1^2, 0.2^2, ..., 0.9^2, 1}
+        // Default rho grid: matches SKAT:::SKAT_Check_Method("optimal.adj", 0)
+        // R returns: {0, 0.01, 0.04, 0.09, 0.25, 0.5, 1}
         arma::vec rho_vec;
         if (r_corr.n_elem > 0) {
             rho_vec = r_corr;
         } else {
-            rho_vec = arma::vec({0, 0.01, 0.04, 0.09, 0.16, 0.25, 0.36, 0.49, 0.64, 0.81, 1.0});
+            rho_vec = arma::vec({0, 0.01, 0.04, 0.09, 0.25, 0.5, 1.0});
         }
 
         int n_rho = (int)rho_vec.n_elem;

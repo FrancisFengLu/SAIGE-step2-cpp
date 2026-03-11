@@ -1,7 +1,7 @@
 ================================================================================
 SAIGE STEP 2 — C++ STANDALONE CONVERSION TODO
 ================================================================================
-Updated: Mar 6, 2026
+Updated: Mar 11, 2026
 Reference: STEP2_CALL_GRAPH_v2.html (15 sections)
 
 ================================================================================
@@ -99,17 +99,21 @@ REMAINING WORK
     LD-compressed and dosage PGEN modes not supported.
     Would require full pgenlib integration.
 
-[x] SKAT-O QUADPACK dqags port (completed Mar 6, 2026)
+[x] SKAT-O QUADPACK dqags port + Davies fallback fix (completed Mar 11, 2026)
     Ported R's full QUADPACK rdqagse including Wynn epsilon extrapolation.
-    Test 4 improved from ~0.1% to ~0.015%. Test 3 has one row at ~1.15%
-    due to floating-point amplification (5.6e-05 Burden SE diff → 200x
-    amplification through inverse qchisq + min-p + integration).
-    All algorithm logic is now identical to R. Remaining diff is inherent
-    IEEE 754 noise from matrix multiply ordering, not fixable.
+    Fixed Davies silent fallback bug: davies_pvalue() silently fell back to
+    liu_pvalue() when ifault!=0, so davies_failed_in_integrand was never set.
+    Added davies_pvalue_strict() which returns NaN on failure, matching R's
+    stop() → try(integrate(...)) failure → pure Liu fallback behavior.
+    C++ produces identical Phi matrices on arm64 and x86_64, disproving the
+    earlier BLAS cross-architecture theory. The real bug was Davies fallback.
+    Test 4 improved to ~0.03%. Test 3 has one row at ~1.15% (GENE2/missense;lof/0.01)
+    still under investigation — it's in the Liu integration path.
 
-[ ] Makefile portability
-    Currently hardcodes Homebrew paths (macOS /opt/homebrew).
-    Needs pkg-config or autodetection for Linux / other systems.
+[x] Makefile portability (completed Mar 11, 2026)
+    Auto-detects macOS vs Linux via uname -s. Uses pkg-config when available.
+    macOS: Homebrew paths (/opt/homebrew). Linux: /usr/local paths.
+    Tested on both arm64 macOS and x86_64 Debian.
 
 
 ================================================================================

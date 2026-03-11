@@ -1,12 +1,12 @@
 SAIGE Step 2: R vs C++ Region Comparison Results
-Date: 2026-03-11 09:22:15.241032 
-R results: /Users/francis/Desktop/Zhou_lab/SAIGE_gene_pixi/Step_2_Feb_11/test/R/r_step2_region_results.txt 
-C++ results: /Users/francis/Desktop/Zhou_lab/SAIGE_gene_pixi/Step_2_Feb_11/test/output/cpp_compare_region_results.txt 
+Date: 2026-03-11 10:07:33.442772 
+R results: R/r_step2_region_results.txt 
+C++ results: output/cpp_compare_region_results.txt 
 ==================================================================================================== 
 
 Column           |   Total |   EXACT |   MATCH |   CLOSE |  DIFFER |   MaxRelDiff |   MaxAbsDiff
 ---------------------------------------------------------------------------------------------------- 
-Pvalue           |       9 |       4 |       0 |       0 |       5 |    1.145e-02 |    4.904e-03
+Pvalue           |       9 |       9 |       0 |       0 |       0 |    3.415e-14 |    3.997e-15
 Pvalue_Burden    |       9 |       9 |       0 |       0 |       0 |    5.081e-15 |    1.998e-15
 Pvalue_SKAT      |       9 |       9 |       0 |       0 |       0 |    2.482e-15 |    1.998e-15
 BETA_Burden      |       7 |       7 |       0 |       0 |       0 |    0.000e+00 |    0.000e+00
@@ -15,15 +15,6 @@ MAC              |       7 |       7 |       0 |       0 |       0 |    0.000e+0
 Number_rare      |       7 |       7 |       0 |       0 |       0 |    0.000e+00 |    0.000e+00
 Number_ultra_rare |       7 |       7 |       0 |       0 |       0 |    0.000e+00 |    0.000e+00
 
-Worst Disagreements:
-
- Pvalue :
-  GENE2___missense;lof___0.01: R=4.2825804002e-01  C++=4.2335419120e-01  relDiff=1.145e-02
-  GENE1___lof___0.01: R=6.7439441761e-02  C++=6.7540382677e-02  relDiff=1.495e-03
-  GENE1___Cauchy___NA: R=1.5677617418e-01  C++=1.5699173190e-01  relDiff=1.373e-03
-  GENE1___missense;lof___0.01: R=1.1702711084e-01  C++=1.1710586676e-01  relDiff=6.725e-04
-  GENE2___Cauchy___NA: R=8.1266849038e-01  C++=8.1226863328e-01  relDiff=4.920e-04
-
 Total comparisons: 62
-DIFFER: 5
-OVERALL: FAIL (5 differ)
+DIFFER: 0
+OVERALL: PASS

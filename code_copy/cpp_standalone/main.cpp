@@ -2867,9 +2867,9 @@ int main(int argc, char* argv[])
         // If r_corr_val == 1, use BURDEN (single rho = 1)
         arma::vec r_corr_vec;
         if (r_corr_val == 0.0) {
-            // SKAT-O optimal.adj rho grid (matches SKAT:::SKAT_Check_Method)
-            r_corr_vec = {0, 0.1*0.1, 0.2*0.2, 0.3*0.3, 0.4*0.4, 0.5*0.5,
-                          0.6*0.6, 0.7*0.7, 0.8*0.8, 0.9*0.9, 1.0};
+            // SKAT-O optimal.adj rho grid (matches SKAT:::SKAT_Check_Method("optimal.adj", 0))
+            // R returns: {0, 0.01, 0.04, 0.09, 0.25, 0.5, 1}
+            r_corr_vec = {0, 0.01, 0.04, 0.09, 0.25, 0.5, 1.0};
             regionTestType = "SKATO";
             // For SKAT-O, single-variant results are always output
             isSingleInGroupTest = true;

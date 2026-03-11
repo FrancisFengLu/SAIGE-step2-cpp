@@ -1,7 +1,7 @@
 SAIGE Step 2: R vs C++ Comparison Results
-Date: 2026-03-09 16:33:07.635203 
-R results: /Users/francis/Desktop/Zhou_lab/SAIGE_gene_pixi/Step_2_Feb_11/test/R/r_step2_results.txt 
-C++ results: /Users/francis/Desktop/Zhou_lab/SAIGE_gene_pixi/Step_2_Feb_11/test/output/cpp_compare_results.txt 
+Date: 2026-03-11 10:07:53.950781 
+R results: R/r_step2_results.txt 
+C++ results: output/cpp_compare_results.txt 
 ========================================================================================== 
 
 Column     |   Total |   EXACT |   MATCH |   CLOSE |  DIFFER |   MaxRelDiff |   MaxAbsDiff
