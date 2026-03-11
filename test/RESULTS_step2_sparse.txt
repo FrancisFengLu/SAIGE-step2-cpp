@@ -1,5 +1,5 @@
 SAIGE Step 2: R vs C++ Comparison Results (Sparse GRM)
-Date: 2026-02-20 17:54:10.558465 
+Date: 2026-03-11 10:51:56.612938 
 R results: /Users/francis/Desktop/Zhou_lab/SAIGE_gene_pixi/Step_2_Feb_11/test/R/r_step2_sparse_results.txt 
 C++ results: /Users/francis/Desktop/Zhou_lab/SAIGE_gene_pixi/Step_2_Feb_11/test/output/cpp_compare_sparse_results.txt 
 Model: example_quantitative_sparseGRM.rda (LOCO=FALSE, isFastTest=TRUE)

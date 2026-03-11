@@ -1,7 +1,7 @@
 ==========================================================================
 Test 8: Multi-Category Variance Ratio -- R vs C++ Comparison Results
 ==========================================================================
-Date: 2026-02-22 23:17:56.865564 
+Date: 2026-03-11 10:52:03.360359 
 R results (multi-VR):    /Users/francis/Desktop/Zhou_lab/SAIGE_gene_pixi/Step_2_Feb_11/test/output/r_multiVR_results.txt 
 C++ results (multi-VR):  /Users/francis/Desktop/Zhou_lab/SAIGE_gene_pixi/Step_2_Feb_11/test/output/cpp_multiVR_results.txt 
 C++ baseline (single-VR): /Users/francis/Desktop/Zhou_lab/SAIGE_gene_pixi/Step_2_Feb_11/test/output/cpp_compare_results.txt 

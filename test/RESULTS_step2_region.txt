@@ -1,7 +1,7 @@
 SAIGE Step 2: R vs C++ Region Comparison Results
-Date: 2026-03-11 10:07:33.442772 
-R results: R/r_step2_region_results.txt 
-C++ results: output/cpp_compare_region_results.txt 
+Date: 2026-03-11 10:51:53.892845 
+R results: /Users/francis/Desktop/Zhou_lab/SAIGE_gene_pixi/Step_2_Feb_11/test/R/r_step2_region_results.txt 
+C++ results: /Users/francis/Desktop/Zhou_lab/SAIGE_gene_pixi/Step_2_Feb_11/test/output/cpp_compare_region_results.txt 
 ==================================================================================================== 
 
 Column           |   Total |   EXACT |   MATCH |   CLOSE |  DIFFER |   MaxRelDiff |   MaxAbsDiff

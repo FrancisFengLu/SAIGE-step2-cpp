@@ -1,6 +1,6 @@
 SAIGE Step 2 Conditional Analysis: R vs C++ Comparison Results
 =============================================================
-Date: 2026-02-22 23:00:30.668889
+Date: 2026-03-11 10:52:01.236625
 R file:   /Users/francis/Desktop/Zhou_lab/SAIGE_gene_pixi/Step_2_Feb_11/test/R/r_step2_conditional_results.txt
 C++ file: /Users/francis/Desktop/Zhou_lab/SAIGE_gene_pixi/Step_2_Feb_11/test/output/cpp_compare_conditional_results.txt
 R rows:   128868

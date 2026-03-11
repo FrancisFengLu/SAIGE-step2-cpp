@@ -1,20 +1,22 @@
-SAIGE Step 2: R vs C++ Region Comparison Results
-Date: 2026-03-11 10:07:41.796168 
-R results: R/r_step2_binary_region_results.txt 
-C++ results: output/cpp_compare_binary_region_results.txt 
-==================================================================================================== 
+SAIGE Step 2: R vs C++ Binary Region Comparison Results
+Date: 2026-03-11 10:51:54.476768 
+R results: /Users/francis/Desktop/Zhou_lab/SAIGE_gene_pixi/Step_2_Feb_11/test/R/r_step2_binary_region_results.txt 
+C++ results: /Users/francis/Desktop/Zhou_lab/SAIGE_gene_pixi/Step_2_Feb_11/test/output/cpp_compare_binary_region_results.txt 
+============================================================================================================== 
 
-Column           |   Total |   EXACT |   MATCH |   CLOSE |  DIFFER |   MaxRelDiff |   MaxAbsDiff
----------------------------------------------------------------------------------------------------- 
-Pvalue           |       9 |       9 |       0 |       0 |       0 |    8.949e-15 |    2.998e-15
-Pvalue_Burden    |       9 |       9 |       0 |       0 |       0 |    4.266e-15 |    9.992e-16
-Pvalue_SKAT      |       9 |       9 |       0 |       0 |       0 |    6.658e-15 |    2.998e-15
-BETA_Burden      |       7 |       7 |       0 |       0 |       0 |    6.275e-15 |    1.041e-16
-SE_Burden        |       7 |       7 |       0 |       0 |       0 |    4.819e-15 |    1.006e-16
-MAC              |       7 |       7 |       0 |       0 |       0 |    0.000e+00 |    0.000e+00
-Number_rare      |       7 |       7 |       0 |       0 |       0 |    0.000e+00 |    0.000e+00
-Number_ultra_rare |       7 |       7 |       0 |       0 |       0 |    0.000e+00 |    0.000e+00
+Column           |   Total |   EXACT |   MATCH |   CLOSE |    NEAR |  DIFFER |   MaxRelDiff |   MaxAbsDiff
+-------------------------------------------------------------------------------------------------------------- 
+Pvalue           |       9 |       9 |       0 |       0 |       0 |       0 |    8.949e-15 |    2.998e-15
+Pvalue_Burden    |       9 |       9 |       0 |       0 |       0 |       0 |    4.266e-15 |    9.992e-16
+Pvalue_SKAT      |       9 |       9 |       0 |       0 |       0 |       0 |    6.658e-15 |    2.998e-15
+BETA_Burden      |       7 |       7 |       0 |       0 |       0 |       0 |    6.275e-15 |    1.041e-16
+SE_Burden        |       7 |       7 |       0 |       0 |       0 |       0 |    4.819e-15 |    1.006e-16
+MAC              |       7 |       7 |       0 |       0 |       0 |       0 |    0.000e+00 |    0.000e+00
+MAC_case         |       7 |       7 |       0 |       0 |       0 |       0 |    0.000e+00 |    0.000e+00
+MAC_control      |       7 |       7 |       0 |       0 |       0 |       0 |    0.000e+00 |    0.000e+00
+Number_rare      |       7 |       7 |       0 |       0 |       0 |       0 |    0.000e+00 |    0.000e+00
+Number_ultra_rare |       7 |       7 |       0 |       0 |       0 |       0 |    0.000e+00 |    0.000e+00
 
-Total comparisons: 62
-DIFFER: 0
+Total comparisons: 76
+EXACT: 76  MATCH: 0  CLOSE: 0  NEAR: 0  DIFFER: 0
 OVERALL: PASS
