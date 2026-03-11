@@ -1,4 +1,11 @@
-CXX      ?= clang++
+UNAME_S := $(shell uname -s)
+
+ifeq ($(UNAME_S),Darwin)
+  CXX ?= clang++
+else
+  CXX ?= g++
+endif
+
 CXXFLAGS ?= -std=c++17 -O3 -DARMA_USE_SUPERLU=1 -DARMA_64BIT_WORD=1 -MMD -MP
 
 PKG_CONFIG   := $(shell command -v pkg-config 2>/dev/null)
@@ -23,10 +30,14 @@ else
   ZSTD_LIBS   := $(shell "$(PKG_CONFIG)" --libs libzstd 2>/dev/null)
 endif
 
-INCLUDES := -I/usr/local/include \
-            -I/opt/homebrew/opt/boost/include \
-            -I/opt/homebrew/include \
-            -I/opt/homebrew/Cellar/zstd/1.5.7/include
+ifeq ($(UNAME_S),Darwin)
+  INCLUDES := -I/usr/local/include \
+              -I/opt/homebrew/opt/boost/include \
+              -I/opt/homebrew/include \
+              -I/opt/homebrew/Cellar/zstd/1.5.7/include
+else
+  INCLUDES := -I/usr/local/include
+endif
 
 ifneq ($(strip $(YAML_CFLAGS)),)
   INCLUDES += $(YAML_CFLAGS)
@@ -41,14 +52,25 @@ ifneq ($(strip $(ZSTD_CFLAGS)),)
   INCLUDES += $(ZSTD_CFLAGS)
 endif
 
-LIBS := -lyaml-cpp \
-        -larmadillo \
-        -L/opt/homebrew/opt/openblas/lib -lopenblas \
-        -llapack \
-        -L/opt/homebrew/opt/superlu/lib -lsuperlu \
-        -L/opt/homebrew/lib -lhts \
-        -L/opt/homebrew/Cellar/zstd/1.5.7/lib -lzstd \
-        -lz
+ifeq ($(UNAME_S),Darwin)
+  LIBS := -lyaml-cpp \
+          -larmadillo \
+          -L/opt/homebrew/opt/openblas/lib -lopenblas \
+          -llapack \
+          -L/opt/homebrew/opt/superlu/lib -lsuperlu \
+          -L/opt/homebrew/lib -lhts \
+          -L/opt/homebrew/Cellar/zstd/1.5.7/lib -lzstd \
+          -lz
+else
+  LIBS := -lyaml-cpp \
+          -larmadillo \
+          -lopenblas \
+          -llapack \
+          -lsuperlu \
+          -L/usr/local/lib -lhts \
+          -lzstd \
+          -lz
+endif
 
 ifneq ($(strip $(YAML_LIBS)),)
   LIBS += $(YAML_LIBS)
