@@ -1,12 +1,12 @@
 SAIGE Step 2: R vs C++ Binary Region Comparison Results
-Date: 2026-03-09 16:32:45.561527 
+Date: 2026-03-11 09:22:15.372839 
 R results: /Users/francis/Desktop/Zhou_lab/SAIGE_gene_pixi/Step_2_Feb_11/test/R/r_step2_binary_region_results.txt 
 C++ results: /Users/francis/Desktop/Zhou_lab/SAIGE_gene_pixi/Step_2_Feb_11/test/output/cpp_compare_binary_region_results.txt 
 ============================================================================================================== 
 
 Column           |   Total |   EXACT |   MATCH |   CLOSE |    NEAR |  DIFFER |   MaxRelDiff |   MaxAbsDiff
 -------------------------------------------------------------------------------------------------------------- 
-Pvalue           |       9 |       3 |       0 |       2 |       4 |       0 |    9.854e-04 |    5.267e-04
+Pvalue           |       9 |       3 |       0 |       3 |       3 |       0 |    3.004e-04 |    9.579e-05
 Pvalue_Burden    |       9 |       9 |       0 |       0 |       0 |       0 |    4.266e-15 |    9.992e-16
 Pvalue_SKAT      |       9 |       9 |       0 |       0 |       0 |       0 |    6.658e-15 |    2.998e-15
 BETA_Burden      |       7 |       7 |       0 |       0 |       0 |       0 |    6.275e-15 |    1.041e-16
@@ -20,12 +20,12 @@ Number_ultra_rare |       7 |       7 |       0 |       0 |       0 |       0 | 
 Worst Disagreements:
 
  Pvalue :
-  GENE1___lof___0.01: R=5.3397616134e-01  C++=5.3450286848e-01  relDiff=9.854e-04  absDiff=5.267e-04
-  GENE1___Cauchy___NA: R=5.3593072557e-01  C++=5.3610629625e-01  relDiff=3.275e-04  absDiff=1.756e-04
   GENE2___lof___0.01: R=3.1875049228e-01  C++=3.1884628183e-01  relDiff=3.004e-04  absDiff=9.579e-05
   GENE2___missense;lof___0.01: R=8.9945597876e-02  C++=8.9932022163e-02  relDiff=1.509e-04  absDiff=1.358e-05
+  GENE1___lof___0.01: R=5.3397616134e-01  C++=5.3405514587e-01  relDiff=1.479e-04  absDiff=7.898e-05
+  GENE1___Cauchy___NA: R=5.3593072557e-01  C++=5.3595723751e-01  relDiff=4.947e-05  absDiff=2.651e-05
   GENE2___Cauchy___NA: R=3.2940413449e-01  C++=3.2939681077e-01  relDiff=2.223e-05  absDiff=7.324e-06
 
 Total comparisons: 76
-EXACT: 70  MATCH: 0  CLOSE: 2  NEAR: 4  DIFFER: 0
-OVERALL: NEAR PASS (4 in NEAR range)
+EXACT: 70  MATCH: 0  CLOSE: 3  NEAR: 3  DIFFER: 0
+OVERALL: NEAR PASS (3 in NEAR range)

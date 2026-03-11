@@ -316,8 +316,8 @@ R must also run with LOCO=TRUE so it uses the same chr 1 model.
 
 ### Region/Gene-Based Testing: VALIDATED (Feb 20, 2026; updated Mar 6, 2026)
 
-**Test 3 (Quant + Region)**: BURDEN/SKAT/SE all EXACT, SKAT-O ~1.15% max relDiff (1 row only)
-**Test 4 (Binary + Region)**: BURDEN/SKAT/SE all EXACT, SKAT-O ~0.1% max relDiff
+**Test 3 (Quant + Region)**: BURDEN/SKAT/SE all EXACT, SKAT-O ~1.15% max (1 row, Liu approx)
+**Test 4 (Binary + Region)**: BURDEN/SKAT/SE all EXACT, SKAT-O ~0.03% max
 
 SKAT-O improvements (Mar 6, 2026 — down from ~5%/~8.5%):
 - Fixed per-rho Liu params in `SKATO_optimal_pvalue()` (was using shared MuQ/VarQ)
@@ -327,13 +327,14 @@ SKAT-O improvements (Mar 6, 2026 — down from ~5%/~8.5%):
 - Fixed Liu fallback integrand to use central chi-squared with `Df = sum(lambda^2)^2/sum(lambda^4)`
   and shared `VarQ` (includes W3.3.item cross-term), matching R's `SKAT_Optimal_Integrate_Func_Liu`
 
-Remaining ~1.15% on Test 3 GENE2/missense;lof/0.01 is NOT an algorithm difference — it is
-floating-point amplification from cross-architecture BLAS (x86_64 Rosetta vs arm64 native).
-The `dgemm` call in `P1Mat * P2Mat` (Phi matrix construction) produces ~machine-epsilon
-differences in off-diagonal elements due to different SIMD accumulation order (SSE/AVX vs NEON).
-For a 14×14 Phi matrix, these accumulate to ~5.6e-05 in `accu(Phi)`, then get amplified ~200x
-through SKAT-O's nonlinear pipeline (qchisq inverse → 1/(1-rho) division → integration).
-All algorithm logic is identical to R. All non-SKAT-O columns now match EXACTLY.
+Fixed Davies fallback bug (Mar 11, 2026): `davies_pvalue()` silently fell back to
+`liu_pvalue()` when ifault!=0, so `davies_failed_in_integrand` was never set. In R,
+`stop()` causes `try(integrate(...))` to fail entirely, triggering pure Liu fallback.
+Added `davies_pvalue_strict()` which returns NaN on failure, matching R's abort behavior.
+Test 4 improved from ~0.1% to ~0.03%. Most Test 3 rows now EXACT or < 0.15%.
+Remaining 1.15% on Test 3 GENE2/missense;lof/0.01 is from Liu moment-matching
+approximation differences (both R and C++ use pure Liu for this case).
+All non-SKAT-O columns match EXACTLY.
 
 ### Binary Single-Variant Testing: VALIDATED (Feb 20, 2026)
 
@@ -400,7 +401,7 @@ This is a known SAIGE behavior that we replicate faithfully.
 14. **SKAT-O per-rho params**: `SKAT_Optimal_Each_Q` uses per-rho Liu params (muQ_k, varQ_k, l_k) for computing pmin_q, while the integrand uses shared params from `SKAT_META_Optimal_Param` (MuQ, VarQ with W3.3.item cross-term). These are different and must not be confused.
 15. **SKAT-O quadrature**: C++ uses a faithful port of R's QUADPACK `rdqagse` (including Wynn epsilon extrapolation, `rdqelg`). The integration engine is line-for-line identical to R's C source.
 16. **SKAT-O Liu fallback integrand**: When Davies fails, R falls back to Liu's method using central chi-squared with `Df = sum(lambda^2)^2 / sum(lambda^4)` and `VarQ` from shared params (which includes the W3.3.item cross-term), not `sigmaQ^2` from per-rho Liu params.
-17. **SKAT-O floating-point amplification**: Cross-architecture BLAS difference (x86_64 Rosetta R vs arm64 native C++) in `dgemm` for `P1Mat*P2Mat` causes ~machine-epsilon differences in Phi off-diagonal elements, accumulating to ~5.6e-05 for 14×14 matrices. Amplified ~200x through: (a) `qchisq(1-pmin, df)` inverse quantile (3-10x), (b) `1/(1-rho)` division near rho≈1 (5-1000x), (c) min-p bifurcation. Inherent to the algorithm, not a code difference.
+17. **SKAT-O Davies fallback bug**: `davies_pvalue()` silently returns `liu_pvalue()` when `ifault!=0`. In the SKAT-O integrand, this meant `davies_failed_in_integrand` was never set, so C++ used mixed Davies/Liu while R used pure Liu. Fixed by adding `davies_pvalue_strict()` that returns NaN on failure, letting the integrand detect it and trigger the Liu fallback path (matching R's `stop()` → `try(integrate(...))` failure → `SKAT_Optimal_PValue_Liu`).
 18. **Burden p-value rho=0.999 convention**: R's SKAT caps rho=1 to rho=0.999 and reports the eigenvalue-based Davies p-value (not the exact chi²(1) formula). C++ must do the same: Cholesky of `R_M=0.001*I+0.999*11'`, eigenvalues of `L*(Phi/2)*L'`, then Davies. This makes Burden p-value and SE_Burden EXACT.
 
 ## Remaining Unimplemented

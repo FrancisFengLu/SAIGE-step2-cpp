@@ -439,6 +439,57 @@ double davies_pvalue(double q, const arma::vec& lambda) {
 }
 
 
+// Strict variant of davies_pvalue for use inside the SKAT-O integrand.
+// Returns NaN when Davies fails (ifault != 0) instead of silently falling
+// back to Liu.  This matches R's behavior where the integrand calls stop()
+// on ifault != 0, causing try(integrate(...)) to fail and trigger the Liu
+// integration fallback path.
+double davies_pvalue_strict(double q, const arma::vec& lambda) {
+    arma::vec lam = lambda(arma::find(arma::abs(lambda) > 1e-10));
+    int n = (int)lam.n_elem;
+
+    if (n == 0) {
+        return (q > 0.0) ? 0.0 : 1.0;
+    }
+
+    if (n == 1) {
+        double l1 = lam(0);
+        if (l1 <= 0.0) return std::numeric_limits<double>::quiet_NaN();
+        double q_scaled = q / l1;
+        if (q_scaled <= 0.0) return 1.0;
+        try {
+            boost::math::chi_squared chi2_1(1.0);
+            return boost::math::cdf(boost::math::complement(chi2_1, q_scaled));
+        } catch (...) {
+            return std::numeric_limits<double>::quiet_NaN();
+        }
+    }
+
+    std::vector<double> lb(lam.memptr(), lam.memptr() + n);
+    std::vector<double> nc(n, 0.0);
+    std::vector<int> df(n, 1);
+    double sigma = 0.0;
+    int lim = 10000;
+    double acc = 1e-6;
+    double trace[7];
+    int ifault = 0;
+    double res = 0.0;
+
+    qfc_impl::qfc(lb.data(), nc.data(), df.data(), n,
+                   sigma, q, lim, acc, trace, &ifault, &res);
+
+    double pval = 1.0 - res;
+
+    // Strict check: if ifault != 0 or pval out of range, return NaN
+    // (do NOT fall back to Liu — caller will detect and handle)
+    if (ifault != 0 || !std::isfinite(pval) || pval <= 0.0 || pval > 1.0) {
+        return std::numeric_limits<double>::quiet_NaN();
+    }
+
+    return pval;
+}
+
+
 // ============================================================
 // Liu moment-matching method
 // ============================================================
@@ -1612,15 +1663,18 @@ double SKATO_optimal_pvalue(const arma::vec& Score,
         double min1_temp = temp_min - MuQ;
         double min1_st = min1_temp * sd1 + MuQ;
 
-        // ONE Davies call with shared lambda
-        // dav.re$Qq = P(Q > q) = tail probability
+        // ONE Davies call with shared lambda (strict: NaN on ifault != 0)
+        // In R, ifault != 0 calls stop() inside the integrand, which causes
+        // try(integrate(...)) to fail entirely, falling back to Liu integration.
+        // We replicate this by using davies_pvalue_strict() which returns NaN
+        // on failure, then set the flag so the caller switches to Liu integration.
         double tail_prob;
         if (lambda_shared.n_elem > 0) {
-            tail_prob = davies_pvalue(min1_st, lambda_shared);
+            tail_prob = davies_pvalue_strict(min1_st, lambda_shared);
             if (std::isnan(tail_prob) || tail_prob < 0.0 || tail_prob > 1.0) {
-                // Davies failed — flag for Liu fallback
+                // Davies failed — flag for Liu fallback and abort integration
                 davies_failed_in_integrand = true;
-                tail_prob = liu_pvalue(min1_st, lambda_shared);
+                return 0.0;  // Return 0 to not corrupt the integral; it will be discarded
             }
         } else {
             tail_prob = 0.0;

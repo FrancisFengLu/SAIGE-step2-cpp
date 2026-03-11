@@ -1,5 +1,5 @@
 SAIGE Step 2: R vs C++ Region Comparison Results
-Date: 2026-03-09 16:33:55.062167 
+Date: 2026-03-11 09:22:15.241032 
 R results: /Users/francis/Desktop/Zhou_lab/SAIGE_gene_pixi/Step_2_Feb_11/test/R/r_step2_region_results.txt 
 C++ results: /Users/francis/Desktop/Zhou_lab/SAIGE_gene_pixi/Step_2_Feb_11/test/output/cpp_compare_region_results.txt 
 ==================================================================================================== 
@@ -19,8 +19,8 @@ Worst Disagreements:
 
  Pvalue :
   GENE2___missense;lof___0.01: R=4.2825804002e-01  C++=4.2335419120e-01  relDiff=1.145e-02
-  GENE1___Cauchy___NA: R=1.5677617418e-01  C++=1.5690808650e-01  relDiff=8.407e-04
-  GENE1___lof___0.01: R=6.7439441761e-02  C++=6.7490745013e-02  relDiff=7.602e-04
+  GENE1___lof___0.01: R=6.7439441761e-02  C++=6.7540382677e-02  relDiff=1.495e-03
+  GENE1___Cauchy___NA: R=1.5677617418e-01  C++=1.5699173190e-01  relDiff=1.373e-03
   GENE1___missense;lof___0.01: R=1.1702711084e-01  C++=1.1710586676e-01  relDiff=6.725e-04
   GENE2___Cauchy___NA: R=8.1266849038e-01  C++=8.1226863328e-01  relDiff=4.920e-04
 

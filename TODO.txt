@@ -75,8 +75,8 @@ VALIDATION — 12 TESTS (11 PASS, 1 N/A)
 
 [x] Test 1:  Quant + single-variant (scoreTest)        — EXACT (644,340/644,340)
 [x] Test 2:  Binary + single-variant (SPA+Firth+ER)    — EXACT (350/350)
-[x] Test 3:  Quant + region (BURDEN/SKAT/SKAT-O)       — ALL EXACT except SKAT-O ~1.15% (1 row, BLAS)
-[x] Test 4:  Binary + region (SPA Phi adjustment)      — ALL EXACT except SKAT-O ~0.1% (BLAS)
+[x] Test 3:  Quant + region (BURDEN/SKAT/SKAT-O)       — ALL EXACT except SKAT-O ~1.15% (1 row, Liu approx)
+[x] Test 4:  Binary + region (SPA Phi adjustment)      — ALL EXACT except SKAT-O ~0.03%
 [x] Test 5:  Sparse GRM (scoreTestFast + PCG)           — EXACT (644,340/644,340)
 [x] Test 6:  noadjCov (scoreTestFast_noadjCov)          — EXACT (644,340/644,340)
 [x] Test 7:  Conditional (3 conditioning markers)       — EXACT (644,325/644,325)
