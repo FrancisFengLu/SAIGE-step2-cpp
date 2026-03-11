@@ -39,6 +39,32 @@ All formats produce identical output for the same genotype data.
 - htslib (VCF/BCF)
 - zstd + zlib (BGEN decompression)
 
+### Install Dependencies
+
+A C++17 compiler is required (clang++ on macOS, g++ on Linux). The Makefile auto-detects the platform.
+
+#### macOS (Homebrew)
+
+```bash
+brew install armadillo yaml-cpp boost superlu htslib zstd
+```
+
+#### Ubuntu / Debian (apt)
+
+```bash
+sudo apt-get install -y \
+  build-essential \
+  libarmadillo-dev \
+  libopenblas-dev \
+  liblapack-dev \
+  libyaml-cpp-dev \
+  libboost-math-dev \
+  libsuperlu-dev \
+  libhts-dev \
+  libzstd-dev \
+  zlib1g-dev
+```
+
 ### Compile
 
 ```bash
