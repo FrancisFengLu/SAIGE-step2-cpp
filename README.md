@@ -7,7 +7,7 @@ Takes the null model output from SAIGE Step 1 and runs association tests against
 ## Features
 
 - **Single-variant testing**: score test with variance ratio adjustment
-- **Region/gene-based testing**: BURDEN, SKAT, SKAT-O via Davies method and Liu approximation
+- **Region/gene-based testing**: BURDEN, SKAT, SKAT-O via Davies method
 - **SPA correction**: saddlepoint approximation for binary traits (Newton-Raphson root finding, Lugannani-Rice formula)
 - **Firth correction**: penalized logistic regression fallback for binary traits
 - **Efficient resampling**: exact test for ultra-rare binary variants (MAC <= 4)
@@ -106,15 +106,14 @@ isLDMatrix: true
 
 ## Validation
 
-Validated against R SAIGE 1.5.1 across 12 test configurations:
+Validated against R SAIGE 1.5.1 across 11 test configurations (5,799,538 values, 0 differences):
 
 | Test | Description | Result |
 |------|-------------|--------|
 | Single-variant (quantitative) | 128,868 markers, 5 columns | EXACT (644,340/644,340) |
 | Single-variant (binary) | 70 markers, SPA + Firth + ER | EXACT (350/350) |
-| Region BURDEN/SKAT (quantitative) | 2 regions, 6 strata | EXACT |
-| Region BURDEN/SKAT (binary) | 2 regions, SPA Phi adjustment | EXACT |
-| Region SKAT-O | Liu moment-matching approximation | ~1% max relative error |
+| Region BURDEN/SKAT/SKAT-O (quantitative) | 2 regions, 6 strata | EXACT (62/62) |
+| Region BURDEN/SKAT/SKAT-O (binary) | 2 regions, SPA Phi adjustment | EXACT (76/76) |
 | Sparse GRM (scoreTestFast + PCG) | 128,868 markers | EXACT (644,340/644,340) |
 | No-covariate-adjustment path | scoreTestFast_noadjCov | EXACT (644,340/644,340) |
 | Conditional analysis | 3 conditioning markers, 10 columns | EXACT (644,325/644,325) |
