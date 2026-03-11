@@ -7,7 +7,7 @@ Standalone C++ implementation of SAIGE-GENE Step 2 for gene/region-based and sin
 ### macOS (Homebrew)
 
 ```bash
-brew install armadillo openblas lapack yaml-cpp boost superlu htslib zstd zlib
+brew install armadillo yaml-cpp boost superlu htslib zstd
 ```
 
 ### Ubuntu / Debian (apt)
