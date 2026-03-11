@@ -1,0 +1,341 @@
+Loading required package: Matrix
+Loading required package: SPAtest
+Loading required package: RSpectra
+=== Met_SKAT_Get_Pvalue ===
+function (Score, Phi, r.corr, method, Score.Resampling = NULL, 
+    isFast = FALSE) 
+{
+    p.m <- nrow(Phi)
+    Q.res = NULL
+    if (sum(abs(Phi)) == 0) {
+        warning("No polymorphic SNPs!", call. = FALSE)
+        return(list(p.value = 1, p.value.resampling = NULL, pval.zero.msg = NULL))
+    }
+    if (!is.null(Score.Resampling)) {
+        Score.Resampling <- t(Score.Resampling)
+    }
+    if (length(Phi) <= 1) {
+        r.corr = 0
+    }
+    else {
+        if (ncol(Phi) <= 10) {
+            if (qr(Phi)$rank <= 1) {
+                r.corr = 0
+            }
+        }
+    }
+    if (length(r.corr) > 1) {
+        re = SKAT_META_Optimal(Score, Phi, r.corr, method = method, 
+            Score.Resampling = Score.Resampling)
+        return(re)
+    }
+    if (r.corr == 0) {
+        Q <- sum(Score^2)/2
+        if (!is.null(Score.Resampling)) {
+            Q.res <- rowSums(Score.Resampling^2)/2
+        }
+    }
+    else if (r.corr == 1) {
+        Q = SKAT_META_Optimal_Get_Q(Score, r.corr)$Q.r
+        if (!is.null(Score.Resampling)) {
+            Q.res <- SKAT_META_Optimal_Get_Q_Res(Score.Resampling, 
+                r.corr)$Q.r
+        }
+        a <- as.matrix(sum(Phi))
+        re <- Get_Liu_PVal(Q, a, Q.res)
+        return(re)
+    }
+    else {
+        Q = SKAT_META_Optimal_Get_Q(Score, r.corr)$Q.r
+        if (!is.null(Score.Resampling)) {
+            Q.res <- SKAT_META_Optimal_Get_Q_Res(Score.Resampling, 
+                r.corr)$Q.r
+        }
+        R.M <- diag(rep(1 - r.corr, p.m)) + matrix(rep(r.corr, 
+            p.m * p.m), ncol = p.m)
+        L <- chol(R.M, pivot = TRUE)
+        Phi <- L %*% (Phi %*% t(L))
+    }
+    re <- Get_Davies_PVal(Q, Phi, Q.res, isFast = isFast)
+    if (length(r.corr) == 1) {
+        re$Q = Q
+    }
+    return(re)
+}
+<bytecode: 0x7ff2a079a468>
+<environment: namespace:SKAT>
+
+=== SKAT_Optimal_PValue_Davies ===
+function (pmin.q, param.m, r.all, pmin = NULL) 
+{
+    re <- try(integrate(SKAT_Optimal_Integrate_Func_Davies, lower = 0, 
+        upper = 40, subdivisions = 1000, pmin.q = pmin.q, param.m = param.m, 
+        r.all = r.all, abs.tol = 10^-25), silent = TRUE)
+    if (Is_TryError(re)) {
+        re <- SKAT_Optimal_PValue_Liu(pmin.q, param.m, r.all, 
+            pmin)
+        return(re)
+    }
+    pvalue <- 1 - re[[1]]
+    if (!is.null(pmin)) {
+        if (pmin * length(r.all) < pvalue) {
+            pvalue = pmin * length(r.all)
+        }
+    }
+    return(pvalue)
+}
+<bytecode: 0x7ff2a07d8608>
+<environment: namespace:SKAT>
+
+=== SKAT_Optimal_Integrate_Func_Davies ===
+function (x, pmin.q, param.m, r.all) 
+{
+    n.r <- length(r.all)
+    n.x <- length(x)
+    temp1 <- param.m$tau %x% t(x)
+    temp <- (pmin.q - temp1)/(1 - r.all)
+    temp.min <- apply(temp, 2, min)
+    re <- rep(0, length(x))
+    for (i in 1:length(x)) {
+        min1 <- temp.min[i]
+        if (min1 > sum(param.m$lambda) * 10^4) {
+            temp <- 0
+        }
+        else {
+            min1.temp <- min1 - param.m$MuQ
+            sd1 <- sqrt(param.m$VarQ - param.m$VarRemain)/sqrt(param.m$VarQ)
+            min1.st <- min1.temp * sd1 + param.m$MuQ
+            dav.re <- SKAT_davies(min1.st, param.m$lambda, acc = 10^(-6))
+            temp <- dav.re$Qq
+            if (dav.re$ifault != 0) {
+                stop("dav.re$ifault is not 0")
+            }
+        }
+        if (temp > 1) {
+            temp = 1
+        }
+        re[i] <- (1 - temp) * dchisq(x[i], df = 1)
+    }
+    return(re)
+}
+<bytecode: 0x7ff2a07df538>
+<environment: namespace:SKAT>
+Loading required package: Matrix
+Loading required package: SPAtest
+Loading required package: RSpectra
+=== Get_Liu_Params_Mod_Lambda ===
+function (lambda, df1 = NULL) 
+{
+    if (is.null(df1)) {
+        df1 = rep(1, length(lambda))
+    }
+    c1 <- rep(0, 4)
+    for (i in 1:4) {
+        c1[i] <- sum(lambda^i * df1)
+    }
+    muQ <- c1[1]
+    sigmaQ <- sqrt(2 * c1[2])
+    s1 = c1[3]/c1[2]^(3/2)
+    s2 = c1[4]/c1[2]^2
+    beta1 <- sqrt(8) * s1
+    beta2 <- 12 * s2
+    type1 <- 0
+    if (s1^2 > s2) {
+        a = 1/(s1 - sqrt(s1^2 - s2))
+        d = s1 * a^3 - a^2
+        l = a^2 - 2 * d
+    }
+    else {
+        type1 <- 1
+        l = 1/s2
+        a = sqrt(l)
+        d = 0
+    }
+    muX <- l + d
+    sigmaX <- sqrt(2) * a
+    re <- list(l = l, d = d, muQ = muQ, muX = muX, sigmaQ = sigmaQ, 
+        sigmaX = sigmaX)
+    return(re)
+}
+<bytecode: 0x7feaf0cadc98>
+<environment: namespace:SKAT>
+
+=== SKAT_Optimal_Each_Q ===
+function (param.m, Q.all, r.all, lambda.all, method = NULL) 
+{
+    n.r <- length(r.all)
+    c1 <- rep(0, 4)
+    n.q <- dim(Q.all)[1]
+    pval <- matrix(rep(0, n.r * n.q), ncol = n.r)
+    pmin.q <- matrix(rep(0, n.r * n.q), ncol = n.r)
+    param.mat <- NULL
+    for (i in 1:n.r) {
+        Q <- Q.all[, i]
+        r.corr <- r.all[i]
+        lambda.temp <- lambda.all[[i]]
+        c1[1] <- sum(lambda.temp)
+        c1[2] <- sum(lambda.temp^2)
+        c1[3] <- sum(lambda.temp^3)
+        c1[4] <- sum(lambda.temp^4)
+        param.temp <- Get_Liu_Params_Mod(c1)
+        muQ <- param.temp$muQ
+        varQ <- param.temp$sigmaQ^2
+        df <- param.temp$l
+        Q.Norm <- (Q - muQ)/sqrt(varQ) * sqrt(2 * df) + df
+        pval[, i] <- pchisq(Q.Norm, df = df, lower.tail = FALSE)
+        if (!is.null(method)) {
+            if (method == "optimal.mod" || method == "optimal.adj" || 
+                method == "optimal.moment.adj") {
+                pval[, i] <- Get_PValue.Lambda(lambda.temp, Q)$p.value
+            }
+        }
+        param.mat <- rbind(param.mat, c(muQ, varQ, df))
+    }
+    pmin <- apply(pval, 1, min)
+    for (i in 1:n.r) {
+        muQ <- param.mat[i, 1]
+        varQ <- param.mat[i, 2]
+        df <- param.mat[i, 3]
+        q.org <- qchisq(1 - pmin, df = df)
+        q.q <- (q.org - df)/sqrt(2 * df) * sqrt(varQ) + muQ
+        pmin.q[, i] <- q.q
+    }
+    out <- list(pmin = pmin, pval = pval, pmin.q = pmin.q)
+    return(out)
+}
+<bytecode: 0x7feaf0cd86c8>
+<environment: namespace:SKAT>
+
+=== SKAT_Optimal_Param ===
+function (Z1, r.all) 
+{
+    n <- dim(Z1)[1]
+    p.m <- dim(Z1)[2]
+    r.n <- length(r.all)
+    z_mean <- rowMeans(Z1)
+    Z_mean <- matrix(rep(z_mean, p.m), ncol = p.m, byrow = FALSE)
+    cof1 <- (t(z_mean) %*% Z1)[1, ]/sum(z_mean^2)
+    Z.item1 <- Z_mean %*% diag(cof1)
+    Z.item2 <- Z1 - Z.item1
+    W3.2.t <- t(Z.item2) %*% Z.item2
+    lambda <- Get_Lambda(W3.2.t)
+    W3.3.item <- sum((t(Z.item1) %*% Z.item1) * (t(Z.item2) %*% 
+        Z.item2)) * 4
+    MuQ <- sum(lambda)
+    VarQ <- sum(lambda^2) * 2 + W3.3.item
+    KerQ <- sum(lambda^4)/(sum(lambda^2))^2 * 12
+    Df <- 12/KerQ
+    tau <- rep(0, r.n)
+    for (i in 1:r.n) {
+        r.corr <- r.all[i]
+        term1 <- p.m^2 * r.corr + sum(cof1^2) * (1 - r.corr)
+        tau[i] <- sum(term1) * sum(z_mean^2)
+    }
+    out <- list(MuQ = MuQ, VarQ = VarQ, KerQ = KerQ, lambda = lambda, 
+        VarRemain = W3.3.item, Df = Df, tau = tau)
+    return(out)
+}
+<bytecode: 0x7feaf0cf9108>
+<environment: namespace:SKAT>
+Loading required package: Matrix
+Loading required package: SPAtest
+Loading required package: RSpectra
+=== SKAT_META_Optimal ===
+function (Score, Phi, r.all, method = "davies", Score.Resampling, 
+    isFast = FALSE) 
+{
+    IDX <- which(r.all >= 0.999)
+    if (length(IDX) > 0) {
+        r.all[IDX] <- 0.999
+    }
+    p.m <- dim(Phi)[2]
+    n.r <- length(r.all)
+    out.Q <- SKAT_META_Optimal_Get_Q(Score, r.all)
+    Q.res = NULL
+    if (!is.null(Score.Resampling)) {
+        Q.res <- SKAT_META_Optimal_Get_Q_Res(Score.Resampling, 
+            r.all)$Q.r
+    }
+    Q.all <- rbind(out.Q$Q.r, Q.res)
+    out <- SKAT_META_Optimal_Get_Pvalue(Q.all, Phi/2, r.all, 
+        method, isFast = isFast)
+    param <- list(p.val.each = NULL, q.val.each = NULL)
+    param$p.val.each <- out$p.val.each[1, ]
+    param$q.val.each <- Q.all[1, ]
+    param$rho <- r.all
+    param$minp <- min(param$p.val.each)
+    id_temp <- which(param$p.val.each == min(param$p.val.each))
+    id_temp1 <- which(param$rho >= 0.999)
+    if (length(id_temp1) > 0) {
+        param$rho[id_temp1] = 1
+    }
+    param$rho_est <- param$rho[id_temp]
+    p.value <- out$p.value[1]
+    p.value.resampling = NULL
+    if (!is.null(Q.res)) {
+        p.value.resampling = out$p.value[-1]
+    }
+    re <- list(p.value = p.value, param = param, p.value.resampling = p.value.resampling)
+    return(re)
+}
+<bytecode: 0x7fdaf5dd26f0>
+<environment: namespace:SKAT>
+
+=== SKAT_META_Optimal_Get_Pvalue ===
+function (Q.all, Phi, r.all, method, isFast = FALSE) 
+{
+    n.r <- length(r.all)
+    n.q <- dim(Q.all)[1]
+    p.m <- dim(Phi)[2]
+    lambda.all <- list()
+    for (i in 1:n.r) {
+        r.corr <- r.all[i]
+        R.M <- diag(rep(1 - r.corr, p.m)) + matrix(rep(r.corr, 
+            p.m * p.m), ncol = p.m)
+        L <- chol(R.M, pivot = TRUE)
+        Phi_rho <- L %*% (Phi %*% t(L))
+        lambda.all[[i]] <- Get_Lambda(Phi_rho, isFast = isFast)
+    }
+    param.m <- SKAT_META_Optimal_Param(Phi, r.all)
+    Each_Info <- SKAT_Optimal_Each_Q(param.m, Q.all, r.all, lambda.all, 
+        method = method)
+    pmin.q <- Each_Info$pmin.q
+    pval <- rep(0, n.q)
+    pmin <- Each_Info$pmin
+    if (method == "davies" || method == "optimal" || method == 
+        "optimal.adj" || method == "optimal.mod") {
+        for (i in 1:n.q) {
+            pval[i] <- SKAT_Optimal_PValue_Davies(pmin.q[i, ], 
+                param.m, r.all, pmin[i])
+        }
+    }
+    else if (method == "liu" || method == "liu.mod") {
+        for (i in 1:n.q) {
+            pval[i] <- SKAT_Optimal_PValue_Liu(pmin.q[i, ], param.m, 
+                r.all, pmin[i])
+        }
+    }
+    else {
+        stop("Invalid Method:", method)
+    }
+    multi <- 3
+    if (length(r.all) < 3) {
+        multi <- 2
+    }
+    for (i in 1:n.q) {
+        pval.each <- Each_Info$pval[i, ]
+        IDX <- which(pval.each > 0)
+        pval1 <- min(pval.each) * multi
+        if (pval[i] <= 0 || length(IDX) < length(r.all)) {
+            pval[i] <- pval1
+        }
+        if (pval[i] == 0) {
+            if (length(IDX) > 0) {
+                pval[i] = min(pval.each[IDX])
+            }
+        }
+    }
+    return(list(p.value = pval, p.val.each = Each_Info$pval))
+}
+<bytecode: 0x7fdaf5e0dca8>
+<environment: namespace:SKAT>

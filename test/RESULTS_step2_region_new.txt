@@ -1,0 +1,57 @@
+SAIGE Step 2: R vs C++ Region Comparison Results
+Date: 2026-03-06 00:38:42.639786 
+R results: test/R/r_step2_region_results.txt 
+C++ results: test/output/cpp_compare_region_results_from_git.txt 
+==================================================================================================== 
+
+Column           |   Total |   EXACT |   MATCH |   CLOSE |  DIFFER |   MaxRelDiff |   MaxAbsDiff
+---------------------------------------------------------------------------------------------------- 
+Pvalue           |       9 |       0 |       0 |       3 |       6 |    6.740e-02 |    1.071e-02
+Pvalue_Burden    |       9 |       0 |       0 |       6 |       3 |    4.907e-04 |    3.359e-04
+Pvalue_SKAT      |       9 |       0 |       0 |       7 |       2 |    2.827e-03 |    2.317e-03
+BETA_Burden      |       7 |       0 |       0 |       7 |       0 |    6.886e-07 |    8.118e-09
+SE_Burden        |       7 |       0 |       0 |       5 |       2 |    1.136e-03 |    8.063e-06
+MAC              |       7 |       7 |       0 |       0 |       0 |    0.000e+00 |    0.000e+00
+Number_rare      |       7 |       7 |       0 |       0 |       0 |    0.000e+00 |    0.000e+00
+Number_ultra_rare |       7 |       7 |       0 |       0 |       0 |    0.000e+00 |    0.000e+00
+
+Worst Disagreements:
+
+ Pvalue :
+  GENE1___Cauchy___NA: R=1.5677617418e-01  C++=1.4620900000e-01  relDiff=6.740e-02
+  GENE1___lof___0.01: R=6.7439441761e-02  C++=6.3228800000e-02  relDiff=6.244e-02
+  GENE1___missense;lof___0.01: R=1.1702711084e-01  C++=1.1092400000e-01  relDiff=5.215e-02
+  GENE2___missense;lof___0.01: R=4.2825804002e-01  C++=4.1755100000e-01  relDiff=2.500e-02
+  GENE2___lof___0.01: R=8.1286330819e-01  C++=8.0681800000e-01  relDiff=7.437e-03
+
+ Pvalue_Burden :
+  GENE1___missense;lof___0.01: R=1.0568611949e-01  C++=1.0573800000e-01  relDiff=4.907e-04
+  GENE2___lof___0.01: R=6.8790386349e-01  C++=6.8756800000e-01  relDiff=4.882e-04
+  GENE1___lof___0.01: R=3.9604871813e-02  C++=3.9596800000e-02  relDiff=2.038e-04
+  GENE2___missense;lof___0.01: R=3.2159773808e-01  C++=3.2162500000e-01  relDiff=8.476e-05
+  GENE2___Cauchy___NA: R=7.7770076096e-01  C++=7.7765400000e-01  relDiff=6.013e-05
+
+ Pvalue_SKAT :
+  GENE2___lof___0.01: R=8.1965386374e-01  C++=8.1733700000e-01  relDiff=2.827e-03
+  GENE2___Cauchy___NA: R=8.0530559598e-01  C++=8.0464800000e-01  relDiff=8.166e-04
+  GENE1___lof___0.01: R=1.6517352376e-01  C++=1.6517300000e-01  relDiff=3.171e-06
+  GENE1___missense;lof___0.01: R=7.4263297075e-02  C++=7.4263100000e-02  relDiff=2.654e-06
+  GENE1___Cauchy___NA: R=1.9376014440e-01  C++=1.9376000000e-01  relDiff=7.453e-07
+
+ BETA_Burden :
+  GENE1___lof___0.01: R=-1.1790591882e-02  C++=-1.1790600000e-02  relDiff=6.886e-07
+  GENE1___missense;lof___0.001: R=3.7650421850e-03  C++=3.7650400000e-03  relDiff=5.803e-07
+  GENE1___missense;lof___0.01: R=-8.9164648961e-03  C++=-8.9164600000e-03  relDiff=5.491e-07
+  GENE2___lof___0.001: R=-2.3879388373e-03  C++=-2.3879400000e-03  relDiff=4.869e-07
+  GENE2___lof___0.01: R=-2.8508511271e-03  C++=-2.8508500000e-03  relDiff=3.954e-07
+
+ SE_Burden :
+  GENE2___lof___0.01: R=7.0969426455e-03  C++=7.0888800000e-03  relDiff=1.136e-03
+  GENE1___missense;lof___0.01: R=5.5111658603e-03  C++=5.5119900000e-03  relDiff=1.495e-04
+  GENE2___missense;lof___0.01: R=7.2328027813e-03  C++=7.2332100000e-03  relDiff=5.630e-05
+  GENE1___lof___0.01: R=5.7295779568e-03  C++=5.7293400000e-03  relDiff=4.153e-05
+  GENE1___missense;lof___0.001: R=1.7226767531e-02  C++=1.7226800000e-02  relDiff=1.885e-06
+
+Total comparisons: 62
+DIFFER: 13
+OVERALL: FAIL (13 differ)

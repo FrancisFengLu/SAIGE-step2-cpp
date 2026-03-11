@@ -1,0 +1,1714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SKAT-O Algorithm: Complete Pipeline Reference</title>
+
+<!-- KaTeX CDN for math rendering -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {
+    delimiters: [
+      {left: '$$', right: '$$', display: true},
+      {left: '$', right: '$', display: false}
+    ],
+    throwOnError: false
+  });"></script>
+
+<style>
+/* ============================================================
+   CSS Variables & Reset (matching STEP2_MATH_EXPLAINED.html)
+   ============================================================ */
+:root {
+  --color-vector: #3498db;
+  --color-matrix: #27ae60;
+  --color-scalar: #e74c3c;
+  --color-test: #8e44ad;
+  --color-bg: #ffffff;
+  --color-sidebar-bg: #1a1a2e;
+  --color-sidebar-text: #c8c8e0;
+  --color-sidebar-active: #e94560;
+  --color-code-bg: #1e1e2e;
+  --color-code-text: #cdd6f4;
+  --color-border: #e0e0e0;
+  --color-section-bg: #f8f9fa;
+  --color-heading: #2c3e50;
+  --color-note-bg: #fff3cd;
+  --color-note-border: #ffc107;
+  --sidebar-width: 260px;
+  --content-max-width: 900px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  line-height: 1.7;
+  color: #333;
+  background: var(--color-bg);
+}
+
+/* ============================================================
+   Sidebar Navigation
+   ============================================================ */
+#sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: var(--sidebar-width);
+  height: 100vh;
+  background: var(--color-sidebar-bg);
+  color: var(--color-sidebar-text);
+  overflow-y: auto;
+  z-index: 1000;
+  padding: 20px 0;
+  border-right: 3px solid var(--color-sidebar-active);
+}
+
+#sidebar h2 {
+  color: #fff;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  padding: 0 20px 15px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  margin-bottom: 10px;
+}
+
+#sidebar nav a {
+  display: block;
+  color: var(--color-sidebar-text);
+  text-decoration: none;
+  padding: 8px 20px;
+  font-size: 13px;
+  transition: all 0.2s ease;
+  border-left: 3px solid transparent;
+}
+
+#sidebar nav a:hover {
+  background: rgba(255,255,255,0.05);
+  color: #fff;
+}
+
+#sidebar nav a.active {
+  color: #fff;
+  background: rgba(233,69,96,0.15);
+  border-left-color: var(--color-sidebar-active);
+  font-weight: 600;
+}
+
+#sidebar nav a.sub {
+  padding-left: 36px;
+  font-size: 12px;
+}
+
+/* ============================================================
+   Main Content
+   ============================================================ */
+#content {
+  margin-left: var(--sidebar-width);
+  padding: 40px 50px;
+  max-width: calc(var(--content-max-width) + 100px + var(--sidebar-width));
+}
+
+h1 {
+  font-size: 2.2em;
+  color: var(--color-heading);
+  border-bottom: 3px solid var(--color-sidebar-active);
+  padding-bottom: 15px;
+  margin-bottom: 30px;
+}
+
+h2 {
+  font-size: 1.6em;
+  color: var(--color-heading);
+  margin-top: 50px;
+  margin-bottom: 20px;
+  padding-top: 15px;
+  border-top: 2px solid var(--color-border);
+}
+
+h2:first-of-type { border-top: none; margin-top: 20px; }
+
+h3 {
+  font-size: 1.25em;
+  color: #444;
+  margin-top: 30px;
+  margin-bottom: 12px;
+}
+
+h4 {
+  font-size: 1.05em;
+  color: #555;
+  margin-top: 20px;
+  margin-bottom: 8px;
+}
+
+p { margin-bottom: 14px; }
+
+section { scroll-margin-top: 20px; }
+
+/* ============================================================
+   Color-coded spans for variable types
+   ============================================================ */
+.vec { color: var(--color-vector); font-weight: 600; }
+.mat { color: var(--color-matrix); font-weight: 600; }
+.sca { color: var(--color-scalar); font-weight: 600; }
+.tst { color: var(--color-test); font-weight: 600; }
+
+.legend {
+  display: flex;
+  gap: 24px;
+  margin: 15px 0 25px;
+  padding: 12px 18px;
+  background: #f0f0f0;
+  border-radius: 6px;
+  font-size: 14px;
+  flex-wrap: wrap;
+}
+
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend .dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+/* ============================================================
+   Code blocks
+   ============================================================ */
+pre {
+  background: var(--color-code-bg);
+  color: var(--color-code-text);
+  padding: 18px 22px;
+  border-radius: 8px;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 16px 0;
+  border: 1px solid #313244;
+}
+
+code {
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+}
+
+p code, li code, td code {
+  background: #e8e8e8;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 0.9em;
+  color: #c7254e;
+}
+
+/* Syntax highlighting classes */
+.kw { color: #cba6f7; }
+.fn { color: #89b4fa; }
+.cm { color: #6c7086; font-style: italic; }
+.st { color: #a6e3a1; }
+.nu { color: #fab387; }
+.ty { color: #f9e2af; }
+
+/* ============================================================
+   Math display blocks
+   ============================================================ */
+.math-block {
+  background: #f7f7ff;
+  border: 1px solid #d0d0e0;
+  border-left: 4px solid var(--color-test);
+  padding: 18px 22px;
+  margin: 18px 0;
+  border-radius: 0 6px 6px 0;
+  overflow-x: auto;
+}
+
+.math-block.vec-block { border-left-color: var(--color-vector); }
+.math-block.mat-block { border-left-color: var(--color-matrix); }
+.math-block.sca-block { border-left-color: var(--color-scalar); }
+
+/* ============================================================
+   Collapsible details sections
+   ============================================================ */
+details {
+  margin: 18px 0;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+details summary {
+  padding: 12px 18px;
+  background: #f0f4f8;
+  cursor: pointer;
+  font-weight: 600;
+  color: #444;
+  user-select: none;
+  transition: background 0.2s;
+}
+
+details summary:hover { background: #e4eaf0; }
+
+details[open] summary { border-bottom: 1px solid var(--color-border); }
+
+details .detail-content {
+  padding: 18px 22px;
+}
+
+/* ============================================================
+   Tables
+   ============================================================ */
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 18px 0;
+  font-size: 14px;
+}
+
+th, td {
+  border: 1px solid #ddd;
+  padding: 10px 14px;
+  text-align: left;
+}
+
+th {
+  background: #34495e;
+  color: white;
+  font-weight: 600;
+}
+
+tr:nth-child(even) { background: #f9f9f9; }
+tr:hover { background: #f0f4f8; }
+
+/* ============================================================
+   Note/callout boxes
+   ============================================================ */
+.note {
+  background: var(--color-note-bg);
+  border: 1px solid var(--color-note-border);
+  border-left: 4px solid var(--color-note-border);
+  padding: 14px 18px;
+  border-radius: 0 6px 6px 0;
+  margin: 16px 0;
+  font-size: 14px;
+}
+
+.note strong { color: #856404; }
+
+.insight {
+  background: #d4edda;
+  border: 1px solid #28a745;
+  border-left: 4px solid #28a745;
+  padding: 14px 18px;
+  border-radius: 0 6px 6px 0;
+  margin: 16px 0;
+  font-size: 14px;
+}
+
+.insight strong { color: #155724; }
+
+.warning {
+  background: #f8d7da;
+  border: 1px solid #dc3545;
+  border-left: 4px solid #dc3545;
+  padding: 14px 18px;
+  border-radius: 0 6px 6px 0;
+  margin: 16px 0;
+  font-size: 14px;
+}
+
+.warning strong { color: #721c24; }
+
+/* ============================================================
+   Pipeline diagram
+   ============================================================ */
+.pipeline-container {
+  width: 100%;
+  overflow-x: auto;
+  margin: 20px 0 30px;
+}
+
+.pipeline-container svg {
+  display: block;
+  margin: 0 auto;
+}
+
+/* ============================================================
+   Two-column layout
+   ============================================================ */
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin: 16px 0;
+}
+
+.two-col > div {
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 16px;
+}
+
+/* ============================================================
+   Example boxes
+   ============================================================ */
+.example {
+  background: #eef6ff;
+  border: 1px solid #b0d4f1;
+  border-left: 4px solid var(--color-vector);
+  padding: 18px 22px;
+  border-radius: 0 6px 6px 0;
+  margin: 18px 0;
+}
+
+.example h4 {
+  color: var(--color-vector);
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+/* ============================================================
+   Step boxes for pipeline
+   ============================================================ */
+.step-box {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border: 2px solid var(--color-test);
+  border-radius: 10px;
+  padding: 20px 24px;
+  margin: 22px 0;
+  position: relative;
+}
+
+.step-box .step-number {
+  position: absolute;
+  top: -14px;
+  left: 20px;
+  background: var(--color-test);
+  color: white;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.step-box h3 {
+  margin-top: 6px;
+  color: var(--color-test);
+}
+
+.step-box.davies { border-color: #3498db; }
+.step-box.davies .step-number { background: #3498db; }
+.step-box.davies h3 { color: #3498db; }
+
+.step-box.liu { border-color: #27ae60; }
+.step-box.liu .step-number { background: #27ae60; }
+.step-box.liu h3 { color: #27ae60; }
+
+.step-box.integration { border-color: #e74c3c; }
+.step-box.integration .step-number { background: #e74c3c; }
+.step-box.integration h3 { color: #e74c3c; }
+
+.step-box.safeguard { border-color: #f39c12; }
+.step-box.safeguard .step-number { background: #f39c12; }
+.step-box.safeguard h3 { color: #f39c12; }
+
+/* ============================================================
+   Amplification chain diagram
+   ============================================================ */
+.amp-chain {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 16px 0;
+  padding: 14px 18px;
+  background: #fff5f5;
+  border: 1px solid #f5c6cb;
+  border-radius: 8px;
+}
+
+.amp-stage {
+  background: #fff;
+  border: 2px solid #e74c3c;
+  border-radius: 8px;
+  padding: 8px 14px;
+  text-align: center;
+  font-size: 13px;
+  min-width: 100px;
+}
+
+.amp-stage .label { font-weight: 600; color: #c0392b; font-size: 11px; }
+.amp-stage .value { font-family: 'Consolas', monospace; font-size: 12px; margin-top: 2px; }
+
+.amp-arrow {
+  font-size: 20px;
+  color: #e74c3c;
+  font-weight: bold;
+}
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+@media (max-width: 1000px) {
+  #sidebar { display: none; }
+  #content { margin-left: 0; padding: 20px; }
+  .two-col { grid-template-columns: 1fr; }
+  .amp-chain { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     SIDEBAR NAVIGATION
+     ============================================================ -->
+<div id="sidebar">
+  <h2>SKAT-O Algorithm</h2>
+  <nav>
+    <a href="#sec-overview">1. Overview</a>
+    <a href="#sec-input">2. Input</a>
+    <a href="#sec-step1">3. Per-Rho Q Statistics</a>
+    <a href="#sec-step2">4. Per-Rho Eigenvalues</a>
+    <a href="#sec-step3">5. Per-Rho P-Values</a>
+    <a href="#sec-davies" class="sub">5a. Davies Method</a>
+    <a href="#sec-liu" class="sub">5b. Liu Fallback</a>
+    <a href="#sec-step4">6. Shared Parameters</a>
+    <a href="#sec-z-decomp" class="sub">6a. Z Decomposition</a>
+    <a href="#sec-step5">7. Per-Rho Liu Params</a>
+    <a href="#sec-step6">8. pmin and pmin_q</a>
+    <a href="#sec-step7">9. Integration</a>
+    <a href="#sec-integrand" class="sub">9a. Integrand Function</a>
+    <a href="#sec-quadpack" class="sub">9b. QUADPACK rdqagse</a>
+    <a href="#sec-liu-fallback" class="sub">9c. Liu Fallback Path</a>
+    <a href="#sec-step8">10. Final Safeguards</a>
+    <a href="#sec-amplification">11. Error Amplification</a>
+    <a href="#sec-functions">12. Function Reference</a>
+  </nav>
+</div>
+
+<!-- ============================================================
+     MAIN CONTENT
+     ============================================================ -->
+<div id="content">
+
+<h1>SKAT-O Algorithm &mdash; Complete Pipeline Reference</h1>
+
+<p>
+This document provides a comprehensive, mathematically precise reference for the SKAT-O
+(Sequence Kernel Association Test &mdash; Optimal) algorithm as implemented in
+<code>skat.cpp</code>. Every formula, variable name, and step corresponds directly to
+the C++ implementation, which is itself a faithful port of the R SKAT package
+(<code>SKAT:::Met_SKAT_Get_Pvalue</code> with <code>method="optimal.adj"</code>).
+</p>
+
+<div class="legend">
+  <span><span class="dot" style="background:var(--color-vector)"></span> <span class="vec">Vectors [m&times;1]</span></span>
+  <span><span class="dot" style="background:var(--color-matrix)"></span> <span class="mat">Matrices [m&times;m]</span></span>
+  <span><span class="dot" style="background:var(--color-scalar)"></span> <span class="sca">Scalars</span></span>
+  <span><span class="dot" style="background:var(--color-test)"></span> <span class="tst">Test Statistics / P-values</span></span>
+</div>
+
+
+<!-- ============================================================
+     SECTION 1: OVERVIEW
+     ============================================================ -->
+<section id="sec-overview">
+<h2>1. Overview: What is SKAT-O?</h2>
+
+<p>
+SKAT-O (Lee et al., 2012) is the <strong>optimal unified test</strong> that combines two
+complementary gene-level tests:
+</p>
+
+<div class="two-col">
+  <div>
+    <h4><span class="tst">SKAT</span> (Variance-Component Test, &rho; = 0)</h4>
+    <p>Tests whether any individual variant in the region has an effect. Powerful when
+    effects are sparse or in opposite directions.</p>
+    <div class="math-block">
+      $$Q_{\text{SKAT}} = \mathbf{S}^\top \mathbf{W} \mathbf{S}$$
+    </div>
+  </div>
+  <div>
+    <h4><span class="tst">BURDEN</span> (Collapsing Test, &rho; = 1)</h4>
+    <p>Tests whether variants collectively shift the trait. Powerful when most variants
+    have effects in the same direction.</p>
+    <div class="math-block">
+      $$Q_{\text{Burden}} = \left(\sum_j w_j S_j\right)^2$$
+    </div>
+  </div>
+</div>
+
+<p>
+SKAT-O interpolates between these two extremes via a mixing parameter $\rho \in [0, 1]$:
+</p>
+
+<div class="math-block">
+  $$Q(\rho) = (1 - \rho)\, Q_{\text{SKAT}} + \rho\, Q_{\text{Burden}}$$
+</div>
+
+<p>
+The key idea: rather than choosing one test <em>a priori</em>, SKAT-O searches over a grid of
+$\rho$ values and reports the <em>minimum p-value</em>, corrected for the search. The
+correction is done via numerical integration over the null distribution of the minimum
+p-value statistic $T_{\text{SKAT-O}} = \min_\rho\, p(\rho)$.
+</p>
+
+<!-- Pipeline Diagram -->
+<div class="pipeline-container">
+<svg viewBox="0 0 900 520" width="880" height="510" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif">
+  <defs>
+    <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#888"/>
+    </marker>
+  </defs>
+  <rect width="900" height="520" fill="#fafbfc" rx="10"/>
+
+  <!-- Step 1: Inputs -->
+  <rect x="30" y="20" width="180" height="50" rx="8" fill="#3498db" stroke="#2980b9" stroke-width="2"/>
+  <text x="120" y="40" text-anchor="middle" fill="white" font-size="12" font-weight="bold">Inputs</text>
+  <text x="120" y="55" text-anchor="middle" fill="#d5e8f7" font-size="10">S [m], Phi [m x m], rho grid</text>
+
+  <line x1="120" y1="70" x2="120" y2="95" stroke="#888" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+  <!-- Step 2: Per-rho Q -->
+  <rect x="30" y="95" width="180" height="45" rx="8" fill="#8e44ad" stroke="#7d3c98" stroke-width="2"/>
+  <text x="120" y="113" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Step 1: Q(rho)</text>
+  <text x="120" y="129" text-anchor="middle" fill="#dcc6e8" font-size="9">(1-rho)*S'S + rho*(sum S)^2</text>
+
+  <line x1="120" y1="140" x2="120" y2="165" stroke="#888" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+  <!-- Step 3: Eigenvalues -->
+  <rect x="30" y="165" width="180" height="45" rx="8" fill="#27ae60" stroke="#219a52" stroke-width="2"/>
+  <text x="120" y="183" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Step 2: Eigenvalues</text>
+  <text x="120" y="199" text-anchor="middle" fill="#c8f0d4" font-size="9">L * (Phi/2) * L' per rho</text>
+
+  <line x1="120" y1="210" x2="120" y2="235" stroke="#888" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+  <!-- Step 4: Per-rho p-values -->
+  <rect x="30" y="235" width="180" height="45" rx="8" fill="#e74c3c" stroke="#c0392b" stroke-width="2"/>
+  <text x="120" y="253" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Step 3: p(rho)</text>
+  <text x="120" y="269" text-anchor="middle" fill="#f5c6cb" font-size="9">Davies / Liu per rho</text>
+
+  <!-- Branch: Davies vs Liu -->
+  <rect x="260" y="205" width="140" height="35" rx="6" fill="#3498db" stroke="#2980b9" stroke-width="1.5"/>
+  <text x="330" y="226" text-anchor="middle" fill="white" font-size="10" font-weight="bold">Davies (AS 155)</text>
+  <line x1="210" y1="222" x2="260" y2="222" stroke="#888" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+  <rect x="260" y="250" width="140" height="35" rx="6" fill="#27ae60" stroke="#219a52" stroke-width="1.5"/>
+  <text x="330" y="271" text-anchor="middle" fill="white" font-size="10" font-weight="bold">Liu (fallback)</text>
+  <line x1="400" y1="240" x2="400" y2="250" stroke="#888" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrowhead)"/>
+  <text x="420" y="248" fill="#888" font-size="9">if fail</text>
+
+  <line x1="120" y1="280" x2="120" y2="305" stroke="#888" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+  <!-- Step 5: Shared params -->
+  <rect x="30" y="305" width="180" height="45" rx="8" fill="#34495e" stroke="#2c3e50" stroke-width="2"/>
+  <text x="120" y="323" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Step 4: Shared Params</text>
+  <text x="120" y="339" text-anchor="middle" fill="#b0bec5" font-size="9">MuQ, VarQ, tau, lambda_shared</text>
+
+  <line x1="210" y1="327" x2="450" y2="327" stroke="#888" stroke-width="1.5" stroke-dasharray="4,3"/>
+
+  <!-- Z decomposition box -->
+  <rect x="450" y="305" width="180" height="45" rx="6" fill="#f0f4f8" stroke="#34495e" stroke-width="1.5"/>
+  <text x="540" y="323" text-anchor="middle" fill="#34495e" font-size="10" font-weight="bold">Z Decomposition</text>
+  <text x="540" y="338" text-anchor="middle" fill="#666" font-size="9">Z.item1, ZMZ, W3.3.item</text>
+
+  <line x1="120" y1="350" x2="120" y2="375" stroke="#888" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+  <!-- Step 6: pmin_q -->
+  <rect x="30" y="375" width="180" height="45" rx="8" fill="#d35400" stroke="#e67e22" stroke-width="2"/>
+  <text x="120" y="393" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Step 5-6: pmin_q</text>
+  <text x="120" y="409" text-anchor="middle" fill="#fde3ce" font-size="9">qchisq -> Q scale per rho</text>
+
+  <line x1="120" y1="420" x2="120" y2="445" stroke="#888" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+  <!-- Step 7: Integration -->
+  <rect x="30" y="445" width="180" height="50" rx="8" fill="#e74c3c" stroke="#c0392b" stroke-width="2"/>
+  <text x="120" y="463" text-anchor="middle" fill="white" font-size="12" font-weight="bold">Step 7: Integration</text>
+  <text x="120" y="480" text-anchor="middle" fill="#f5c6cb" font-size="9">QUADPACK rdqagse [0, 40]</text>
+
+  <line x1="210" y1="470" x2="450" y2="470" stroke="#888" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+  <!-- Final p-value -->
+  <rect x="450" y="445" width="200" height="50" rx="8" fill="#f39c12" stroke="#e67e22" stroke-width="2"/>
+  <text x="550" y="463" text-anchor="middle" fill="white" font-size="12" font-weight="bold">Step 8: Final p-value</text>
+  <text x="550" y="480" text-anchor="middle" fill="#fef3cd" font-size="9">safeguards + Bonferroni bound</text>
+
+  <line x1="650" y1="470" x2="720" y2="470" stroke="#888" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+  <rect x="720" y="450" width="150" height="40" rx="8" fill="#28a745" stroke="#1e7e34" stroke-width="2"/>
+  <text x="795" y="475" text-anchor="middle" fill="white" font-size="13" font-weight="bold">p_SKATO</text>
+</svg>
+</div>
+
+</section>
+
+
+<!-- ============================================================
+     SECTION 2: INPUT
+     ============================================================ -->
+<section id="sec-input">
+<h2>2. Input</h2>
+
+<p>
+The SKAT-O algorithm receives the following inputs from the region-testing pipeline
+(<code>get_SKAT_pvalue()</code>, line 1781 of <code>skat.cpp</code>):
+</p>
+
+<table>
+  <tr>
+    <th>Variable</th>
+    <th>Type</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td><span class="vec">Score</span> (S)</td>
+    <td>arma::vec [m &times; 1]</td>
+    <td>Weighted score vector. Each element $S_j$ is the association signal for variant $j$, already multiplied by the variant weight $w_j$.</td>
+  </tr>
+  <tr>
+    <td><span class="mat">Phi</span> ($\Phi$)</td>
+    <td>arma::mat [m &times; m]</td>
+    <td>Weighted variance-covariance matrix of the score statistics, already incorporating weights: $\Phi = \mathbf{W}^{1/2} \Sigma \mathbf{W}^{1/2}$.</td>
+  </tr>
+  <tr>
+    <td><span class="vec">r_corr</span> ($\rho$)</td>
+    <td>arma::vec [n_rho &times; 1]</td>
+    <td>Grid of mixing parameters. Default: $\{0,\; 0.01,\; 0.04,\; 0.09,\; 0.16,\; 0.25,\; 0.36,\; 0.49,\; 0.64,\; 0.81,\; 1.0\}$ (i.e., $\{0, 0.1^2, 0.2^2, \ldots, 0.9^2, 1\}$).</td>
+  </tr>
+  <tr>
+    <td><span class="sca">regionTestType</span></td>
+    <td>string</td>
+    <td><code>"SKATO"</code>, <code>"SKAT"</code>, or <code>"BURDEN"</code>. For SKAT-O, the full pipeline runs.</td>
+  </tr>
+</table>
+
+<div class="note">
+  <strong>Note:</strong> The caller (in <code>main.cpp</code>) constructs <span class="vec">Score</span> and
+  <span class="mat">Phi</span> from P1Mat and P2Mat, applying Beta(MAF, 1, 25) weights.
+  The SKAT-O code receives already-weighted inputs. The rho grid values $\{0.1^2, 0.2^2, \ldots\}$ are
+  quadratic spacings that provide finer resolution near $\rho=0$ (SKAT) since that is typically
+  where the optimum lies.
+</div>
+
+</section>
+
+
+<!-- ============================================================
+     SECTION 3: STEP 1 - PER-RHO Q STATISTICS
+     ============================================================ -->
+<section id="sec-step1">
+<h2>3. Step 1 &mdash; Per-Rho Q Statistics</h2>
+
+<div class="step-box">
+  <div class="step-number">1</div>
+  <h3>Compute Q(&rho;) for each &rho; in the grid</h3>
+
+  <p>
+  For each $\rho_k$ in the grid, the test statistic $Q(\rho_k)$ is a weighted combination
+  of the SKAT and Burden statistics:
+  </p>
+
+  <div class="math-block">
+    $$Q(\rho_k) = (1 - \rho_k)\, \underbrace{\mathbf{S}^\top \mathbf{S}}_{Q_{\text{SKAT}}} \;+\; \rho_k\, \underbrace{\left(\sum_j S_j\right)^2}_{Q_{\text{Burden}}}$$
+  </div>
+
+  <p>This can be written compactly using the correlation matrix $\mathbf{R}_\rho = (1-\rho)\mathbf{I} + \rho\, \mathbf{1}\mathbf{1}^\top$:</p>
+
+  <div class="math-block">
+    $$Q(\rho) = \mathbf{S}^\top \mathbf{R}_\rho\, \mathbf{S}$$
+  </div>
+
+  <p>C++ implementation (lines 1903&ndash;1908):</p>
+  <pre><span class="cm">// Q(rho) = (1-rho) * Score'*Score + rho * (sum(Score))^2</span>
+<span class="kw">double</span> Q_rho = (<span class="nu">1.0</span> - rho) * arma::<span class="fn">dot</span>(Score, Score)
+             + rho * sum_score * sum_score;</pre>
+
+  <div class="note">
+    <strong>Note:</strong> Internally, SKAT-O works with $Q/2$ and $\Phi/2$ (line 1356:
+    <code>arma::mat Phi_half = Phi * 0.5</code>; line 1454: <code>Q_all(k) = Q_rho / 2.0</code>).
+    Since p-values are scale-invariant, this halving does not affect the result. It matches the
+    R SKAT package convention where <code>SKAT_META_Optimal</code> passes <code>Phi/2</code>
+    to <code>SKAT_META_Optimal_Get_Pvalue</code>.
+  </div>
+</div>
+
+</section>
+
+
+<!-- ============================================================
+     SECTION 4: STEP 2 - PER-RHO EIGENVALUES
+     ============================================================ -->
+<section id="sec-step2">
+<h2>4. Step 2 &mdash; Per-Rho Eigenvalues</h2>
+
+<div class="step-box davies">
+  <div class="step-number">2</div>
+  <h3>Eigenvalues of the null distribution for Q(&rho;)</h3>
+
+  <p>
+  Under the null hypothesis, $Q(\rho)$ follows a distribution of the form
+  $\sum_j \lambda_j^{(\rho)}\, \chi^2_1$, where $\lambda_j^{(\rho)}$ are the eigenvalues
+  of $\mathbf{R}_\rho^{1/2}\, \Phi\, \mathbf{R}_\rho^{1/2}$. Computing these eigenvalues is done via
+  the Cholesky decomposition of $\mathbf{R}_\rho$.
+  </p>
+
+  <h4>Cholesky approach (lines 1462&ndash;1489)</h4>
+
+  <p>For each $\rho_k$:</p>
+  <ol>
+    <li>Form $\mathbf{R}_\rho = (1-\rho)\mathbf{I} + \rho\, \mathbf{1}\mathbf{1}^\top$</li>
+    <li>Compute the upper Cholesky factor: $\mathbf{R}_\rho = \mathbf{L}^\top \mathbf{L}$</li>
+    <li>Form $\Phi_\rho = \mathbf{L} \cdot (\Phi/2) \cdot \mathbf{L}^\top$</li>
+    <li>Eigendecompose: $\lambda^{(\rho)} = \text{eig\_sym}(\Phi_\rho)$</li>
+    <li>Filter eigenvalues using R's <code>Get_Lambda</code> rule</li>
+  </ol>
+
+  <pre><span class="cm">// L = chol(R.M)  -- upper Cholesky</span>
+<span class="ty">arma::mat</span> R_M = (<span class="nu">1.0</span> - rho) * arma::<span class="fn">eye</span>(p_m, p_m)
+              + rho * arma::<span class="fn">ones</span>(p_m, p_m);
+<span class="ty">arma::mat</span> L;
+arma::<span class="fn">chol</span>(L, R_M);
+<span class="ty">arma::mat</span> Phi_rho = L * Phi_half * L.<span class="fn">t</span>();</pre>
+
+  <h4>Eigenvalue filtering (lines 579&ndash;587)</h4>
+  <p>The <code>filter_eigenvalues_R()</code> function matches R's <code>Get_Lambda</code>:</p>
+  <div class="math-block">
+    $$\text{threshold} = \frac{\text{mean}(\lambda_j \mid \lambda_j \geq 0)}{10^5}$$
+    $$\lambda_{\text{filtered}} = \{\lambda_j \mid \lambda_j > \text{threshold}\}$$
+  </div>
+
+  <details>
+    <summary>Special cases: &rho; = 0 and &rho; = 1</summary>
+    <div class="detail-content">
+      <p>
+      When <strong>&rho; = 0</strong> (pure SKAT), $\mathbf{R}_0 = \mathbf{I}$, so
+      $\lambda^{(0)} = \text{eig}(\Phi)$. See <code>compute_phi_rho_eigenvalues()</code> line 590.
+      </p>
+      <p>
+      When <strong>&rho; = 1</strong> (pure Burden), $\mathbf{R}_1 = \mathbf{1}\mathbf{1}^\top$,
+      which has rank 1 with eigenvalue $m$. Thus $Q(1) / \sum_{ij} \Phi_{ij} \sim \chi^2_1$.
+      The function returns a single eigenvalue $= \text{accu}(\Phi)$ (line 599).
+      </p>
+    </div>
+  </details>
+
+  <details>
+    <summary>General case eigenstructure of R_&rho;</summary>
+    <div class="detail-content">
+      <p>
+      The function <code>compute_phi_rho_eigenvalues()</code> (line 589) also implements a direct
+      spectral approach for intermediate $\rho$. The eigenvalues of $\mathbf{R}_\rho$ are:
+      </p>
+      <div class="math-block">
+        $$(1-\rho) \text{ with multiplicity } (m-1), \quad (1-\rho+m\rho) \text{ with multiplicity } 1$$
+      </div>
+      <p>
+      The square root is computed via the projection onto $\mathbf{1}$:
+      $\sqrt{\mathbf{R}_\rho} = \sqrt{1-\rho}\,(\mathbf{I} - \mathbf{P}) + \sqrt{1-\rho+m\rho}\,\mathbf{P}$
+      where $\mathbf{P} = \mathbf{1}\mathbf{1}^\top / m$ (lines 614&ndash;617).
+      </p>
+    </div>
+  </details>
+</div>
+
+</section>
+
+
+<!-- ============================================================
+     SECTION 5: STEP 3 - PER-RHO P-VALUES
+     ============================================================ -->
+<section id="sec-step3">
+<h2>5. Step 3 &mdash; Per-Rho P-Values</h2>
+
+<div class="step-box">
+  <div class="step-number">3</div>
+  <h3>P-value for Q(&rho;) via Davies or Liu</h3>
+
+  <p>
+  For each $\rho_k$, compute $p_k = P(Q_{\text{null}} > Q(\rho_k))$ where
+  $Q_{\text{null}} \sim \sum_j \lambda_j^{(\rho_k)} \chi^2_1$.
+  The primary method is <strong>Davies</strong>; if it fails, <strong>Liu moment-matching</strong>
+  is used as fallback.
+  </p>
+</div>
+
+
+<!-- Davies subsection -->
+<section id="sec-davies">
+<h3>5a. Davies Method (Algorithm AS 155)</h3>
+
+<p>
+Davies (1980) computes the tail probability of a linear combination of chi-squared(1) variables
+by numerically inverting the characteristic function. The implementation in <code>skat.cpp</code>
+(lines 59&ndash;384, namespace <code>qfc_impl</code>) is a direct port of the
+<code>qfc</code> algorithm from the CompQuadForm R package bundled in SKAT.
+</p>
+
+<div class="math-block">
+  $$P\left(\sum_{j=1}^{r} \lambda_j \chi^2_1 > q\right) = \frac{1}{2} - \frac{1}{\pi}
+  \int_0^\infty \frac{\sin\!\left[\sum_j n_j \arctan(\lambda_j u) - q u\right]}
+  {u \prod_j (1 + \lambda_j^2 u^2)^{n_j/4}}\, du$$
+</div>
+
+<p>
+The algorithm (entry point: line 263, <code>qfc()</code>) works as follows:
+</p>
+<ol>
+  <li>Find the truncation point <code>utx</code> such that the tail of the integral is negligible (<code>findu()</code>, line 184)</li>
+  <li>Find the integration interval from the range of the distribution (<code>ctff()</code>, line 129)</li>
+  <li>Optionally add a convergence factor $\tau^2$ if the integrand oscillates (<code>cfe()</code>, line 232)</li>
+  <li>Numerically integrate via trapezoidal rule (<code>do_integrate()</code>, line 208)</li>
+  <li>Result: $P(Q < q) = 0.5 - \text{integral}$ (line 361)</li>
+</ol>
+
+<pre><span class="cm">// Call: qfc returns P(Q &lt; q) in res</span>
+qfc_impl::<span class="fn">qfc</span>(lb.data(), nc.data(), df.data(), n,
+               sigma, q, lim, acc, trace, &amp;ifault, &amp;res);
+<span class="kw">double</span> pval = <span class="nu">1.0</span> - res;  <span class="cm">// We need P(Q > q)</span></pre>
+
+<p>
+The wrapper <code>davies_pvalue()</code> (line 387) filters near-zero eigenvalues,
+handles the single-eigenvalue special case, and falls back to Liu if the qfc algorithm
+reports failure (<code>ifault != 0</code>) or returns a p-value outside $(0, 1]$.
+</p>
+
+<div class="insight">
+  <strong>Accuracy:</strong> Davies uses <code>acc = 1e-6</code> and <code>lim = 10000</code>
+  iterations (line 418&ndash;419), matching the R defaults.
+</div>
+
+</section>
+
+
+<!-- Liu subsection -->
+<section id="sec-liu">
+<h3>5b. Liu Moment-Matching Method (Fallback)</h3>
+
+<p>
+When Davies fails, <code>liu_pvalue()</code> (line 456) approximates the distribution of
+$Q = \sum_j \lambda_j \chi^2_1$ by a scaled (non-central) chi-squared distribution
+matching the first 4 cumulants. This is from <code>SKAT:::SKAT_liu.MOD.Lambda</code>.
+</p>
+
+<h4>Cumulant computation</h4>
+<div class="math-block">
+  $$c_k = \sum_{j} \lambda_j^k \quad \text{for } k = 1, 2, 3, 4$$
+  $$s_1 = \frac{c_3}{c_2^{3/2}}, \quad s_2 = \frac{c_4}{c_2^2}$$
+</div>
+
+<h4>Parameter fitting</h4>
+<div class="math-block">
+  $$\text{If } s_1^2 > s_2: \quad a = \frac{1}{s_1 - \sqrt{s_1^2 - s_2}}, \quad \delta = s_1 a^3 - a^2, \quad \ell = a^2 - 2\delta$$
+  $$\text{Else: } \quad \delta = 0, \quad \ell = 1/s_2$$
+</div>
+
+<p>where $\ell$ is the degrees of freedom and $\delta$ is the noncentrality parameter.
+The mean and sigma are:</p>
+<div class="math-block">
+  $$\mu_Q = c_1, \quad \sigma_Q = \sqrt{2\, c_2}$$
+</div>
+
+<h4>Normalization and p-value</h4>
+<div class="math-block">
+  $$Q_{\text{norm}} = \frac{Q - \mu_Q}{\sigma_Q} \cdot \sqrt{2\ell + 4\delta} + \ell + \delta$$
+  $$p = P\!\left(\chi^2(\ell, \delta) > Q_{\text{norm}}\right)$$
+</div>
+
+<pre><span class="cm">// Normalize Q to the chi-squared scale (line 496)</span>
+<span class="kw">double</span> Qnorm = (q - muQ) / sigmaQ * std::<span class="fn">sqrt</span>(<span class="nu">2.0</span> * l + <span class="nu">4.0</span> * delta) + l + delta;
+
+<span class="cm">// Compute p-value (line 502-508)</span>
+<span class="kw">if</span> (delta > <span class="nu">1e-6</span>) {
+    boost::math::<span class="ty">non_central_chi_squared</span> ncchi2(l, delta);
+    <span class="kw">return</span> boost::math::<span class="fn">cdf</span>(boost::math::<span class="fn">complement</span>(ncchi2, Qnorm));
+} <span class="kw">else</span> {
+    boost::math::<span class="ty">chi_squared</span> chi2(l);
+    <span class="kw">return</span> boost::math::<span class="fn">cdf</span>(boost::math::<span class="fn">complement</span>(chi2, Qnorm));
+}</pre>
+
+</section>
+</section>
+
+
+<!-- ============================================================
+     SECTION 6: STEP 4 - SHARED PARAMETERS
+     ============================================================ -->
+<section id="sec-step4">
+<h2>6. Step 4 &mdash; Shared Parameters (SKAT_META_Optimal_Param)</h2>
+
+<div class="step-box liu">
+  <div class="step-number">4</div>
+  <h3>Shared decomposition for the integrand</h3>
+
+  <p>
+  Before the integration step, SKAT-O decomposes $\Phi/2$ into orthogonal components
+  that are shared across all $\rho$ values. This is done in
+  <code>SKAT_META_Optimal_Param</code> (ported at lines 1362&ndash;1429).
+  </p>
+</div>
+
+<section id="sec-z-decomp">
+<h3>6a. The Z Decomposition</h3>
+
+<p>
+The key idea is to separate $\Phi/2$ into a component aligned with $\mathbf{1}$ (the Burden direction)
+and an orthogonal component (the SKAT-specific variance):
+</p>
+
+<div class="math-block mat-block">
+  $$\mathbf{Z}_{\text{item1}} = (\Phi/2) \cdot \mathbf{1} \quad \text{(column sums vector, [m \times 1])}$$
+  $$\mathbf{ZMZ} = \frac{\mathbf{Z}_{\text{item1}}\, \mathbf{Z}_{\text{item1}}^\top}{\text{accu}(\Phi/2)} \quad \text{(projection onto Burden, [m \times m])}$$
+  $$\mathbf{W}_{3.2} = \Phi/2 - \mathbf{ZMZ} \quad \text{(orthogonal complement)}$$
+</div>
+
+<pre><span class="cm">// Lines 1366-1380: Z decomposition</span>
+<span class="ty">arma::vec</span> Z_item1_1 = Phi_half * ones_m;       <span class="cm">// column sums</span>
+<span class="kw">double</span> sum_Phi_half = arma::<span class="fn">accu</span>(Phi_half);
+<span class="ty">arma::mat</span> ZMZ = (Z_item1_1 * Z_item1_1.<span class="fn">t</span>()) / sum_Phi_half;
+<span class="ty">arma::mat</span> W3_2_t = Phi_half - ZMZ;</pre>
+
+<h4>Shared eigenvalues $\lambda_{\text{shared}}$</h4>
+<p>
+These come from eigendecomposing the orthogonal component $\mathbf{W}_{3.2}$ with R's
+<code>Get_Lambda</code> filter (lines 1388&ndash;1397):
+</p>
+<div class="math-block vec-block">
+  $$\lambda_{\text{shared}} = \text{filtered\_eig}(\mathbf{W}_{3.2})$$
+</div>
+
+<h4>Cross-term variance: W3.3.item</h4>
+<div class="math-block sca-block">
+  $$\text{W3.3.item} = 4 \cdot \text{accu}\!\left(\mathbf{ZMZ} \odot (\Phi/2 - \mathbf{ZMZ})\right)$$
+</div>
+<p>
+This captures the covariance between the Burden direction and the SKAT-specific variance
+(line 1400: <code>double W3_3_item = arma::accu(ZMZ % (Phi_half - ZMZ)) * 4.0</code>).
+</p>
+
+<h4>Derived shared quantities</h4>
+<table>
+  <tr><th>Parameter</th><th>Formula</th><th>Line</th></tr>
+  <tr>
+    <td><span class="sca">MuQ</span></td>
+    <td>$\sum \lambda_{\text{shared}}$</td>
+    <td>1416</td>
+  </tr>
+  <tr>
+    <td><span class="sca">VarQ</span></td>
+    <td>$2\sum \lambda_{\text{shared}}^2 + \text{W3.3.item}$</td>
+    <td>1419</td>
+  </tr>
+  <tr>
+    <td><span class="sca">z_mean_2</span></td>
+    <td>$\text{accu}(\Phi/2)\, / \, m^2$</td>
+    <td>1403</td>
+  </tr>
+  <tr>
+    <td><span class="sca">tau1</span></td>
+    <td>$\text{accu}((\Phi/2)^2)\, / \, (m^2 \cdot \text{z\_mean\_2})$</td>
+    <td>1409&ndash;1412</td>
+  </tr>
+  <tr>
+    <td><span class="vec">tau</span> (per-rho)</td>
+    <td>$\tau_k = m^2 \rho_k\, \text{z\_mean\_2} + \text{tau1}\,(1 - \rho_k)$</td>
+    <td>1428</td>
+  </tr>
+</table>
+
+<div class="insight">
+  <strong>Intuition:</strong> $\tau_k$ represents the expected contribution of the
+  chi-squared(1) mixing variable to $Q(\rho_k)$ under the null. The integration
+  in Step 7 conditions on this mixing variable, so $\tau_k$ scales the integrand's
+  threshold.
+</div>
+
+</section>
+</section>
+
+
+<!-- ============================================================
+     SECTION 7: STEP 5 - PER-RHO LIU PARAMS
+     ============================================================ -->
+<section id="sec-step5">
+<h2>7. Step 5 &mdash; Per-Rho Liu Parameters</h2>
+
+<div class="step-box">
+  <div class="step-number">5</div>
+  <h3>Liu moment-matching parameters for each &rho;</h3>
+
+  <p>
+  For each $\rho_k$, the per-rho eigenvalues $\lambda^{(\rho_k)}$ (computed in Step 2)
+  are used to fit Liu moment-matching parameters. These are <strong>different</strong>
+  from the shared parameters in Step 4, and are needed to map the minimum p-value back
+  to the Q-scale in Step 6.
+  </p>
+
+  <p>The function <code>liu_params()</code> (line 527) returns:</p>
+
+  <table>
+    <tr><th>Parameter</th><th>Formula</th><th>Purpose</th></tr>
+    <tr>
+      <td><span class="sca">muQ_k</span></td>
+      <td>$c_1^{(\rho_k)} = \sum_j \lambda_j^{(\rho_k)}$</td>
+      <td>Mean of $Q_{\text{null}}^{(\rho_k)}$</td>
+    </tr>
+    <tr>
+      <td><span class="sca">sigmaQ_k</span></td>
+      <td>$\sqrt{2\, c_2^{(\rho_k)}}$</td>
+      <td>Std dev of $Q_{\text{null}}^{(\rho_k)}$</td>
+    </tr>
+    <tr>
+      <td><span class="sca">l_k</span></td>
+      <td>From cumulant-matching (see Liu section)</td>
+      <td>Degrees of freedom for chi-squared approx</td>
+    </tr>
+    <tr>
+      <td><span class="sca">delta_k</span></td>
+      <td>From cumulant-matching</td>
+      <td>Noncentrality (often 0)</td>
+    </tr>
+  </table>
+
+  <pre><span class="cm">// Line 1500: Liu params from per-rho eigenvalues</span>
+liu_rho_vec[k] = <span class="fn">liu_params</span>(lambda_temp);</pre>
+
+  <div class="warning">
+    <strong>Critical distinction:</strong> The per-rho Liu parameters ($\mu_{Q,k}$, $\sigma_{Q,k}$, $\ell_k$)
+    are computed from the per-rho eigenvalues $\lambda^{(\rho_k)}$. The shared parameters
+    ($\text{MuQ}$, $\text{VarQ}$, $\lambda_{\text{shared}}$) are computed from $\mathbf{W}_{3.2}$'s
+    eigenvalues. Mixing these up is a common source of implementation bugs.
+  </div>
+</div>
+
+</section>
+
+
+<!-- ============================================================
+     SECTION 8: STEP 6 - PMIN AND PMIN_Q
+     ============================================================ -->
+<section id="sec-step6">
+<h2>8. Step 6 &mdash; Minimum P-Value and pmin_q Mapping</h2>
+
+<div class="step-box integration">
+  <div class="step-number">6</div>
+  <h3>Map pmin back to Q-scale for each &rho;</h3>
+
+  <p>
+  Find $p_{\min} = \min_k\, p_k$ across all $\rho$ values. Then, for each $\rho_k$,
+  compute the Q threshold <code>pmin_q[k]</code> that corresponds to $p_{\min}$ in
+  the null distribution at $\rho_k$. This is a three-step mapping:
+  </p>
+
+  <ol>
+    <li><strong>Inverse CDF (qchisq):</strong> Map $p_{\min}$ to the chi-squared scale using
+    the per-rho Liu df $\ell_k$:
+    <div class="math-block">
+      $$q_{\text{org}} = F^{-1}_{\chi^2(\ell_k)}(1 - p_{\min})$$
+    </div>
+    </li>
+    <li><strong>Unstandardize:</strong> Map from the chi-squared scale back to the Q-scale
+    using the per-rho parameters:
+    <div class="math-block">
+      $$\text{pmin\_q}_k = \frac{q_{\text{org}} - \ell_k}{\sqrt{2\ell_k}} \cdot \sigma_{Q,k} + \mu_{Q,k}$$
+    </div>
+    <p>where $\sigma_{Q,k}$ and $\mu_{Q,k}$ are the per-rho Liu standard deviation and mean
+    (note: $\sigma_{Q,k}^2 = \text{varQ}_k$ used in line 1538).</p>
+    </li>
+  </ol>
+
+  <pre><span class="cm">// Lines 1523-1546: pmin -> Q scale mapping</span>
+boost::math::<span class="ty">chi_squared</span> chi2_df(l_k);
+<span class="kw">double</span> q_org = boost::math::<span class="fn">quantile</span>(
+    boost::math::<span class="fn">complement</span>(chi2_df, pmin));
+<span class="kw">double</span> varQ_k = liu_rho_vec[k].sigmaQ * liu_rho_vec[k].sigmaQ;
+pmin_q(k) = (q_org - l_k) / std::<span class="fn">sqrt</span>(<span class="nu">2.0</span> * l_k)
+           * std::<span class="fn">sqrt</span>(varQ_k) + liu_rho_vec[k].muQ;</pre>
+
+  <div class="note">
+    <strong>Important:</strong> R uses <code>qchisq(1 - pmin, df = l)</code> with a
+    <em>central</em> chi-squared distribution (no noncentrality parameter), even when the
+    Liu fit found $\delta > 0$. The noncentrality is only used in the forward direction
+    (computing p-values). The inverse mapping deliberately uses the central quantile.
+    This is visible in the R source code and faithfully replicated here (line 1529).
+  </div>
+</div>
+
+</section>
+
+
+<!-- ============================================================
+     SECTION 9: STEP 7 - INTEGRATION
+     ============================================================ -->
+<section id="sec-step7">
+<h2>9. Step 7 &mdash; Integration (Adaptive Gauss-Kronrod)</h2>
+
+<div class="step-box integration">
+  <div class="step-number">7</div>
+  <h3>Compute P(T_SKATO > observed) via numerical integration</h3>
+
+  <p>
+  The SKAT-O p-value is computed as:
+  </p>
+
+  <div class="math-block">
+    $$p_{\text{SKAT-O}} = 1 - \int_0^{40} f(x)\, dx$$
+  </div>
+
+  <p>
+  where the integrand $f(x)$ combines the CDF of the null distribution
+  (evaluated at the minimum-over-rho threshold) with the $\chi^2(1)$ density
+  of the mixing variable.
+  </p>
+</div>
+
+
+<section id="sec-integrand">
+<h3>9a. The Integrand Function</h3>
+
+<p>
+For each quadrature point $x$ (representing a realization of the $\chi^2(1)$ mixing variable):
+</p>
+
+<div class="math-block">
+  $$f(x) = \underbrace{F_Q\!\left(\min_k \frac{\text{pmin\_q}_k - \tau_k \cdot x}{1 - \rho_k}\right)}_{\text{CDF of null Q distribution}} \;\times\; \underbrace{\phi_{\chi^2(1)}(x)}_{\text{mixing density}}$$
+</div>
+
+<p>The steps inside the integrand (lines 1580&ndash;1635):</p>
+
+<ol>
+  <li>Compute $\phi_{\chi^2(1)}(x)$ via <code>boost::math::pdf(chi2_1, x)</code></li>
+  <li>For each $\rho_k$, compute the adjusted threshold:
+    $$\text{temp}_k = \frac{\text{pmin\_q}_k - \tau_k \cdot x}{1 - \rho_k}$$
+  </li>
+  <li>Find $\text{temp\_min} = \min_k \text{temp}_k$</li>
+  <li>Early-out: if $\text{temp\_min} > \sum\lambda_{\text{shared}} \times 10^4$, return $\phi(x)$
+    (CDF is effectively 1)</li>
+  <li>Standardize using the shared parameters:
+    <div class="math-block">
+      $$\text{min1\_st} = (\text{temp\_min} - \text{MuQ}) \cdot \text{sd1} + \text{MuQ}$$
+    </div>
+    where $\text{sd1} = \sqrt{(\text{VarQ} - \text{VarRemain}) / \text{VarQ}}$ accounts for
+    the cross-term variance $\text{W3.3.item}$
+  </li>
+  <li>Compute $P(Q > \text{min1\_st} \mid \lambda_{\text{shared}})$ via <strong>one</strong> Davies call
+    with the shared eigenvalues</li>
+  <li>Return $(1 - \text{tail\_prob}) \times \phi_{\chi^2(1)}(x)$</li>
+</ol>
+
+<pre><span class="cm">// Lines 1596-1600: min threshold across rhos</span>
+<span class="kw">double</span> temp_min = std::numeric_limits&lt;<span class="kw">double</span>&gt;::<span class="fn">infinity</span>();
+<span class="kw">for</span> (<span class="kw">int</span> k = <span class="nu">0</span>; k &lt; n_rho; k++) {
+    <span class="kw">double</span> val = (pmin_q(k) - tau(k) * x) / (<span class="nu">1.0</span> - rho_capped(k));
+    <span class="kw">if</span> (val &lt; temp_min) temp_min = val;
+}
+
+<span class="cm">// Lines 1611-1613: standardize</span>
+<span class="kw">double</span> min1_st = (temp_min - MuQ) * sd1 + MuQ;
+
+<span class="cm">// Lines 1618-1619: ONE Davies call with shared lambda</span>
+<span class="kw">double</span> tail_prob = <span class="fn">davies_pvalue</span>(min1_st, lambda_shared);</pre>
+
+<div class="insight">
+  <strong>Efficiency:</strong> The integrand calls Davies with the <em>shared</em> eigenvalues
+  (from $\mathbf{W}_{3.2}$), not the per-rho eigenvalues. This is the key computational
+  optimization in the R SKAT package &mdash; the eigendecomposition is shared, and only
+  the threshold changes with $x$ and $\rho$.
+</div>
+</section>
+
+
+<section id="sec-quadpack">
+<h3>9b. QUADPACK rdqagse (Adaptive Gauss-Kronrod)</h3>
+
+<p>
+The integration uses a faithful C++ port of R's <code>integrate()</code> function, which
+internally calls QUADPACK's <code>dqags</code> algorithm. The implementation spans
+lines 637&ndash;1298 in <code>skat.cpp</code> (namespace <code>gauss_kronrod</code>).
+</p>
+
+<table>
+  <tr><th>Component</th><th>C++ Function</th><th>Lines</th><th>Description</th></tr>
+  <tr>
+    <td>Quadrature rule</td>
+    <td><code>qk21()</code></td>
+    <td>706&ndash;773</td>
+    <td>21-point Gauss-Kronrod rule with embedded 10-point Gauss for error estimation</td>
+  </tr>
+  <tr>
+    <td>Error sorting</td>
+    <td><code>qpsrt()</code></td>
+    <td>782&ndash;841</td>
+    <td>Maintain descending order of subinterval error estimates</td>
+  </tr>
+  <tr>
+    <td>Extrapolation</td>
+    <td><code>qelg()</code></td>
+    <td>859&ndash;976</td>
+    <td>Wynn epsilon-algorithm for convergence acceleration</td>
+  </tr>
+  <tr>
+    <td>Main integrator</td>
+    <td><code>integrate()</code></td>
+    <td>986&ndash;1296</td>
+    <td>Adaptive subdivision with extrapolation (rdqagse)</td>
+  </tr>
+</table>
+
+<p>The integration is called with R's exact parameters (lines 1639&ndash;1645):</p>
+<pre>gauss_kronrod::<span class="fn">integrate</span>(
+    integrand_func,
+    <span class="nu">0.0</span>, <span class="nu">40.0</span>,          <span class="cm">// integration limits</span>
+    <span class="nu">1.220703e-4</span>,       <span class="cm">// rel_tol = .Machine$double.eps^0.25</span>
+    <span class="nu">1e-25</span>,             <span class="cm">// abs_tol = 10^-25</span>
+    <span class="nu">1000</span>               <span class="cm">// subdivisions</span>
+);</pre>
+
+<div class="note">
+  <strong>Upper limit = 40:</strong> The integral runs from 0 to 40 because the
+  $\chi^2(1)$ density is essentially zero beyond $x = 40$ ($P(\chi^2(1) > 40) \approx 2.5 \times 10^{-10}$).
+</div>
+
+</section>
+
+
+<section id="sec-liu-fallback">
+<h3>9c. Liu Fallback Integration Path</h3>
+
+<p>
+If any Davies call inside the integrand fails (lines 1620&ndash;1622 set
+<code>davies_failed_in_integrand = true</code>), the entire integration is redone
+with a Liu-based integrand (lines 1657&ndash;1717). The Liu fallback differs in two ways:
+</p>
+
+<ol>
+  <li><strong>No sd1 standardization:</strong> Uses $\text{temp\_min}$ directly instead of
+  $\text{min1\_st}$ (line 1690)</li>
+  <li><strong>Central chi-squared CDF:</strong> Instead of Davies, uses
+  <div class="math-block">
+    $$\text{temp\_q} = \frac{\text{temp\_min} - \text{MuQ}}{\sqrt{\text{VarQ}}} \cdot \sqrt{2\,D_f} + D_f$$
+  </div>
+  where $D_f = (\sum\lambda_{\text{shared}}^2)^2 / \sum\lambda_{\text{shared}}^4$ is the Pearson-type
+  degrees of freedom (line 1662).
+  Then: $\text{CDF} = P(\chi^2(D_f) \leq \text{temp\_q})$.
+  </li>
+</ol>
+
+<pre><span class="cm">// Lines 1660-1662: Pearson df for Liu fallback</span>
+<span class="kw">double</span> sum_lam2 = arma::<span class="fn">sum</span>(lambda_shared % lambda_shared);
+<span class="kw">double</span> sum_lam4 = arma::<span class="fn">sum</span>(lambda_shared % lambda_shared
+                           % lambda_shared % lambda_shared);
+<span class="kw">double</span> Df_shared = sum_lam2 * sum_lam2 / sum_lam4;</pre>
+
+</section>
+
+</section>
+
+
+<!-- ============================================================
+     SECTION 10: STEP 8 - FINAL SAFEGUARDS
+     ============================================================ -->
+<section id="sec-step8">
+<h2>10. Step 8 &mdash; Final P-Value with Safeguards</h2>
+
+<div class="step-box safeguard">
+  <div class="step-number">8</div>
+  <h3>Multi-correction and bounds</h3>
+
+  <p>
+  After integration, the raw SKAT-O p-value undergoes several corrections
+  (lines 1720&ndash;1763):
+  </p>
+</div>
+
+<h4>10a. Convert integral to p-value</h4>
+<div class="math-block">
+  $$p_{\text{SKAT-O}} = 1 - \int_0^{40} f(x)\, dx$$
+</div>
+
+<h4>10b. Bonferroni bound</h4>
+<p>Ensure $p_{\text{SKAT-O}} \leq p_{\min} \times n_\rho$ (line 1724&ndash;1727):</p>
+<pre><span class="kw">double</span> bonf = pmin * (<span class="kw">double</span>)n_rho;
+<span class="kw">if</span> (bonf &lt; p_skato) p_skato = bonf;</pre>
+
+<h4>10c. Multi correction</h4>
+<p>
+From <code>SKAT_META_Optimal_Get_Pvalue</code> (lines 1736&ndash;1746):
+</p>
+<div class="math-block">
+  $$\text{multi} = \begin{cases} 2 & \text{if } n_\rho < 3 \\ 3 & \text{otherwise} \end{cases}$$
+  $$\text{pval1} = p_{\min} \times \text{multi}$$
+</div>
+<p>
+If $p_{\text{SKAT-O}} \leq 0$ or any per-rho p-value is $\leq 0$, replace with
+$\text{pval1}$ (line 1744).
+</p>
+
+<h4>10d. Zero p-value rescue</h4>
+<p>
+If $p_{\text{SKAT-O}} = 0$, use the minimum of positive per-rho p-values
+(lines 1748&ndash;1759).
+</p>
+
+<h4>10e. Rank-1 Phi guard</h4>
+<p>
+Before entering the SKAT-O pipeline, if $m \leq 10$ and $\text{rank}(\Phi) \leq 1$,
+the algorithm forces pure SKAT ($\rho = 0$), skipping the integration entirely
+(lines 1878&ndash;1888). This matches R's guard: <code>if (qr(Phi)$rank <= 1) r.corr = 0</code>.
+</p>
+
+
+</section>
+
+
+<!-- ============================================================
+     SECTION 11: ERROR AMPLIFICATION
+     ============================================================ -->
+<section id="sec-amplification">
+<h2>11. Floating-Point Amplification Chain</h2>
+
+<p>
+Small numerical differences in $\Phi$ (e.g., from SPA adjustment for binary traits)
+get amplified through the SKAT-O pipeline, leading to the ~5&ndash;8.5% relative
+discrepancy observed in validation. Understanding this chain explains why SKAT-O
+is inherently sensitive to tiny input perturbations.
+</p>
+
+<h3>The amplification pipeline</h3>
+
+<div class="amp-chain">
+  <div class="amp-stage">
+    <div class="label">Input</div>
+    <div class="value">Phi perturbation<br>~5.6e-05</div>
+  </div>
+  <span class="amp-arrow">&rarr;</span>
+  <div class="amp-stage">
+    <div class="label">Eigenvalues</div>
+    <div class="value">lambda shift<br>~1e-04</div>
+  </div>
+  <span class="amp-arrow">&rarr;</span>
+  <div class="amp-stage">
+    <div class="label">Liu params</div>
+    <div class="value">l_k shift<br>~2e-03</div>
+  </div>
+  <span class="amp-arrow">&rarr;</span>
+  <div class="amp-stage">
+    <div class="label">qchisq^{-1}</div>
+    <div class="value">q_org shift<br>3-10x amplify</div>
+  </div>
+  <span class="amp-arrow">&rarr;</span>
+  <div class="amp-stage">
+    <div class="label">1/(1-rho)</div>
+    <div class="value">division<br>5-1000x amplify</div>
+  </div>
+  <span class="amp-arrow">&rarr;</span>
+  <div class="amp-stage">
+    <div class="label">Integration</div>
+    <div class="value">numerical error<br>~1e-4 rel_tol</div>
+  </div>
+  <span class="amp-arrow">&rarr;</span>
+  <div class="amp-stage">
+    <div class="label">1 - integral</div>
+    <div class="value">p_SKATO<br>~5-8% error</div>
+  </div>
+</div>
+
+<h4>Stage-by-stage analysis</h4>
+
+<table>
+  <tr>
+    <th>Stage</th>
+    <th>Operation</th>
+    <th>Amplification Factor</th>
+    <th>Why</th>
+  </tr>
+  <tr>
+    <td>1. Burden variance</td>
+    <td>$\text{accu}(\Phi)$</td>
+    <td>1x (additive)</td>
+    <td>Sum of $m^2$ elements: absolute error $\sim m^2 \times 5.6 \times 10^{-5}$</td>
+  </tr>
+  <tr>
+    <td>2. Eigendecomposition</td>
+    <td>$\text{eig\_sym}(\Phi_\rho)$</td>
+    <td>~2x</td>
+    <td>Eigenvalues of perturbed matrix shift proportionally</td>
+  </tr>
+  <tr>
+    <td>3. qchisq inverse</td>
+    <td>$F^{-1}_{\chi^2(\ell)}(1 - p_{\min})$</td>
+    <td><strong>3&ndash;10x</strong></td>
+    <td>$q_{\text{org}}$ depends on $\ell_k$; inverse CDF is steep in the tails</td>
+  </tr>
+  <tr>
+    <td>4. $1/(1-\rho)$ division</td>
+    <td>$\text{temp}_k = \frac{\text{pmin\_q}_k - \tau_k x}{1 - \rho_k}$</td>
+    <td><strong>5&ndash;1000x</strong></td>
+    <td>For $\rho = 0.81$: divides by 0.19. For $\rho = 0.999$: divides by 0.001</td>
+  </tr>
+  <tr>
+    <td>5. min over rhos</td>
+    <td>$\min_k \text{temp}_k$</td>
+    <td>varies</td>
+    <td>Which $\rho$ achieves the min can change with small perturbations</td>
+  </tr>
+  <tr>
+    <td>6. Integration</td>
+    <td>Gauss-Kronrod quadrature</td>
+    <td>~1x</td>
+    <td>Adaptive with rel_tol = $1.22 \times 10^{-4}$</td>
+  </tr>
+  <tr>
+    <td>7. Subtraction</td>
+    <td>$1 - \int f(x)\,dx$</td>
+    <td><strong>catastrophic</strong></td>
+    <td>When integral $\approx 1$, subtracting gives large relative error</td>
+  </tr>
+</table>
+
+<div class="warning">
+  <strong>Total amplification:</strong> End-to-end, a $5.6 \times 10^{-5}$ perturbation in
+  $\Phi$ can produce a ~5&ndash;8.5% change in $p_{\text{SKAT-O}}$. This is intrinsic
+  to the algorithm's design: the SKAT-O correction integrates over a steeply varying function
+  near the tail boundary. The Liu moment-matching approximation (used in the qchisq inverse step)
+  introduces the largest controllable error, but replacing it with exact Davies quantile inversion
+  was found to be 13x slower for only 0.5% improvement (see CLAUDE.md validation notes).
+</div>
+
+</section>
+
+
+<!-- ============================================================
+     SECTION 12: FUNCTION REFERENCE TABLE
+     ============================================================ -->
+<section id="sec-functions">
+<h2>12. Key Functions Reference</h2>
+
+<p>
+Complete mapping from algorithm steps to C++ function names and line numbers in
+<code>skat.cpp</code> (1978 lines total).
+</p>
+
+<table>
+  <tr>
+    <th>Algorithm Step</th>
+    <th>C++ Function</th>
+    <th>Lines</th>
+    <th>R Equivalent</th>
+  </tr>
+  <tr>
+    <td>Main entry point</td>
+    <td><code>get_SKAT_pvalue()</code></td>
+    <td>1781&ndash;1977</td>
+    <td><code>SAIGE::get_SKAT_pvalue()</code></td>
+  </tr>
+  <tr>
+    <td>SKAT-O optimal p-value</td>
+    <td><code>SKATO_optimal_pvalue()</code></td>
+    <td>1317&ndash;1766</td>
+    <td><code>SKAT:::SKAT_Optimal_PValue_Davies</code></td>
+  </tr>
+  <tr>
+    <td>Davies P(Q > q)</td>
+    <td><code>davies_pvalue()</code></td>
+    <td>387&ndash;439</td>
+    <td><code>SKAT:::Get_Davies_PVal</code></td>
+  </tr>
+  <tr>
+    <td>qfc (AS 155 core)</td>
+    <td><code>qfc_impl::qfc()</code></td>
+    <td>263&ndash;379</td>
+    <td><code>CompQuadForm::davies</code></td>
+  </tr>
+  <tr>
+    <td>Liu moment-matching p-value</td>
+    <td><code>liu_pvalue()</code></td>
+    <td>456&ndash;512</td>
+    <td><code>SKAT:::SKAT_liu.MOD.Lambda</code></td>
+  </tr>
+  <tr>
+    <td>Liu params (internal)</td>
+    <td><code>liu_params()</code></td>
+    <td>527&ndash;564</td>
+    <td><code>SKAT:::Get_Liu_Params_Mod</code></td>
+  </tr>
+  <tr>
+    <td>Per-rho eigenvalues</td>
+    <td><code>compute_phi_rho_eigenvalues()</code></td>
+    <td>589&ndash;625</td>
+    <td><code>SKAT:::Get_Lambda</code> (with Cholesky)</td>
+  </tr>
+  <tr>
+    <td>Eigenvalue filter (R match)</td>
+    <td><code>filter_eigenvalues_R()</code></td>
+    <td>579&ndash;587</td>
+    <td><code>SKAT:::Get_Lambda</code> filter logic</td>
+  </tr>
+  <tr>
+    <td>Shared Z decomposition</td>
+    <td>(inline in <code>SKATO_optimal_pvalue</code>)</td>
+    <td>1362&ndash;1429</td>
+    <td><code>SKAT:::SKAT_META_Optimal_Param</code></td>
+  </tr>
+  <tr>
+    <td>pmin &rarr; Q mapping</td>
+    <td>(inline in <code>SKATO_optimal_pvalue</code>)</td>
+    <td>1522&ndash;1546</td>
+    <td><code>SKAT:::SKAT_Optimal_Each_Q</code> (partial)</td>
+  </tr>
+  <tr>
+    <td>Davies integrand</td>
+    <td><code>integrand_func</code> (lambda)</td>
+    <td>1580&ndash;1635</td>
+    <td><code>SKAT:::SKAT_Optimal_Integrate_Func_Davies</code></td>
+  </tr>
+  <tr>
+    <td>Liu fallback integrand</td>
+    <td><code>liu_integrand_func</code> (lambda)</td>
+    <td>1664&ndash;1708</td>
+    <td><code>SKAT:::SKAT_Optimal_Integrate_Func</code></td>
+  </tr>
+  <tr>
+    <td>21-pt Gauss-Kronrod rule</td>
+    <td><code>gauss_kronrod::qk21()</code></td>
+    <td>706&ndash;773</td>
+    <td>R's <code>rdqk21</code> (QUADPACK)</td>
+  </tr>
+  <tr>
+    <td>Error sorting</td>
+    <td><code>gauss_kronrod::qpsrt()</code></td>
+    <td>782&ndash;841</td>
+    <td>R's <code>rdqpsrt</code> (QUADPACK)</td>
+  </tr>
+  <tr>
+    <td>Epsilon extrapolation</td>
+    <td><code>gauss_kronrod::qelg()</code></td>
+    <td>859&ndash;976</td>
+    <td>R's <code>rdqelg</code> (Wynn epsilon)</td>
+  </tr>
+  <tr>
+    <td>Adaptive integrator</td>
+    <td><code>gauss_kronrod::integrate()</code></td>
+    <td>986&ndash;1296</td>
+    <td>R's <code>rdqagse</code> (<code>integrate()</code>)</td>
+  </tr>
+  <tr>
+    <td>Burden test</td>
+    <td>(inline in <code>get_SKAT_pvalue</code>)</td>
+    <td>1832&ndash;1847</td>
+    <td>$Q_B / \text{accu}(\Phi) \sim \chi^2(1)$</td>
+  </tr>
+  <tr>
+    <td>SKAT test</td>
+    <td>(inline in <code>get_SKAT_pvalue</code>)</td>
+    <td>1810&ndash;1826</td>
+    <td>Davies on eigenvalues of $\Phi$</td>
+  </tr>
+  <tr>
+    <td>Burden effect size</td>
+    <td>(inline in <code>get_SKAT_pvalue</code>)</td>
+    <td>1796&ndash;1803</td>
+    <td>$\hat\beta = \sum S / \text{tr}(\Phi)$</td>
+  </tr>
+  <tr>
+    <td>Burden SE</td>
+    <td>(inline in <code>get_SKAT_pvalue</code>)</td>
+    <td>1853&ndash;1864</td>
+    <td>$\text{SE} = |\hat\beta / \Phi^{-1}(p/2)|$</td>
+  </tr>
+  <tr>
+    <td>qfc helper: findu</td>
+    <td><code>qfc_impl::findu()</code></td>
+    <td>184&ndash;206</td>
+    <td>Find truncation point</td>
+  </tr>
+  <tr>
+    <td>qfc helper: do_integrate</td>
+    <td><code>qfc_impl::do_integrate()</code></td>
+    <td>208&ndash;230</td>
+    <td>Trapezoidal integration of char. function</td>
+  </tr>
+  <tr>
+    <td>qfc helper: errbd</td>
+    <td><code>qfc_impl::errbd()</code></td>
+    <td>112&ndash;127</td>
+    <td>Compute error bound for truncation</td>
+  </tr>
+  <tr>
+    <td>qfc helper: ctff</td>
+    <td><code>qfc_impl::ctff()</code></td>
+    <td>129&ndash;150</td>
+    <td>Find cutoff for distribution range</td>
+  </tr>
+</table>
+
+<h3>Output struct</h3>
+
+<pre><span class="kw">struct</span> <span class="ty">SKATResult</span> {
+    <span class="kw">double</span> pvalue_SKATO;    <span class="cm">// SKAT-O p-value (optimal rho)</span>
+    <span class="kw">double</span> pvalue_Burden;   <span class="cm">// Burden test p-value (rho=1)</span>
+    <span class="kw">double</span> pvalue_SKAT;     <span class="cm">// SKAT test p-value (rho=0)</span>
+    <span class="kw">double</span> beta_Burden;     <span class="cm">// Burden effect size estimate</span>
+    <span class="kw">double</span> se_Burden;       <span class="cm">// Burden standard error</span>
+};</pre>
+
+</section>
+
+
+<!-- ============================================================
+     FOOTER
+     ============================================================ -->
+<div style="margin-top: 60px; padding-top: 20px; border-top: 2px solid var(--color-border); color: #999; font-size: 13px;">
+  <p>
+    Generated from <code>skat.cpp</code> (1978 lines) in the SAIGE Step 2 standalone C++ codebase.<br>
+    Source: <code>/Users/francis/Desktop/Zhou_lab/SAIGE_gene_pixi/Step_2_Feb_11/code_copy/cpp_standalone/skat.cpp</code><br>
+    References: Lee S, et al. (2012). "Optimal unified approach for rare-variant association testing
+    with application to small-sample case-control whole-exome sequencing studies." AJHG 91(2):224-237.
+    Davies RB (1980). "Algorithm AS 155." Applied Statistics 29:323-333.
+  </p>
+</div>
+
+</div><!-- end #content -->
+
+<!-- ============================================================
+     SIDEBAR ACTIVE LINK TRACKING
+     ============================================================ -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const sections = document.querySelectorAll('section[id]');
+  const navLinks = document.querySelectorAll('#sidebar nav a');
+
+  function updateActive() {
+    let current = '';
+    sections.forEach(section => {
+      const rect = section.getBoundingClientRect();
+      if (rect.top <= 80) current = section.id;
+    });
+    navLinks.forEach(link => {
+      link.classList.remove('active');
+      if (link.getAttribute('href') === '#' + current) {
+        link.classList.add('active');
+      }
+    });
+  }
+
+  window.addEventListener('scroll', updateActive);
+  updateActive();
+});
+</script>
+
+</body>
+</html>

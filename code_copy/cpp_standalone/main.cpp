@@ -1127,6 +1127,7 @@ bool openOutfile(std::string t_traitType, bool isappend) {
         OutFile.open(g_outputFilePrefixGroup.c_str());
         isopen = OutFile.is_open();
         if (isopen) {
+            OutFile << std::setprecision(15);
             OutFile << "Region\tGroup\tmax_MAF\tPvalue_Burden\tBETA_Burden\tSE_Burden\t";
             if (ptr_gSAIGEobj->m_isCondition) {
                 OutFile << "Pvalue_Burden_c\tBeta_Burden_c\tseBeta_Burden_c\t";
@@ -1143,6 +1144,9 @@ bool openOutfile(std::string t_traitType, bool isappend) {
     } else {
         OutFile.open(g_outputFilePrefixGroup.c_str(), std::ofstream::out | std::ofstream::app);
         isopen = OutFile.is_open();
+        if (isopen) {
+            OutFile << std::setprecision(15);
+        }
     }
     return isopen;
 }
@@ -1158,6 +1162,7 @@ bool openOutfile_SKATO(std::string t_traitType, bool isappend) {
         OutFile.open(g_outputFilePrefixGroup.c_str());
         isopen = OutFile.is_open();
         if (isopen) {
+            OutFile << std::setprecision(15);
             OutFile << "Region\tGroup\tmax_MAF\tPvalue\tPvalue_Burden\tPvalue_SKAT\tBETA_Burden\tSE_Burden\t";
             if (ptr_gSAIGEobj->m_isCondition) {
                 OutFile << "Pvalue_cond\tPvalue_Burden_cond\tPvalue_SKAT_cond\tBETA_Burden_cond\tSE_Burden_cond\t";
@@ -1174,6 +1179,9 @@ bool openOutfile_SKATO(std::string t_traitType, bool isappend) {
     } else {
         OutFile.open(g_outputFilePrefixGroup.c_str(), std::ofstream::out | std::ofstream::app);
         isopen = OutFile.is_open();
+        if (isopen) {
+            OutFile << std::setprecision(15);
+        }
     }
     return isopen;
 }
