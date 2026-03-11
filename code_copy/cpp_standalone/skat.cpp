@@ -1766,7 +1766,7 @@ double SKATO_optimal_pvalue(const arma::vec& Score,
             0.0, 40.0,
             1.220703e-4,
             1e-25,
-            1000
+            2000          // R's SKAT_Optimal_PValue_Liu uses subdivisions=2000
         );
     }
 
